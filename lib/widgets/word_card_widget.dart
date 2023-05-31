@@ -1,5 +1,14 @@
 import 'package:flutter/material.dart';
 
+enum Sequence {
+  appear,
+  question,
+  showing,
+  answer,
+  disappear,
+  hidden,
+}
+
 class WordCard extends StatefulWidget {
   WordCard({Key? key, required this.word, required this.example, required this.isQuestion, required this.isOddTHCard,})
       : super(key: key);
@@ -14,6 +23,8 @@ class WordCard extends StatefulWidget {
   late void Function() reset;
   late void Function() resetCenter;
 
+  late Sequence sequence;
+
   @override
   State<WordCard> createState() => _WordCardState();
 }
@@ -27,16 +38,14 @@ class _WordCardState extends State<WordCard>
   late double opacity;
 
   // Some variables being responsible for animations
-  late AnimationController controller;
-  late Animation<double> animation;
-  late Animation<double> animation1;
-  late Animation<double> animation2;
-  late Animation<double> animation3;
-  late Animation<double> animation4;
+  late AnimationController controller1;
+  late AnimationController controller2;
+  late AnimationController controller3;
+  late AnimationController controller4;
 
   // Values for animation
   final int showingAnimDuration = 1000; // maybe configurable
-  final int transitionalAnimDuration = 1000; // maybe configurable
+  final int transitionalAnimDuration = 500; // maybe configurable
   final Curve curveType = Curves.easeOutExpo; // maybe configurable
 
   @override
@@ -60,27 +69,64 @@ class _WordCardState extends State<WordCard>
 
   // Animation once called
   void animAppear() {
-    if(!widget.isQuestion) return;
+    if(widget.sequence != Sequence.hidden) return;
 
-    controller = AnimationController(
+    if(!widget.isQuestion) {
+      widget.sequence = Sequence.question;
+      return;
+    }
+
+    // somehow i have to do this
+    if(opacity != 1) {
+      opacity = 1;
+      margins = [10, 10, 0, 0];
+      transformOffset = const Offset(1000, 0);
+      scaleFactor = 1;
+      setState(() {});
+    }
+
+    late Animation<double> animation;
+
+    controller1 = AnimationController(
         vsync: this, duration: Duration(milliseconds: transitionalAnimDuration));
     final Animation<double> curve =
-        CurvedAnimation(parent: controller, curve: curveType);
+        CurvedAnimation(parent: controller1, curve: curveType);
     animation = Tween<double>(begin: 1000, end: 0).animate(curve);
 
     animation.addListener(() {
       transformOffset = Offset(0, animation.value);
       setState(() {});
     });
-    controller.forward();
+
+    animation.addStatusListener((status) {
+      if(animation.isCompleted) {
+        widget.sequence = Sequence.question;
+      }
+    });
+
+    controller1.forward();
   }
 
   // Animation for question-card
   void animSmall() {
-    controller = AnimationController(
+    if(widget.sequence != Sequence.showing) return;
+
+    late Animation<double> animation;
+    late Animation<double> animation1;
+    late Animation<double> animation2;
+    late Animation<double> animation3;
+    late Animation<double> animation4;
+
+    // somehow i have to do this
+    if(opacity != 1) {
+      opacity = 1;
+      setState(() {});
+    }
+
+    controller2 = AnimationController(
         vsync: this, duration: Duration(milliseconds: showingAnimDuration));
     final Animation<double> curve =
-        CurvedAnimation(parent: controller, curve: curveType);
+        CurvedAnimation(parent: controller2, curve: curveType);
     animation = Tween<double>(begin: 10, end: 100).animate(curve); // scale side
     animation1 = Tween<double>(begin: 10, end: 170).animate(curve); // scale up, down
     animation2 = Tween<double>(begin: 1, end: 0.7).animate(curve); // scale
@@ -99,15 +145,36 @@ class _WordCardState extends State<WordCard>
       transformOffset = Offset(animation3.value, animation4.value);
       setState(() {});
     });
-    controller.forward();
+
+    animation.addStatusListener((status) {
+      if(animation.isCompleted) {
+        widget.sequence = Sequence.answer;
+      }
+    });
+
+    controller2.forward();
   }
 
   // Animation for answer-card
   void animMedium() {
-    controller = AnimationController(
+    if(widget.sequence != Sequence.showing) return;
+
+    late Animation<double> animation;
+    late Animation<double> animation1;
+    late Animation<double> animation2;
+    late Animation<double> animation3;
+    late Animation<double> animation4;
+
+    // somehow i have to do this
+    if(opacity != 1) {
+      opacity = 1;
+      setState(() {});
+    }
+
+    controller3 = AnimationController(
         vsync: this, duration: Duration(milliseconds: showingAnimDuration));
     final Animation<double> curve =
-        CurvedAnimation(parent: controller, curve: curveType);
+        CurvedAnimation(parent: controller3, curve: curveType);
     animation = Tween<double>(begin: 10, end: 25).animate(curve); // scale side
     animation1 =
         Tween<double>(begin: 10, end: 50).animate(curve); // scale up,down
@@ -128,15 +195,26 @@ class _WordCardState extends State<WordCard>
 
       setState(() {});
     });
-    controller.forward();
+
+    animation.addStatusListener((status) {
+      if(animation.isCompleted) {
+        widget.sequence = Sequence.answer;
+      }
+    });
+
+    controller3.forward();
   }
 
   // Animation for disposal
   void animDisappear() {
-    controller = AnimationController(
+    if(widget.sequence != Sequence.disappear) return;
+
+    late Animation<double> animation;
+
+    controller4 = AnimationController(
         vsync: this, duration: Duration(milliseconds: transitionalAnimDuration));
     final Animation<double> curve =
-    CurvedAnimation(parent: controller, curve: curveType);
+    CurvedAnimation(parent: controller4, curve: curveType);
 
     // Animation setup
     animation = Tween<double>(begin: 1, end: 0).animate(curve);
@@ -145,7 +223,13 @@ class _WordCardState extends State<WordCard>
       opacity = animation.value;
       setState(() {});
     });
-    controller.forward();
+    animation.addStatusListener((status) {
+      if(animation.isCompleted) {
+        widget.sequence = Sequence.hidden;
+      }
+    });
+
+    controller4.forward();
   }
 
   // Set state into default value, so that it places under main widget
@@ -171,7 +255,10 @@ class _WordCardState extends State<WordCard>
   @override
   void dispose() {
     super.dispose();
-    controller.dispose();
+    controller1.dispose();
+    controller2.dispose();
+    controller3.dispose();
+    controller4.dispose();
   }
 
   @override

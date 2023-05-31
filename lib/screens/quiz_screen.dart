@@ -42,8 +42,6 @@ class _QuizScreenState extends State<QuizScreen> {
   // Timer
   late Timer transitionTimer;
   late Timer disposalTimer;
-  late Timer showingTimer;
-  final int timerScale = 300;
 
   // Runs when user gives enter
   void onSummit(String text) {
@@ -71,24 +69,18 @@ class _QuizScreenState extends State<QuizScreen> {
   /*
   *   Transition : Appearance of cards from bottom to top
    */
-  // Timer variables
-  bool isTransitionRunning = false;
-  int transitionTime = 0;
-
   // Body of transition timer
   void onTransitionTick(Timer transitionTimer) {
-    if (transitionTime == timerScale) {
+    if (isOddTHCard
+        ? questionCard.sequence == Sequence.appear
+        : questionCard2.sequence == Sequence.appear) {
       setState(() {
         // answer card should be placed here
         isOddTHCard ? answerCard.resetCenter() : answerCard2.resetCenter();
         transitionTimer.cancel();
-        isTransitionRunning = false;
-        transitionTime = 0;
       });
     } else {
-      setState(() {
-        transitionTime++;
-      });
+      setState(() {});
     }
   }
 
@@ -98,32 +90,23 @@ class _QuizScreenState extends State<QuizScreen> {
       const Duration(milliseconds: 1),
       onTransitionTick,
     );
-    setState(() {
-      isTransitionRunning = true;
-    });
+    setState(() {});
   }
 
   /*
   *   Disposal : Resetting previous cards into initial state
    */
-  // Timer variables
-  bool isDisposalRunning = false;
-  int disposalTime = 0;
-
   // Body of disposal timer
   void onDisposalTick(Timer disposalTimer) {
-    if (disposalTime == timerScale) {
+    if (isOddTHCard
+        ? questionCard2.sequence == Sequence.hidden
+        : questionCard.sequence == Sequence.hidden) {
       setState(() {
         // answer card should be placed here
         isOddTHCard ? answerCard2.reset() : answerCard.reset();
         isOddTHCard ? questionCard2.reset() : questionCard.reset();
+
         disposalTimer.cancel();
-        isDisposalRunning = false;
-        disposalTime = 0;
-      });
-    } else {
-      setState(() {
-        disposalTime++;
       });
     }
   }
@@ -134,63 +117,33 @@ class _QuizScreenState extends State<QuizScreen> {
       const Duration(milliseconds: 1),
       onDisposalTick,
     );
-    setState(() {
-      isDisposalRunning = true;
-    });
-  }
-
-  /*
-  *   Showing : Delay to answer showed
-   */
-  // Timer variables
-  bool isShowingRunning = false;
-  int showingTime = 0;
-
-  // Body of showing timer
-  void onShowingTick(Timer showingTimer) {
-    if (showingTime == timerScale) {
-      setState(() {
-        showingTimer.cancel();
-        isShowingRunning = false;
-        showingTime = 0;
-      });
-    } else {
-      setState(() {
-        showingTime++;
-      });
-    }
-  }
-
-  // Trigger of showing timer
-  void onShowingStarted() {
-    showingTimer = Timer.periodic(
-      const Duration(milliseconds: 1),
-      onShowingTick,
-    );
-    setState(() {
-      isShowingRunning = true;
-    });
   }
 
   // Show correct answer by animating cards sidewards
   void showAnswer() {
-    if(isShowingRunning) {
-      return;
+    late bool trigger;
+    if (isOddTHCard) {
+      trigger = questionCard.sequence != Sequence.question &&
+          answerCard.sequence != Sequence.question;
+    } else {
+      trigger = questionCard2.sequence != Sequence.question &&
+          answerCard2.sequence != Sequence.question;
     }
-    else if(isShowingAnswer) {
-      return;
-    }
-    else if(isTransitionRunning) {
+    if (trigger) {
       return;
     }
 
-    onShowingStarted();
     isShowingAnswer = true;
-    if(isOddTHCard) {
+    if (isOddTHCard) {
+      questionCard.sequence = Sequence.showing;
+      answerCard.sequence = Sequence.showing;
+
       questionCard.animSmall();
       answerCard.animMedium();
-    }
-    else {
+    } else {
+      questionCard2.sequence = Sequence.showing;
+      answerCard2.sequence = Sequence.showing;
+
       questionCard2.animSmall();
       answerCard2.animMedium();
     }
@@ -199,32 +152,44 @@ class _QuizScreenState extends State<QuizScreen> {
   /* Show next cards by disposing (making invisible)
   *  previous cards and making next card appeared */
   void showNext() {
-    if(isTransitionRunning) {
-      return;
-    } else if(isDisposalRunning) {
-      return;
-    } else if(isShowingRunning) {
-      return;
-    } else if(!isShowingAnswer) {
+    late bool trigger;
+    Sequence requiredSequence = Sequence.answer;
+    if (isOddTHCard) {
+      trigger = questionCard.sequence != requiredSequence &&
+          answerCard.sequence != requiredSequence;
+    } else {
+      trigger = questionCard2.sequence != requiredSequence &&
+          answerCard2.sequence != requiredSequence;
+    }
+    if (trigger) {
       return;
     }
 
     onDisposalStarted();
-    if(isOddTHCard) {
+    if (isOddTHCard) {
+      questionCard.sequence = Sequence.disappear;
+      answerCard.sequence = Sequence.disappear;
+
       questionCard.animDisappear();
       answerCard.animDisappear();
       questionCard2.animAppear();
-      onTransitionStarted();
-    }
-    else {
+      onTransitionStarted(); // Transition for behind card
+    } else {
+      questionCard2.sequence = Sequence.disappear;
+      answerCard2.sequence = Sequence.disappear;
+
       questionCard2.animDisappear();
       answerCard2.animDisappear();
       questionCard.animAppear();
-      onTransitionStarted();
+      onTransitionStarted(); // Transition for behind card
     }
     isOddTHCard = !isOddTHCard;
     isShowingAnswer = false;
     setState(() {});
+  }
+
+  void generateNewWord() {
+    // TODO choice of random words
   }
 
   @override
@@ -277,6 +242,11 @@ class _QuizScreenState extends State<QuizScreen> {
       child: ContinueBox(),
     );
 
+    answerCard.sequence = Sequence.hidden;
+    questionCard.sequence = Sequence.hidden;
+    answerCard2.sequence = Sequence.hidden;
+    questionCard2.sequence = Sequence.hidden;
+
     // Initialise Stack Component
     cardStack = Stack(
       clipBehavior: Clip.hardEdge,
@@ -324,7 +294,9 @@ class _QuizScreenState extends State<QuizScreen> {
             children: [
               inputBox,
               continueBox,
-              FloatingActionButton(onPressed: isShowingAnswer? showNext : showAnswer, child: Icon(Icons.add_circle)),
+              FloatingActionButton(
+                  onPressed: isShowingAnswer ? showNext : showAnswer,
+                  child: const Icon(Icons.add_circle)),
             ],
           ),
         ],

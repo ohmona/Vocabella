@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class InputBox extends StatefulWidget {
-  const InputBox(
+  InputBox(
       {Key? key,
         required this.answer,
         required this.inputValue,
@@ -16,6 +16,8 @@ class InputBox extends StatefulWidget {
   final void Function() onSummitByButton;
   final void Function(String) onSummit, updateInputValue;
 
+  late void Function() deFocusBox;
+
   @override
   State<InputBox> createState() => _InputBoxState();
 }
@@ -24,10 +26,14 @@ class _InputBoxState extends State<InputBox>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
+  void _deFocusBox() {
+  }
+
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(vsync: this);
+    widget.deFocusBox = _deFocusBox;
   }
 
   @override

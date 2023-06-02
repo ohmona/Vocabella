@@ -18,7 +18,7 @@ class Chapter {
 * examples and every wordpair class has an id
  */
 class WordPair {
-  final String word1, word2;
+  final String word1, word2; // question, answer
   final int id;
   final String? example1, example2;
 

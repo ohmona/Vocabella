@@ -32,9 +32,8 @@ class _QuizScreenState extends State<QuizScreen> {
 
   // Variables about questions
   int count = 1;
-  String answer = "Datei";
   late List<WordPair> listOfQuestions;
-  late List<WordPair> listOfWrongs;
+  late List<WordPair> listOfWrongs = [];
 
   //TODO it's just for test
   String language1 = "en-US";
@@ -62,26 +61,35 @@ class _QuizScreenState extends State<QuizScreen> {
   late Timer transitionTimer;
   late Timer disposalTimer;
 
+  bool isAnswerCorrect(String answer) {
+    // TODO implement correction detection system
+    return answer == listOfQuestions[count - 1].word2;
+  }
+
   // Runs when user gives enter
   void onSummit(String text) {
-    if (text == answer) {
+    showAnswer();
+
+    print("correct one : ${listOfQuestions[count - 1].word2}");
+    print("given answer : " + text);
+    print("Was Correct? : ${isAnswerCorrect(text)}");
+    if (isAnswerCorrect(text)) {
       // Answer was correct
       wasWrong = false;
-
     } else {
       // Answer was wrong
       // so we have to put this word at the wrong list
-      if(count != 0 ) {}
+      if (count != 0) {}
       listOfWrongs.add(listOfQuestions[count - 1]);
       wasWrong = true;
     }
+    setState(() {});
 
     fieldText.clear();
-    setState(() {});
     questionCard.animSmall;
     answerCard.animMedium;
 
-    //makeNextWord();
+    makeNextWord();
   }
 
   // Runs when user presses summit button
@@ -118,7 +126,6 @@ class _QuizScreenState extends State<QuizScreen> {
       const Duration(milliseconds: 1),
       onTransitionTick,
     );
-    setState(() {});
   }
 
   /*
@@ -147,9 +154,8 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
-  late Timer preShowAnswerDelayTimer;
-
-  void preShowAnswer() {
+  // Show correct answer by animating cards sidewards and play tts immediately
+  void showAnswer() {
     /* Check whether sequence of cards (depending of isOddTHCard) are
     *  in sequence of question, if true blocks further commands
     */
@@ -165,18 +171,10 @@ class _QuizScreenState extends State<QuizScreen> {
       return;
     }
 
-    if(FocusManager.instance.primaryFocus != null) FocusManager.instance.primaryFocus?.unfocus();
-    if(FocusManager.instance.primaryFocus != null) print("lol");
-
-    preShowAnswerDelayTimer = Timer(
-      const Duration(milliseconds: 180), showAnswer,
-    );
-  }
-
-  // Show correct answer by animating cards sidewards and play tts immediately
-  void showAnswer() {
-
-    // !! Before this function, preShowAnswer function is called, so never call this alone
+    if (FocusManager.instance.primaryFocus != null) {
+      FocusManager.instance.primaryFocus?.unfocus();
+    }
+    fieldText.clear();
 
     // answer is now being shown
     isShowingAnswer = true;
@@ -200,8 +198,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
       answerCard2.wordTTS.play();
     }
-
-    makeNextWord();
   }
 
   /* Show next cards by disposing (making invisible)
@@ -265,7 +261,6 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   void makeNextWord() {
-    // TODO choice of random words
     print("=======making new word========");
 
     print("Question part");
@@ -300,11 +295,10 @@ class _QuizScreenState extends State<QuizScreen> {
               newWord: listOfQuestions[count].word2,
               newExample: listOfQuestions[count].example2 ?? "",
             );
-    } else {
-      print('COUNT SMALLER 1');
     }
     count++;
-    print("Next card index : $count, and isOddTH : $isOddTHCard");
+    print(
+        "Next card index + 1 : $count, and is current card 2n+1 : $isOddTHCard");
 
     setState(() {});
   }
@@ -361,7 +355,7 @@ class _QuizScreenState extends State<QuizScreen> {
     // Initialise InputTextBox
     inputBox = BottomBox(
       child: InputBox(
-        answer: answer,
+        answer: listOfQuestions[count - 1].word2,
         inputValue: inputValue,
         fieldText: fieldText,
         onSummit: onSummit,
@@ -370,10 +364,12 @@ class _QuizScreenState extends State<QuizScreen> {
       ),
     );
 
-    //TODO
-    // Initialise ContinueBox
-    /*continueBox = BottomBox(
-      child: ContinueBox(),
+    /*// Initialise ContinueBox
+    continueBox = BottomBox(
+      child: ContinueBox(
+        onLeftClicked: () {},
+        onRightClicked: showNext,
+      ),
     );*/
 
     answerCard.sequence = Sequence.hidden;
@@ -398,19 +394,8 @@ class _QuizScreenState extends State<QuizScreen> {
     onTransitionStarted();
   }
 
-  void removeContinueBox() {
-    //TODO solve issue that Bottombox doesn't disappear once function is called
-  }
-
   @override
   Widget build(BuildContext context) {
-    /*print("===============================");
-    print("QUIZ SCREEN UPDATE");
-    print(questionCard.sequence);
-    print(answerCard.sequence);
-    print(questionCard2.sequence);
-    print(answerCard2.sequence);
-    print("===============================");*/
 
     return Scaffold(
       appBar: PreferredSize(
@@ -432,24 +417,24 @@ class _QuizScreenState extends State<QuizScreen> {
             child: cardStack,
           ),
           const SizedBox(height: 20),
-          /*Stack(
+          Stack(
             children: [
-              inputBox,
-              //continueBox, //TODO
+              !isShowingAnswer
+                  ? inputBox
+                  : ContinueBox(
+                    onClicked: showNext,
+                    correctState: wasWrong
+                        ? CorrectState.wrong
+                        : CorrectState.correct,
+                  ),
               FloatingActionButton(
-                  onPressed: isShowingAnswer ? showNext : preShowAnswer,
+                  onPressed: () {
+                    print("loading set Correct state...");
+                    print("loading set Correct state finished!");
+                  },
                   child: const Icon(Icons.add_circle)),
             ],
-          ),*/
-        ],
-      ),
-      bottomSheet: Stack(
-        children: [
-          inputBox,
-          //continueBox, //TODO
-          FloatingActionButton(
-              onPressed: isShowingAnswer ? showNext : preShowAnswer,
-              child: const Icon(Icons.add_circle)),
+          ),
         ],
       ),
     );

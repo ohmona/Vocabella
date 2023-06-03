@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vocabella/managers/tts_manager.dart';
+import 'package:vocabella/constants.dart';
 
 enum Sequence {
   appear,
@@ -48,25 +49,32 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
   // Variables for animation
   late Offset transformOffset;
   late double scaleFactor;
-  late List<double> margins; // left, right, bottom, top
   late double opacity;
+  late double width;
+  late double height;
+
+  late AnimValue av;
 
   // some constants
-  final Offset mainOffset = const Offset(0,0);
-  final Offset mainHiddenOffset = const Offset(0, 1000);
-  final Offset smallOffset = const Offset(-120,-200);
-  final Offset mediumOffset = const Offset(50,90);
+  late Offset mainOffset;
+  late Offset mainHiddenOffset;
+  late Offset smallOffset;
+  late Offset mediumOffset;
 
-  final double oneOpacity = 1;
-  final double zeroOpacity = 0;
+  late double oneOpacity;
+  late double zeroOpacity;
 
-  final List<double> defaultMargin = const [10, 10, 0, 0];
-  final List<double> smallMargin = const [100, 100, 170, 170];
-  final List<double> mediumMargin = const [25, 25, 50, 50];
+  late double defaultWidth;
+  late double smallWidth;
+  late double mediumWidth;
 
-  final double defaultScale = 1;
-  final double smallScale = 0.7;
-  final double mediumScale = 0.8;
+  late double defaultHeight;
+  late double smallHeight;
+  late double mediumHeight;
+
+  late double defaultScale;
+  late double smallScale;
+  late double mediumScale;
 
   // Some variables being responsible for animations
   late AnimationController controller1;
@@ -110,7 +118,31 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
 
     widget.setDisplayWordAndExample = _setDisplayWordAndExample;
 
-    margins = defaultMargin;
+    AnimValue av = AnimValue.sized();
+
+    // some constants
+    mainOffset = av.mainOffset;
+    mainHiddenOffset = av.mainHiddenOffset;
+    smallOffset = av.smallOffset;
+    mediumOffset = av.mediumOffset;
+
+    oneOpacity = av.oneOpacity;
+    zeroOpacity = av.zeroOpacity;
+
+    defaultWidth = av.defaultWidth;
+    smallWidth = av.smallWidth;
+    mediumWidth = av.mediumWidth;
+
+    defaultHeight = av.defaultHeight;
+    smallHeight = av.smallHeight;
+    mediumHeight = av.mediumHeight;
+
+    defaultScale = av.defaultScale;
+    smallScale = av.smallScale;
+    mediumScale = av.mediumScale;
+
+    width = defaultWidth;
+    height = defaultHeight;
     transformOffset = mainHiddenOffset;
     scaleFactor = defaultScale;
     opacity = oneOpacity;
@@ -147,7 +179,8 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
     // somehow i have to do this
     if (opacity != oneOpacity) {
       opacity = oneOpacity;
-      margins = defaultMargin;
+      width = defaultWidth;
+      height = defaultHeight;
       transformOffset = mainHiddenOffset;
       scaleFactor = scaleFactor;
       setState(() {});
@@ -196,22 +229,17 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
         vsync: this, duration: Duration(milliseconds: showingAnimDuration));
     final Animation<double> curve =
         CurvedAnimation(parent: controller2, curve: curveType);
-    animation = Tween<double>(begin: defaultMargin[0], end: smallMargin[0]).animate(curve); // scale side
+    animation = Tween<double>(begin: defaultWidth, end: smallWidth).animate(curve); // scale side
     animation1 =
-        Tween<double>(begin: defaultMargin[2], end: smallMargin[2]).animate(curve); // scale up, down
+        Tween<double>(begin: defaultHeight, end: smallHeight).animate(curve); // scale up, down
     animation2 = Tween<double>(begin: defaultScale, end: smallScale).animate(curve); // scale
     animation3 = Tween<double>(begin: mainOffset.dx, end: smallOffset.dx).animate(curve); // x
     animation4 = Tween<double>(begin: mainOffset.dy, end: smallOffset.dy).animate(curve); // y
 
     animation.addListener(() {
-      double left = animation.value;
-      double right = animation.value;
-      double bottom = animation1.value;
-      double top = animation1.value;
-      margins = [left, right, bottom, top];
-
+      width = animation.value;
+      height = animation1.value;
       scaleFactor = animation2.value;
-
       transformOffset = Offset(animation3.value, animation4.value);
       setState(() {});
     });
@@ -245,22 +273,17 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
         vsync: this, duration: Duration(milliseconds: showingAnimDuration));
     final Animation<double> curve =
         CurvedAnimation(parent: controller3, curve: curveType);
-    animation = Tween<double>(begin: defaultMargin[0], end: mediumMargin[0]).animate(curve); // scale side
+    animation = Tween<double>(begin: defaultWidth, end: mediumWidth).animate(curve); // scale side
     animation1 =
-        Tween<double>(begin: defaultMargin[2], end: mediumMargin[2]).animate(curve); // scale up,down
+        Tween<double>(begin: defaultHeight, end: mediumHeight).animate(curve); // scale up,down
     animation2 = Tween<double>(begin: defaultScale, end: mediumScale).animate(curve); // scale
     animation3 = Tween<double>(begin: mainOffset.dx, end: mediumOffset.dx).animate(curve); // x
     animation4 = Tween<double>(begin: mainOffset.dy, end: mediumOffset.dy).animate(curve); // y
 
     animation.addListener(() {
-      double left = animation.value;
-      double right = animation.value;
-      double bottom = animation1.value;
-      double top = animation1.value;
-      margins = [left, right, bottom, top];
-
+      width = animation.value;
+      height = animation1.value;
       scaleFactor = animation2.value;
-
       transformOffset = Offset(animation3.value, animation4.value);
 
       setState(() {});
@@ -306,7 +329,8 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
   // Set state into default value, so that it places under main widget
   void reset() {
     setState(() {
-      margins = defaultMargin;
+      width = defaultWidth;
+      height = defaultHeight;
       transformOffset = mainHiddenOffset;
       scaleFactor = defaultScale;
       opacity = oneOpacity;
@@ -316,7 +340,8 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
   // Set state into default value but locate it at the middle
   void resetCenter() {
     setState(() {
-      margins = defaultMargin;
+      width = defaultWidth;
+      height = defaultHeight;
       transformOffset = mainOffset;
       scaleFactor = defaultScale;
       opacity = oneOpacity;
@@ -342,11 +367,13 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
           opacity: opacity,
           child: Container(
             clipBehavior: Clip.hardEdge,
-            margin: EdgeInsets.only(
+            /*margin: EdgeInsets.only(
                 left: margins[0],
                 right: margins[1],
                 bottom: margins[2],
-                top: margins[3]),
+                top: margins[3]),*/
+            width: width,
+            height: height,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(30),
@@ -381,8 +408,9 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
               children: [
                 Text(
                   displayWord,
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 50,
+                    fontSize: 25,
                     fontWeight: FontWeight.w400,
                     shadows: [
                       Shadow(
@@ -393,8 +421,9 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
                   ),
                 ),
                 const SizedBox(height: 30),
-                Text(
+                if(widget.example.isNotEmpty) Text(
                   displayExample,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 16,
                     color: Colors.grey,

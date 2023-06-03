@@ -16,8 +16,6 @@ class InputBox extends StatefulWidget {
   final void Function() onSummitByButton;
   final void Function(String) onSummit, updateInputValue;
 
-  late void Function() deFocusBox;
-
   @override
   State<InputBox> createState() => _InputBoxState();
 }
@@ -26,14 +24,13 @@ class _InputBoxState extends State<InputBox>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
-  void _deFocusBox() {
-  }
+  static const double defaultTextSize = 20;
+  static const double smallTextSize = 15;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(vsync: this);
-    widget.deFocusBox = _deFocusBox;
   }
 
   @override
@@ -104,7 +101,7 @@ class _InputBoxState extends State<InputBox>
                 ),
               ),
               style: TextStyle(
-                fontSize: (MediaQuery.of(context).size.height < 600) ? 15 : 23,
+                fontSize: (MediaQuery.of(context).size.height < 600) ? smallTextSize : defaultTextSize,
                 fontWeight: FontWeight.w400,
               ),
               controller: widget.fieldText,
@@ -120,60 +117,60 @@ class _InputBoxState extends State<InputBox>
   }
 }
 
-class ContinueBox extends StatelessWidget {
-  ContinueBox({Key? key}) : super(key: key);
+enum CorrectState { correct, wrong, both }
 
-  late void Function() onLeftClicked;
-  late void Function() onRightClicked;
+class ContinueBox extends StatelessWidget {
+  const ContinueBox({Key? key, required this.onClicked, required this.correctState}) : super(key: key);
+
+  final void Function() onClicked;
+
+  final CorrectState correctState;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Container(
-          width: MediaQuery.of(context).size.width / 2,
-          // Input Box Container
-          decoration: BoxDecoration(
-            color: Colors.redAccent,
-            borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(10), topRight: Radius.circular(10)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.redAccent.withOpacity(0.5),
-                blurRadius: 10,
-                blurStyle: BlurStyle.normal,
-              ),
-            ],
-          ),
-          height: MediaQuery.of(context).size.height * 0.09,
-          child: GestureDetector(
-            onTap: onLeftClicked,
+    return GestureDetector(
+      onTap: onClicked,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          if(correctState == CorrectState.wrong || correctState == CorrectState.both) Container(
+            width: correctState == CorrectState.wrong ? MediaQuery.of(context).size.width : MediaQuery.of(context).size.width / 2,
+            // Input Box Container
+            decoration: BoxDecoration(
+              color: Colors.redAccent,
+              borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(10), topRight: Radius.circular(10)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.redAccent.withOpacity(0.5),
+                  blurRadius: 10,
+                  blurStyle: BlurStyle.normal,
+                ),
+              ],
+            ),
+            height: MediaQuery.of(context).size.height * 0.09,
             child: const Text("left"),
           ),
-        ),
-        Container(
-          width: MediaQuery.of(context).size.width / 2,
-          // Input Box Container
-          decoration: BoxDecoration(
-            color: Colors.green,
-            borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(10), topRight: Radius.circular(10)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.green.withOpacity(0.5),
-                blurRadius: 10,
-                blurStyle: BlurStyle.normal,
-              ),
-            ],
-          ),
-          height: MediaQuery.of(context).size.height * 0.09,
-          child: GestureDetector(
-            onTap: onRightClicked,
+          if(correctState == CorrectState.correct || correctState == CorrectState.both) Container(
+            width: correctState == CorrectState.correct ? MediaQuery.of(context).size.width : MediaQuery.of(context).size.width / 2,
+            // Input Box Container
+            decoration: BoxDecoration(
+              color: Colors.green,
+              borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(10), topRight: Radius.circular(10)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.5),
+                  blurRadius: 10,
+                  blurStyle: BlurStyle.normal,
+                ),
+              ],
+            ),
+            height: MediaQuery.of(context).size.height * 0.09,
             child: const Text("right"),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -243,16 +240,17 @@ class _BottomBoxState extends State<BottomBox> with TickerProviderStateMixin {
     widget.animAppear = animAppear;
     widget.animDisappear = animDisappear;
 
-    if (widget.child is ContinueBox) {
+    /*if (widget.child is ContinueBox) {
       (widget.child as ContinueBox).onLeftClicked = animDisappear;
       (widget.child as ContinueBox).onRightClicked = animAppear;
-    }
+    }*/
   }
 
   @override
   void dispose() {
     controller.dispose();
     super.dispose();
+    print("dispose from bottombox");
   }
 
   @override

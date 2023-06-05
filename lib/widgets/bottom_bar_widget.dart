@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class InputBox extends StatefulWidget {
-  InputBox(
+  const InputBox(
       {Key? key,
         required this.answer,
         required this.inputValue,

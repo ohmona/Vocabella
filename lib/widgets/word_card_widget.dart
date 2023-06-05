@@ -53,7 +53,7 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
   late double width;
   late double height;
 
-  late AnimValue av;
+  late AnimValueBase av;
 
   // some constants
   late Offset mainOffset;
@@ -118,7 +118,7 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
 
     widget.setDisplayWordAndExample = _setDisplayWordAndExample;
 
-    AnimValue av = AnimValue.sized();
+    av = DefaultAnimValue();
 
     // some constants
     mainOffset = av.mainOffset;
@@ -359,6 +359,7 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+
     return Transform.translate(
       offset: transformOffset,
       child: Transform.scale(

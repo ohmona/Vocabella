@@ -1,77 +1,76 @@
 import 'package:flutter/material.dart';
 
-class AnimValue {
-  AnimValue({
-    this.mainOffset = const Offset(0, 0),
-    this.mainHiddenOffset = const Offset(0, 1000),
-    this.smallOffset = const Offset(0, 0),
-    this.mediumOffset = const Offset(0, 340),
-    this.oneOpacity = 1,
-    this.zeroOpacity = 0,
-    this.defaultWidth = 400,
-    this.smallWidth = 400,
-    this.mediumWidth = 400,
-    this.defaultHeight = 800,
-    this.smallHeight = 320,
-    this.mediumHeight = 320,
-    this.defaultScale = 1,
-    this.smallScale = 1,
-    this.mediumScale = 1,
-  });
+class AnimValueBase {
+  AnimValueBase()
+      : mainOffset = const Offset(0, 0),
+        mainHiddenOffset = const Offset(0, 1000),
+        smallOffset = const Offset(0, 0),
+        mediumOffset = const Offset(0, 340),
+        oneOpacity = 1,
+        zeroOpacity = 0,
+        defaultWidth = 400,
+        smallWidth = 400,
+        mediumWidth = 400,
+        defaultHeight = 800,
+        smallHeight = 320,
+        mediumHeight = 320,
+        defaultScale = 1,
+        smallScale = 1,
+        mediumScale = 1 {
+    Size size = WidgetsBinding.instance.window.physicalSize;
+    double ratio = WidgetsBinding.instance.window.devicePixelRatio;
 
-  AnimValue.sized({
-    this.mainOffset = const Offset(0, 0),
-    this.mainHiddenOffset = const Offset(0, 1000),
-    this.smallOffset = const Offset(0,0),
-    this.mediumOffset = const Offset(60,130),
-    this.oneOpacity = 1,
-    this.zeroOpacity = 0,
-    this.defaultWidth = 400,
-    this.smallWidth = 200,
-    this.mediumWidth = 350,
-    this.defaultHeight = 800,
-    this.smallHeight = 300,
-    this.mediumHeight = 580,
-    this.defaultScale = 1,
-    this.smallScale = 0.8,
-    this.mediumScale = 0.8,
-  });
+    double width = size.width / ratio;
+    double height = size.height / ratio;
 
-  AnimValue.flip({
-    this.mainOffset = const Offset(0, 0),
-    this.mainHiddenOffset = const Offset(0, 1000),
-    this.smallOffset = const Offset(0, 340),
-    this.mediumOffset = const Offset(0, 0),
-    this.oneOpacity = 1,
-    this.zeroOpacity = 0,
-    this.defaultWidth = 400,
-    this.smallWidth = 400,
-    this.mediumWidth = 400,
-    this.defaultHeight = 800,
-    this.smallHeight = 320,
-    this.mediumHeight = 320,
-    this.defaultScale = 1,
-    this.smallScale = 1,
-    this.mediumScale = 1,
-  });
+    double totalBarsHeight = height * 0.18;
+    double freeHeight = height - totalBarsHeight - 40;
 
-  Offset mainOffset;
-  Offset mainHiddenOffset;
-  Offset smallOffset;
-  Offset mediumOffset;
+    defaultWidth = width;
+    defaultHeight = freeHeight;
+    smallWidth = defaultWidth;
+    mediumWidth = defaultWidth;
+    mediumOffset = Offset(0, freeHeight / 2 + 5);
+    smallHeight = freeHeight / 2 - 30;
+    mediumHeight = freeHeight / 2 - 30;
+  }
 
-  double oneOpacity;
-  double zeroOpacity;
+  late Offset mainOffset;
+  late Offset mainHiddenOffset;
+  late Offset smallOffset;
+  late Offset mediumOffset;
 
-  double defaultWidth;
-  double smallWidth;
-  double mediumWidth;
+  late double oneOpacity;
+  late double zeroOpacity;
 
-  double defaultHeight;
-  double smallHeight;
-  double mediumHeight;
+  late double defaultWidth;
+  late double smallWidth;
+  late double mediumWidth;
 
-  double defaultScale;
-  double smallScale;
-  double mediumScale;
+  late double defaultHeight;
+  late double smallHeight;
+  late double mediumHeight;
+
+  late double defaultScale;
+  late double smallScale;
+  late double mediumScale;
+}
+
+class DefaultAnimValue extends AnimValueBase {
+  DefaultAnimValue() : super();
+}
+
+// TODO implement this for any device
+class _SizedAnimValue extends AnimValueBase {
+
+  // Don't use this
+  _SizedAnimValue() : super() {
+    mediumOffset = const Offset(60, 130);
+    smallWidth = 200;
+    mediumWidth = 350;
+    smallHeight = 300;
+    mediumHeight = 580;
+    smallScale = 0.8;
+    mediumScale = 0.8;
+  }
 }

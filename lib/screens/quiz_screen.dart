@@ -56,10 +56,19 @@ class _QuizScreenState extends State<QuizScreen> {
   // Logics
   late bool isOddTHCard;
   late bool isShowingAnswer;
+  bool isDone = false;
 
   // Timer
   late Timer transitionTimer;
   late Timer disposalTimer;
+
+  // Progress
+  int absoluteProgress = 1; // progress of all combined, including wrong answers and extension
+  int originalProgress = 1; // progress of original cards
+  int wrongAnswers = 0; // number of all wrong answers
+  int absoluteRepetitionProgress = 0; // progress of extension, also wrong answers
+  int repetitionProgress = 0; // progress of extension
+  bool hasRepetitionBegun = false;
 
   bool isAnswerCorrect(String answer) {
     // TODO implement correction detection system
@@ -68,6 +77,10 @@ class _QuizScreenState extends State<QuizScreen> {
 
   // Runs when user gives enter
   void onSummit(String text) {
+    print("================================");
+    print("Answer summited");
+    print("================================");
+
     showAnswer();
 
     print("correct one : ${listOfQuestions[count - 1].word2}");
@@ -79,17 +92,61 @@ class _QuizScreenState extends State<QuizScreen> {
     } else {
       // Answer was wrong
       // so we have to put this word at the wrong list
-      if (count != 0) {}
-      listOfWrongs.add(listOfQuestions[count - 1]);
+      if (!listOfWrongs.contains(listOfQuestions[count - 1])) {
+        listOfWrongs.add(listOfQuestions[count - 1]);
+      }
+      else {
+        print("You've got wrong again! lol");
+      }
       wasWrong = true;
     }
     setState(() {});
 
     fieldText.clear();
-    questionCard.animSmall;
-    answerCard.animMedium;
 
-    makeNextWord();
+    print("================================");
+    print("Printing wrong answers");
+    print("================================");
+    for (WordPair pair in listOfWrongs) {
+      print(pair.word2);
+    }
+    print("================================");
+
+    print("Some conditions ======================");
+    print("Is done : ${count >= listOfQuestions.length}");
+    print(">> To Compare : length ${listOfQuestions.length} // count $count");
+    print("Has been wrong : ${listOfWrongs.isNotEmpty}");
+    print("Was just correct : ${!wasWrong}");
+
+    // repeat wrong answers if all words are done, there's at least one wrong answer
+    // and session should be continued
+    if(count >= listOfQuestions.length && listOfWrongs.isNotEmpty && !wasWrong) {
+      print("================================");
+      print("Generate extension");
+
+      hasRepetitionBegun = true;
+      if(repetitionProgress == 0) repetitionProgress = 1;
+      if(absoluteRepetitionProgress == 0) absoluteRepetitionProgress = 1;
+
+      // shuffle all wrong answers firstly
+      listOfWrongs.shuffle();
+      for (WordPair pair in listOfWrongs) {
+        print("New extension : ${pair.word1}");
+      }
+
+      // add every wrong answers to queue
+      for(WordPair word in listOfWrongs) {
+        listOfQuestions.add(word);
+      }
+
+      // reset list of wrong answers
+      listOfWrongs = [];
+    }
+    else if(count >= listOfQuestions.length && listOfWrongs.isEmpty && !wasWrong) {
+      isDone = true;
+    }
+
+    wasWrong ? repeatWord() : makeNextWord();
   }
 
   // Runs when user presses summit button
@@ -222,13 +279,17 @@ class _QuizScreenState extends State<QuizScreen> {
     }
 
     // Check if it's done
-    if (count > listOfQuestions.length) {
-      // TODO finish session
-      print("LIST DONE!!!!!!!!!!!!!!!!!!!!!!!!!");
-      print("LIST DONE!!!!!!!!!!!!!!!!!!!!!!!!!");
-      print("LIST DONE!!!!!!!!!!!!!!!!!!!!!!!!!");
-      print("LIST DONE!!!!!!!!!!!!!!!!!!!!!!!!!");
-      print("LIST DONE!!!!!!!!!!!!!!!!!!!!!!!!!");
+    if (isDone) {
+      // TODO Improve resulting system
+      print("===============================================");
+      print("===============================================");
+      print("Result :");
+      print(">> Number of all sessions : ${absoluteProgress}");
+      print(">> Number of all words : ${originalProgress}");
+      print(">> Number of wrong answers in first try : ${wrongAnswers}");
+      print(">> Number of all sessions during repetition : ${absoluteRepetitionProgress}");
+      print(">> Number of all repeated words (overlap-able) : ${repetitionProgress}");
+
     }
 
     // Animate cards to disappear
@@ -260,45 +321,84 @@ class _QuizScreenState extends State<QuizScreen> {
     setState(() {});
   }
 
+  void repeatWord() {
+    int step = count - 1;
+
+    // Question part
+    isOddTHCard
+        ? questionCard2.setDisplayWordAndExample(
+            newWord: listOfQuestions[step].word1,
+            newExample: listOfQuestions[step].example1 ?? "",
+          )
+        : questionCard.setDisplayWordAndExample(
+            newWord: listOfQuestions[step].word1,
+            newExample: listOfQuestions[step].example1 ?? "",
+          );
+
+    // Answer part
+    isOddTHCard
+        ? answerCard2.setDisplayWordAndExample(
+            newWord: listOfQuestions[count - 1].word2,
+            newExample: listOfQuestions[count].example2 ?? "",
+          )
+        : answerCard.setDisplayWordAndExample(
+            newWord: listOfQuestions[count - 1].word2,
+            newExample: listOfQuestions[count - 1].example2 ?? "",
+          );
+
+    if(!hasRepetitionBegun) wrongAnswers++;
+    absoluteProgress++;
+    if(hasRepetitionBegun) absoluteRepetitionProgress++;
+    setState(() {});
+  }
+
   void makeNextWord() {
-    print("=======making new word========");
+    try {
+      print("=======making new word========");
 
-    print("Question part");
-    print(listOfQuestions[count].word1);
-    print(listOfQuestions[count].example1);
-    print("Answer part");
-    print(listOfQuestions[count].word2);
-    print(listOfQuestions[count].example2);
+      print("Question part");
+      print(">> ${listOfQuestions[count].word1}");
+      print(">> ${listOfQuestions[count].example1}");
+      print("Answer part");
+      print(">> ${listOfQuestions[count].word2}");
+      print(">> ${listOfQuestions[count].example2}");
 
-    if (count > 1) {
-      print('COUNT LAGER 1');
       // Update hidden Card for next one
-
       // Question part
       isOddTHCard
           ? questionCard2.setDisplayWordAndExample(
-              newWord: listOfQuestions[count].word1,
-              newExample: listOfQuestions[count].example1 ?? "",
-            )
+        newWord: listOfQuestions[count].word1,
+        newExample: listOfQuestions[count].example1 ?? "",
+      )
           : questionCard.setDisplayWordAndExample(
-              newWord: listOfQuestions[count].word1,
-              newExample: listOfQuestions[count].example1 ?? "",
-            );
+        newWord: listOfQuestions[count].word1,
+        newExample: listOfQuestions[count].example1 ?? "",
+      );
 
       // Answer part
       isOddTHCard
           ? answerCard2.setDisplayWordAndExample(
-              newWord: listOfQuestions[count].word2,
-              newExample: listOfQuestions[count].example2 ?? "",
-            )
+        newWord: listOfQuestions[count].word2,
+        newExample: listOfQuestions[count].example2 ?? "",
+      )
           : answerCard.setDisplayWordAndExample(
-              newWord: listOfQuestions[count].word2,
-              newExample: listOfQuestions[count].example2 ?? "",
-            );
+        newWord: listOfQuestions[count].word2,
+        newExample: listOfQuestions[count].example2 ?? "",
+      );
     }
+    catch(e) {
+      print("It's most likely that you're done!");
+      print("Congratulations!!!");
+      print("To finish, press continue");
+    }
+
     count++;
+    absoluteProgress++; // basically syncs with count but
+    if(!hasRepetitionBegun) originalProgress++; // basically syncs with count
+    if(hasRepetitionBegun) absoluteRepetitionProgress++;
+    if(hasRepetitionBegun) repetitionProgress++;
     print(
-        "Next card index + 1 : $count, and is current card 2n+1 : $isOddTHCard");
+        "Next step index + 1 : $count, and is current step 2n+1 : $isOddTHCard");
 
     setState(() {});
   }
@@ -364,14 +464,6 @@ class _QuizScreenState extends State<QuizScreen> {
       ),
     );
 
-    /*// Initialise ContinueBox
-    continueBox = BottomBox(
-      child: ContinueBox(
-        onLeftClicked: () {},
-        onRightClicked: showNext,
-      ),
-    );*/
-
     answerCard.sequence = Sequence.hidden;
     questionCard.sequence = Sequence.hidden;
     answerCard2.sequence = Sequence.hidden;
@@ -396,7 +488,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(0),
@@ -422,17 +513,12 @@ class _QuizScreenState extends State<QuizScreen> {
               !isShowingAnswer
                   ? inputBox
                   : ContinueBox(
-                    onClicked: showNext,
-                    correctState: wasWrong
-                        ? CorrectState.wrong
-                        : CorrectState.correct,
-                  ),
+                      onClicked: showNext,
+                      correctState:
+                          wasWrong ? CorrectState.wrong : CorrectState.correct,
+                    ),
               FloatingActionButton(
-                  onPressed: () {
-                    print("loading set Correct state...");
-                    print("loading set Correct state finished!");
-                  },
-                  child: const Icon(Icons.add_circle)),
+                  onPressed: () {}, child: const Icon(Icons.add_circle)),
             ],
           ),
         ],

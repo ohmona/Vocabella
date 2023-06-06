@@ -37,6 +37,7 @@ class SubjectDataModel {
   final String title, id;
   final String? thumb;
   final List<String> subjects;
+  final List<String> languages;
 
   final WordsList wordlist;
 
@@ -46,6 +47,7 @@ class SubjectDataModel {
     this.thumb,
     required this.subjects,
     required this.wordlist,
+    required this.languages,
   });
 
   //TODO: make this lol I give up
@@ -65,6 +67,7 @@ class SubjectDataModel {
       id: "05",
       thumb: null,
       subjects: ["English", "German"],
+      languages: ["en-US", "de-DE"],
       wordlist: [
         Chapter(
           name: "Across cultures 1",

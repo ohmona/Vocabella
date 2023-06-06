@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:percent_indicator/percent_indicator.dart';
+
+const double _widgetHeight = 60;
 
 class ProgressBar extends StatelessWidget {
-  const ProgressBar({Key? key}) : super(key: key);
+  const ProgressBar({Key? key, required this.total, required this.progress})
+      : super(key: key);
+
+  final int total, progress;
 
   @override
   Widget build(BuildContext context) {
@@ -21,9 +27,9 @@ class ProgressBar extends StatelessWidget {
           ),
         ],
       ),
-      height: MediaQuery.of(context).size.height * 0.09,
+      height: _widgetHeight,
       child: Padding(
-        padding: EdgeInsets.all(MediaQuery.of(context).size.height * 0.09 / 3),
+        padding: const EdgeInsets.all(_widgetHeight / 3),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -31,30 +37,38 @@ class ProgressBar extends StatelessWidget {
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.white.withOpacity(0.5),
-                      blurRadius: 10,
-                      blurStyle: BlurStyle.normal,
-                    ),
+                      color: Theme.of(context).primaryColor,
+                      blurRadius: 15,
+                    )
                   ],
+                ),
+                child: LinearPercentIndicator(
+                  animation: true,
+                  lineHeight: 20.0,
+                  animationDuration: 1000,
+                  percent: progress / total,
+                  barRadius: const Radius.circular(45),
+                  progressColor: Theme.of(context).primaryColor,
+                  curve: Curves.easeOutSine,
+                  backgroundColor: Colors.white,
                 ),
               ),
             ),
             const SizedBox(
-              width: 30,
+              width: 15,
             ),
             Transform.scale(
               scale: 1.5,
               child: Text(
-                "1/3",
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: (MediaQuery.of(context).size.height * 0.02)),
+                "$progress/$total",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                ),
               ),
-            )
+            ),
           ],
         ),
       ),

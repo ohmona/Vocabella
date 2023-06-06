@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:vocabella/managers/tts_manager.dart';
 import 'package:vocabella/constants.dart';
 
+import '../options.dart';
+
 enum Sequence {
   appear,
   question,
@@ -11,13 +13,20 @@ enum Sequence {
   hidden,
 }
 
+enum DivisionMode {
+  defaultPortrait,
+  defaultLandscape,
+  side,
+}
+
 class WordCard extends StatefulWidget {
   WordCard({
     Key? key,
     required this.word,
     required this.example,
     required this.isQuestion,
-    required this.isOddTHCard, required this.language,
+    required this.isOddTHCard,
+    required this.language,
   }) : super(key: key);
 
   final String word, example, language;
@@ -30,7 +39,8 @@ class WordCard extends StatefulWidget {
   late void Function() reset;
   late void Function() resetCenter;
 
-  late void Function({required String newWord,required String newExample}) setDisplayWordAndExample;
+  late void Function({required String newWord, required String newExample})
+      setDisplayWordAndExample;
 
   late Sequence sequence;
 
@@ -42,7 +52,6 @@ class WordCard extends StatefulWidget {
 }
 
 class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
-
   late String displayWord;
   late String displayExample;
 
@@ -83,9 +92,11 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
   late AnimationController controller4;
 
   // Values for animation
-  final int showingAnimDuration = 1000; // maybe configurable
+  final int showingAnimDuration = 700; // maybe configurable
   final int transitionalAnimDuration = 500; // maybe configurable
   final Curve curveType = Curves.easeOutExpo; // maybe configurable
+
+  late DivisionMode divisionMode;
 
   void updateTTS() {
     widget.wordTTS = TTSButton(
@@ -101,7 +112,8 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
     setState(() {});
   }
 
-  void _setDisplayWordAndExample({required String newWord, required String newExample}) {
+  void _setDisplayWordAndExample(
+      {required String newWord, required String newExample}) {
     setState(() {
       displayWord = newWord;
       displayExample = newExample;
@@ -118,34 +130,10 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
 
     widget.setDisplayWordAndExample = _setDisplayWordAndExample;
 
-    av = DefaultAnimValue();
+    divisionMode = DivisionMode.defaultPortrait;
 
-    // some constants
-    mainOffset = av.mainOffset;
-    mainHiddenOffset = av.mainHiddenOffset;
-    smallOffset = av.smallOffset;
-    mediumOffset = av.mediumOffset;
-
-    oneOpacity = av.oneOpacity;
-    zeroOpacity = av.zeroOpacity;
-
-    defaultWidth = av.defaultWidth;
-    smallWidth = av.smallWidth;
-    mediumWidth = av.mediumWidth;
-
-    defaultHeight = av.defaultHeight;
-    smallHeight = av.smallHeight;
-    mediumHeight = av.mediumHeight;
-
-    defaultScale = av.defaultScale;
-    smallScale = av.smallScale;
-    mediumScale = av.mediumScale;
-
-    width = defaultWidth;
-    height = defaultHeight;
-    transformOffset = mainHiddenOffset;
-    scaleFactor = defaultScale;
-    opacity = oneOpacity;
+    refreshAnimValue();
+    initSize();
 
     widget.animDisappear = animDisappear;
     widget.animAppear = animAppear;
@@ -167,6 +155,36 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
     );
   }
 
+  void updateAnimValue() {
+    mainOffset = av.mainOffset;
+    mainHiddenOffset = av.mainHiddenOffset;
+    smallOffset = av.smallOffset;
+    mediumOffset = av.mediumOffset;
+
+    oneOpacity = av.oneOpacity;
+    zeroOpacity = av.zeroOpacity;
+
+    defaultWidth = av.defaultWidth;
+    smallWidth = av.smallWidth;
+    mediumWidth = av.mediumWidth;
+
+    defaultHeight = av.defaultHeight;
+    smallHeight = av.smallHeight;
+    mediumHeight = av.mediumHeight;
+
+    defaultScale = av.defaultScale;
+    smallScale = av.smallScale;
+    mediumScale = av.mediumScale;
+  }
+
+  void initSize() {
+    width = defaultWidth;
+    height = defaultHeight;
+    transformOffset = mainHiddenOffset;
+    scaleFactor = defaultScale;
+    opacity = oneOpacity;
+  }
+
   // Animation once called
   void animAppear() {
     if (widget.sequence != Sequence.hidden) return;
@@ -176,13 +194,13 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
       return;
     }
 
-    // somehow i have to do this
+    // somehow I have to do this
     if (opacity != oneOpacity) {
       opacity = oneOpacity;
       width = defaultWidth;
       height = defaultHeight;
       transformOffset = mainHiddenOffset;
-      scaleFactor = scaleFactor;
+      scaleFactor = defaultScale;
       setState(() {});
     }
 
@@ -193,7 +211,8 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
         duration: Duration(milliseconds: transitionalAnimDuration));
     final Animation<double> curve =
         CurvedAnimation(parent: controller1, curve: curveType);
-    animation = Tween<double>(begin: mainHiddenOffset.dy, end: mainOffset.dy).animate(curve);
+    animation = Tween<double>(begin: mainHiddenOffset.dy, end: mainOffset.dy)
+        .animate(curve);
 
     animation.addListener(() {
       transformOffset = Offset(0, animation.value);
@@ -229,12 +248,16 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
         vsync: this, duration: Duration(milliseconds: showingAnimDuration));
     final Animation<double> curve =
         CurvedAnimation(parent: controller2, curve: curveType);
-    animation = Tween<double>(begin: defaultWidth, end: smallWidth).animate(curve); // scale side
-    animation1 =
-        Tween<double>(begin: defaultHeight, end: smallHeight).animate(curve); // scale up, down
-    animation2 = Tween<double>(begin: defaultScale, end: smallScale).animate(curve); // scale
-    animation3 = Tween<double>(begin: mainOffset.dx, end: smallOffset.dx).animate(curve); // x
-    animation4 = Tween<double>(begin: mainOffset.dy, end: smallOffset.dy).animate(curve); // y
+    animation = Tween<double>(begin: defaultWidth, end: smallWidth)
+        .animate(curve); // scale side
+    animation1 = Tween<double>(begin: defaultHeight, end: smallHeight)
+        .animate(curve); // scale up, down
+    animation2 = Tween<double>(begin: defaultScale, end: smallScale)
+        .animate(curve); // scale
+    animation3 = Tween<double>(begin: mainOffset.dx, end: smallOffset.dx)
+        .animate(curve); // x
+    animation4 = Tween<double>(begin: mainOffset.dy, end: smallOffset.dy)
+        .animate(curve); // y
 
     animation.addListener(() {
       width = animation.value;
@@ -273,12 +296,16 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
         vsync: this, duration: Duration(milliseconds: showingAnimDuration));
     final Animation<double> curve =
         CurvedAnimation(parent: controller3, curve: curveType);
-    animation = Tween<double>(begin: defaultWidth, end: mediumWidth).animate(curve); // scale side
-    animation1 =
-        Tween<double>(begin: defaultHeight, end: mediumHeight).animate(curve); // scale up,down
-    animation2 = Tween<double>(begin: defaultScale, end: mediumScale).animate(curve); // scale
-    animation3 = Tween<double>(begin: mainOffset.dx, end: mediumOffset.dx).animate(curve); // x
-    animation4 = Tween<double>(begin: mainOffset.dy, end: mediumOffset.dy).animate(curve); // y
+    animation = Tween<double>(begin: defaultWidth, end: mediumWidth)
+        .animate(curve); // scale side
+    animation1 = Tween<double>(begin: defaultHeight, end: mediumHeight)
+        .animate(curve); // scale up,down
+    animation2 = Tween<double>(begin: defaultScale, end: mediumScale)
+        .animate(curve); // scale
+    animation3 = Tween<double>(begin: mainOffset.dx, end: mediumOffset.dx)
+        .animate(curve); // x
+    animation4 = Tween<double>(begin: mainOffset.dy, end: mediumOffset.dy)
+        .animate(curve); // y
 
     animation.addListener(() {
       width = animation.value;
@@ -311,7 +338,8 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
         CurvedAnimation(parent: controller4, curve: curveType);
 
     // Animation setup
-    animation = Tween<double>(begin: oneOpacity, end: zeroOpacity).animate(curve);
+    animation =
+        Tween<double>(begin: oneOpacity, end: zeroOpacity).animate(curve);
 
     animation.addListener(() {
       opacity = animation.value;
@@ -351,14 +379,77 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
   @override
   void dispose() {
     super.dispose();
+
+    controller1 = AnimationController(vsync: this);
+    controller2 = AnimationController(vsync: this);
+    controller3 = AnimationController(vsync: this);
+    controller4 = AnimationController(vsync: this);
+
     controller1.dispose();
     controller2.dispose();
     controller3.dispose();
     controller4.dispose();
   }
 
+  void refreshAnimValue() {
+    // refresh all value
+    if (divisionMode == DivisionMode.defaultPortrait) {
+      av = DefaultAnimValue();
+    } else if (divisionMode == DivisionMode.defaultLandscape) {
+      av = DefaultLandscapeAnimValue();
+    }
+    updateAnimValue();
+  }
+
+  Size _old = Size.zero;
+
+  // Called on build() so setState is not allowed
+  void onScreenSizeChanged() {
+    refreshAnimValue();
+
+    // Apply values to actual values will be applied
+    if (widget.sequence == Sequence.question) {
+      width = defaultWidth;
+      height = defaultHeight;
+      transformOffset = mainOffset;
+      scaleFactor = defaultScale;
+      opacity = oneOpacity;
+    } else if (widget.sequence == Sequence.answer) {
+      width = widget.isQuestion ? smallWidth : mediumWidth;
+      height = widget.isQuestion ? smallHeight : mediumHeight;
+      transformOffset = widget.isQuestion ? smallOffset : mediumOffset;
+      scaleFactor = widget.isQuestion ? smallScale : mediumScale;
+      opacity = oneOpacity;
+    } else if (widget.sequence == Sequence.hidden) {
+      width = defaultWidth;
+      height = defaultHeight;
+      transformOffset = mainHiddenOffset;
+      scaleFactor = defaultScale;
+      opacity = oneOpacity;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    Size newSize = MediaQuery.of(context).size;
+    if (_old != newSize) {
+      print(newSize);
+
+      if (newSize.width > newSize.height) {
+        divisionMode = DivisionMode.defaultLandscape;
+      } else if (newSize.width <= newSize.height) {
+        divisionMode = DivisionMode.defaultPortrait;
+      }
+
+      onScreenSizeChanged();
+    }
+    _old = newSize;
+
+    print("printing example");
+    print(widget.example);
+    print(widget.example.isEmpty);
+
+    bool noEx = widget.example.isEmpty;
 
     return Transform.translate(
       offset: transformOffset,
@@ -406,37 +497,38 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
                   displayWord,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 25,
-                    fontWeight: FontWeight.w400,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 100,
-                      ),
-                    ]
-                  ),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w400,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 100,
+                        ),
+                      ]),
                 ),
-                const SizedBox(height: 30),
-                if(widget.example.isNotEmpty) Text(
-                  displayExample,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
+                if (!noEx) const SizedBox(height: 30),
+                if (!noEx)
+                  Text(
+                    displayExample,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey,
+                    ),
                   ),
-                ),
-                SizedBox(height: MediaQuery.of(context).size.height * 0.05),
+                const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     widget.wordTTS,
-                    const SizedBox(width: 30),
-                    widget.exampleTTS,
+                    if (!noEx) const SizedBox(width: 30),
+                    if (!noEx) widget.exampleTTS,
                   ],
                 ),
               ],

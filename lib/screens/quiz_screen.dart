@@ -1,24 +1,45 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:vocabella/arguments.dart';
 import 'package:vocabella/classes.dart';
-import 'package:vocabella/models/subject_data_model.dart';
+import 'package:vocabella/screens/result_screen.dart';
 import 'package:vocabella/widgets/progress_bar_widget.dart';
 import 'package:vocabella/widgets/word_card_widget.dart';
 import 'package:vocabella/widgets/bottom_bar_widget.dart';
 
+class QuizScreenParent extends StatelessWidget {
+  const QuizScreenParent({Key? key}) : super(key: key);
+
+  static const routeName = '/quiz';
+
+  @override
+  Widget build(BuildContext context) {
+    final args =
+        ModalRoute.of(context)!.settings.arguments as QuizScreenArguments;
+
+    return WillPopScope(
+      onWillPop: () async {
+        return false;
+      },
+      child: QuizScreen(wordPack: args.wordPack, language1: args.language1, language2 :args.language2),
+    );
+  }
+}
+
 class QuizScreen extends StatefulWidget {
   const QuizScreen({
     Key? key,
-    required this.wordPack,
+    required this.wordPack, required this.language1, required this.language2,
   }) : super(key: key);
 
   final List<WordPair> wordPack;
 
-  //final String language1;
-  //final String language2;
+  static const routeName = '/quiz';
+
+  final String language1;
+  final String language2;
   //TODO make language selectable when it's created
 
   @override
@@ -26,6 +47,9 @@ class QuizScreen extends StatefulWidget {
 }
 
 class _QuizScreenState extends State<QuizScreen> {
+  // Variables about gameplay
+  bool bDontTypeAnswer = true;
+
   // Variables about input
   final fieldText = TextEditingController();
   String inputValue = "";
@@ -34,10 +58,7 @@ class _QuizScreenState extends State<QuizScreen> {
   int count = 1;
   late List<WordPair> listOfQuestions;
   late List<WordPair> listOfWrongs = [];
-
-  //TODO it's just for test
-  String language1 = "en-US";
-  String language2 = "de-DE";
+  late int questionsNumber;
 
   // Variables about quiz
   bool wasWrong = false;
@@ -49,10 +70,6 @@ class _QuizScreenState extends State<QuizScreen> {
   late WordCard answerCard2;
   late Stack cardStack;
 
-  // Bottom Bar
-  late BottomBox inputBox;
-  late BottomBox continueBox;
-
   // Logics
   late bool isOddTHCard;
   late bool isShowingAnswer;
@@ -63,12 +80,16 @@ class _QuizScreenState extends State<QuizScreen> {
   late Timer disposalTimer;
 
   // Progress
-  int absoluteProgress = 1; // progress of all combined, including wrong answers and extension
+  int absoluteProgress =
+      1; // progress of all combined, including wrong answers and extension
   int originalProgress = 1; // progress of original cards
   int wrongAnswers = 0; // number of all wrong answers
-  int absoluteRepetitionProgress = 0; // progress of extension, also wrong answers
+  int absoluteRepetitionProgress =
+      0; // progress of extension, also wrong answers
   int repetitionProgress = 0; // progress of extension
   bool hasRepetitionBegun = false;
+  int inFirstTry = 0;
+  int inRepetitionFirstTry = 0;
 
   bool isAnswerCorrect(String answer) {
     // TODO implement correction detection system
@@ -89,13 +110,20 @@ class _QuizScreenState extends State<QuizScreen> {
     if (isAnswerCorrect(text)) {
       // Answer was correct
       wasWrong = false;
+
+      if (!listOfWrongs.contains(listOfQuestions[count - 1]) &&
+          !hasRepetitionBegun) {
+        inFirstTry++;
+      } else if (!listOfWrongs.contains(listOfQuestions[count - 1]) &&
+          hasRepetitionBegun) {
+        inRepetitionFirstTry++;
+      }
     } else {
       // Answer was wrong
       // so we have to put this word at the wrong list
       if (!listOfWrongs.contains(listOfQuestions[count - 1])) {
         listOfWrongs.add(listOfQuestions[count - 1]);
-      }
-      else {
+      } else {
         print("You've got wrong again! lol");
       }
       wasWrong = true;
@@ -120,29 +148,13 @@ class _QuizScreenState extends State<QuizScreen> {
 
     // repeat wrong answers if all words are done, there's at least one wrong answer
     // and session should be continued
-    if(count >= listOfQuestions.length && listOfWrongs.isNotEmpty && !wasWrong) {
-      print("================================");
-      print("Generate extension");
-
-      hasRepetitionBegun = true;
-      if(repetitionProgress == 0) repetitionProgress = 1;
-      if(absoluteRepetitionProgress == 0) absoluteRepetitionProgress = 1;
-
-      // shuffle all wrong answers firstly
-      listOfWrongs.shuffle();
-      for (WordPair pair in listOfWrongs) {
-        print("New extension : ${pair.word1}");
-      }
-
-      // add every wrong answers to queue
-      for(WordPair word in listOfWrongs) {
-        listOfQuestions.add(word);
-      }
-
-      // reset list of wrong answers
-      listOfWrongs = [];
-    }
-    else if(count >= listOfQuestions.length && listOfWrongs.isEmpty && !wasWrong) {
+    if (count >= listOfQuestions.length &&
+        listOfWrongs.isNotEmpty &&
+        !wasWrong) {
+      generateExtension();
+    } else if (count >= listOfQuestions.length &&
+        listOfWrongs.isEmpty &&
+        !wasWrong) {
       isDone = true;
     }
 
@@ -157,6 +169,118 @@ class _QuizScreenState extends State<QuizScreen> {
   // Update stored data for input TextBox
   void updateInputValue(String newInputValue) {
     inputValue = newInputValue;
+  }
+
+  void generateExtension() {
+    print("================================");
+    print("Generate extension");
+
+    hasRepetitionBegun = true;
+    if (repetitionProgress == 0) repetitionProgress = 1;
+    if (absoluteRepetitionProgress == 0) absoluteRepetitionProgress = 1;
+
+    // shuffle all wrong answers firstly
+    listOfWrongs.shuffle();
+    for (WordPair pair in listOfWrongs) {
+      print("New extension : ${pair.word1}");
+    }
+
+    // add every wrong answers to queue
+    for (WordPair word in listOfWrongs) {
+      listOfQuestions.add(word);
+    }
+
+    // reset list of wrong answers
+    listOfWrongs = [];
+  }
+
+  void showAnswerOnly() {
+    print("================================");
+    print("Answer showing");
+    print("================================");
+
+    showAnswer();
+  }
+
+  void onWasWrong() {
+    // Check if the current sequence is Answer
+    late bool trigger;
+    Sequence requiredSequence = Sequence.answer;
+    if (isOddTHCard) {
+      trigger = questionCard.sequence != requiredSequence &&
+          answerCard.sequence != requiredSequence;
+    } else {
+      trigger = questionCard2.sequence != requiredSequence &&
+          answerCard2.sequence != requiredSequence;
+    }
+    if (trigger) {
+      return;
+    }
+
+    print('Wrong');
+    // Answer was wrong
+    // so we have to put this word at the wrong list
+    if (!listOfWrongs.contains(listOfQuestions[count - 1])) {
+      listOfWrongs.add(listOfQuestions[count - 1]);
+    } else {
+      print("You've got wrong again! lol");
+    }
+    wasWrong = true;
+
+    _afterSummitingCorrectness();
+  }
+
+  void onWasCorrect() {
+    // Check if the current sequence is Answer
+    late bool trigger;
+    Sequence requiredSequence = Sequence.answer;
+    if (isOddTHCard) {
+      trigger = questionCard.sequence != requiredSequence &&
+          answerCard.sequence != requiredSequence;
+    } else {
+      trigger = questionCard2.sequence != requiredSequence &&
+          answerCard2.sequence != requiredSequence;
+    }
+    if (trigger) {
+      return;
+    }
+
+    print("Correct");
+    // Answer was correct
+    wasWrong = false;
+
+    if (!listOfWrongs.contains(listOfQuestions[count - 1]) &&
+        !hasRepetitionBegun) {
+      inFirstTry++;
+    } else if (!listOfWrongs.contains(listOfQuestions[count - 1]) &&
+        hasRepetitionBegun) {
+      inRepetitionFirstTry++;
+    }
+
+    _afterSummitingCorrectness();
+  }
+
+  void _afterSummitingCorrectness() {
+    print("after summitting");
+    fieldText.clear();
+
+    // repeat wrong answers if all words are done, there's at least one wrong answer
+    // and session should be continued
+    if (count >= listOfQuestions.length &&
+        listOfWrongs.isNotEmpty &&
+        !wasWrong) {
+      generateExtension();
+    } else if (count >= listOfQuestions.length &&
+        listOfWrongs.isEmpty &&
+        !wasWrong) {
+      isDone = true;
+    }
+
+    wasWrong ? repeatWord() : makeNextWord();
+
+    Future.delayed(const Duration(milliseconds: 100), () {
+      showNext();
+    });
   }
 
   /*
@@ -286,10 +410,24 @@ class _QuizScreenState extends State<QuizScreen> {
       print("Result :");
       print(">> Number of all sessions : ${absoluteProgress}");
       print(">> Number of all words : ${originalProgress}");
-      print(">> Number of wrong answers in first try : ${wrongAnswers}");
-      print(">> Number of all sessions during repetition : ${absoluteRepetitionProgress}");
-      print(">> Number of all repeated words (overlap-able) : ${repetitionProgress}");
+      print(
+          ">> Number of wrong answers in first try given (overlap-able) : ${wrongAnswers}");
+      print(
+          ">> Number of all sessions during repetition : ${absoluteRepetitionProgress}");
+      print(
+          ">> Number of all repeated words (overlap-able) : ${repetitionProgress}");
+      print(">> In first try : ${inFirstTry}");
 
+      listOfQuestions = [];
+      listOfWrongs = [];
+
+      Navigator.pushNamed(
+        context,
+        ResultScreen.routeName,
+        arguments: ResultScreenArguments(
+            questionsNumber, inFirstTry / questionsNumber),
+      );
+      return;
     }
 
     // Animate cards to disappear
@@ -346,9 +484,9 @@ class _QuizScreenState extends State<QuizScreen> {
             newExample: listOfQuestions[count - 1].example2 ?? "",
           );
 
-    if(!hasRepetitionBegun) wrongAnswers++;
+    if (!hasRepetitionBegun) wrongAnswers++;
     absoluteProgress++;
-    if(hasRepetitionBegun) absoluteRepetitionProgress++;
+    if (hasRepetitionBegun) absoluteRepetitionProgress++;
     setState(() {});
   }
 
@@ -367,26 +505,25 @@ class _QuizScreenState extends State<QuizScreen> {
       // Question part
       isOddTHCard
           ? questionCard2.setDisplayWordAndExample(
-        newWord: listOfQuestions[count].word1,
-        newExample: listOfQuestions[count].example1 ?? "",
-      )
+              newWord: listOfQuestions[count].word1,
+              newExample: listOfQuestions[count].example1 ?? "",
+            )
           : questionCard.setDisplayWordAndExample(
-        newWord: listOfQuestions[count].word1,
-        newExample: listOfQuestions[count].example1 ?? "",
-      );
+              newWord: listOfQuestions[count].word1,
+              newExample: listOfQuestions[count].example1 ?? "",
+            );
 
       // Answer part
       isOddTHCard
           ? answerCard2.setDisplayWordAndExample(
-        newWord: listOfQuestions[count].word2,
-        newExample: listOfQuestions[count].example2 ?? "",
-      )
+              newWord: listOfQuestions[count].word2,
+              newExample: listOfQuestions[count].example2 ?? "",
+            )
           : answerCard.setDisplayWordAndExample(
-        newWord: listOfQuestions[count].word2,
-        newExample: listOfQuestions[count].example2 ?? "",
-      );
-    }
-    catch(e) {
+              newWord: listOfQuestions[count].word2,
+              newExample: listOfQuestions[count].example2 ?? "",
+            );
+    } catch (e) {
       print("It's most likely that you're done!");
       print("Congratulations!!!");
       print("To finish, press continue");
@@ -394,9 +531,9 @@ class _QuizScreenState extends State<QuizScreen> {
 
     count++;
     absoluteProgress++; // basically syncs with count but
-    if(!hasRepetitionBegun) originalProgress++; // basically syncs with count
-    if(hasRepetitionBegun) absoluteRepetitionProgress++;
-    if(hasRepetitionBegun) repetitionProgress++;
+    if (!hasRepetitionBegun) originalProgress++; // basically syncs with count
+    if (hasRepetitionBegun) absoluteRepetitionProgress++;
+    if (hasRepetitionBegun) repetitionProgress++;
     print(
         "Next step index + 1 : $count, and is current step 2n+1 : $isOddTHCard");
 
@@ -416,8 +553,13 @@ class _QuizScreenState extends State<QuizScreen> {
     super.initState();
 
     listOfQuestions = widget.wordPack;
+    questionsNumber = listOfQuestions.length;
     print("listOfQuestions : ${listOfQuestions.length}");
     for (WordPair str in listOfQuestions) print(str.word1);
+
+    print("languages : ");
+    print(widget.language1);
+    print(widget.language2);
 
     // Initialise 4 cards for test
     questionCard = WordCard(
@@ -425,7 +567,7 @@ class _QuizScreenState extends State<QuizScreen> {
       isOddTHCard: true,
       word: listOfQuestions[0].word1,
       example: listOfQuestions[0].example1 ?? "",
-      language: language1,
+      language: widget.language1,
     );
 
     answerCard = WordCard(
@@ -433,7 +575,7 @@ class _QuizScreenState extends State<QuizScreen> {
       isOddTHCard: true,
       word: listOfQuestions[0].word2,
       example: listOfQuestions[0].example2 ?? "",
-      language: language2,
+      language: widget.language2,
     );
 
     questionCard2 = WordCard(
@@ -441,7 +583,7 @@ class _QuizScreenState extends State<QuizScreen> {
       isOddTHCard: false,
       word: listOfQuestions[1].word1,
       example: listOfQuestions[1].example1 ?? "",
-      language: language1,
+      language: widget.language1,
     );
 
     answerCard2 = WordCard(
@@ -449,19 +591,7 @@ class _QuizScreenState extends State<QuizScreen> {
       isOddTHCard: false,
       word: listOfQuestions[1].word2,
       example: listOfQuestions[1].example2 ?? "",
-      language: language2,
-    );
-
-    // Initialise InputTextBox
-    inputBox = BottomBox(
-      child: InputBox(
-        answer: listOfQuestions[count - 1].word2,
-        inputValue: inputValue,
-        fieldText: fieldText,
-        onSummit: onSummit,
-        onSummitByButton: onSummitByButton,
-        updateInputValue: updateInputValue,
-      ),
+      language: widget.language2,
     );
 
     answerCard.sequence = Sequence.hidden;
@@ -489,6 +619,7 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(0),
         child: AppBar(
@@ -499,28 +630,86 @@ class _QuizScreenState extends State<QuizScreen> {
         ),
       ),
       body: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const ProgressBar(), // TODO
+          ProgressBar(
+              progress: inFirstTry + inRepetitionFirstTry,
+              total: questionsNumber),
           const SizedBox(
             height: 20,
           ),
           Expanded(
-            child: cardStack,
+            child: Stack(
+              children: [
+                cardStack,
+                if (!isShowingAnswer)
+                  Transform.translate(
+                    offset: Offset(10, -10),
+                    child: Opacity(
+                      opacity: 0.8,
+                      child: FloatingActionButton(
+                        onPressed: () {
+                          bDontTypeAnswer = !bDontTypeAnswer;
+                          setState(() {});
+                        },
+                        backgroundColor: Theme.of(context).cardColor,
+                        child: Icon(
+                          !bDontTypeAnswer
+                              ? Icons.control_point_outlined
+                              : Icons.keyboard_alt_outlined,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
           const SizedBox(height: 20),
-          Stack(
-            children: [
-              !isShowingAnswer
-                  ? inputBox
-                  : ContinueBox(
-                      onClicked: showNext,
-                      correctState:
-                          wasWrong ? CorrectState.wrong : CorrectState.correct,
+          if (!isShowingAnswer)
+            bDontTypeAnswer
+                ? GestureDetector(
+                    onTap: showAnswerOnly,
+                    child: ContinueButton(
+                      color: Theme.of(context).cardColor,
+                      correctState: CorrectState.correct,
+                      text: "Reveal answer",
                     ),
-              FloatingActionButton(
-                  onPressed: () {}, child: const Icon(Icons.add_circle)),
-            ],
-          ),
+                  )
+                : InputBox(
+                    answer: listOfQuestions[count - 1].word2,
+                    fieldText: fieldText,
+                    onSummit: onSummit,
+                    onSummitByButton: onSummitByButton,
+                    updateInputValue: updateInputValue,
+                    showHint: listOfWrongs.contains(listOfQuestions[count - 1]),
+                  ),
+          if (isShowingAnswer)
+            bDontTypeAnswer
+                ? Row(
+                    children: [
+                      GestureDetector(
+                        onTap: onWasWrong,
+                        child: const ContinueButton(
+                          correctState: CorrectState.both,
+                          color: Colors.deepOrangeAccent,
+                          text: "revise",
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: onWasCorrect,
+                        child: const ContinueButton(
+                          correctState: CorrectState.both,
+                          color: Colors.green,
+                          text: "continue",
+                        ),
+                      ),
+                    ],
+                  )
+                : ContinueBox(
+                    onClicked: showNext,
+                    correctState:
+                        wasWrong ? CorrectState.wrong : CorrectState.correct,
+                  ),
         ],
       ),
     );

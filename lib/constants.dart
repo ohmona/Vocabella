@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+const double _widgetHeight = 60;
+
 class AnimValueBase {
   AnimValueBase()
       : mainOffset = const Offset(0, 0),
@@ -23,16 +25,16 @@ class AnimValueBase {
     double width = size.width / ratio;
     double height = size.height / ratio;
 
-    double totalBarsHeight = height * 0.18;
+    double totalBarsHeight = 2 * _widgetHeight;
     double freeHeight = height - totalBarsHeight - 40;
 
     defaultWidth = width;
     defaultHeight = freeHeight;
     smallWidth = defaultWidth;
     mediumWidth = defaultWidth;
-    mediumOffset = Offset(0, freeHeight / 2 + 5);
-    smallHeight = freeHeight / 2 - 30;
-    mediumHeight = freeHeight / 2 - 30;
+    mediumOffset = Offset(0, freeHeight / 2);
+    smallHeight = freeHeight / 2 - 25;
+    mediumHeight = freeHeight / 2 - 25;
   }
 
   late Offset mainOffset;
@@ -60,6 +62,28 @@ class DefaultAnimValue extends AnimValueBase {
   DefaultAnimValue() : super();
 }
 
+class DefaultLandscapeAnimValue extends AnimValueBase {
+  DefaultLandscapeAnimValue() : super() {
+    Size size = WidgetsBinding.instance.window.physicalSize;
+    double ratio = WidgetsBinding.instance.window.devicePixelRatio;
+
+    double width = size.width / ratio;
+    double height = size.height / ratio;
+
+    double totalBarsHeight = height * 0.18;
+    double freeHeight = height - totalBarsHeight - 40;
+
+    defaultWidth = width;
+    defaultHeight = freeHeight;
+    smallWidth = (defaultWidth / 2) - 20;
+    smallOffset = const Offset(15, 0);
+    mediumWidth = (defaultWidth / 2) - 20;
+    mediumOffset = Offset((defaultWidth / 2) + 10, 0);
+    smallHeight = defaultHeight;
+    mediumHeight = defaultHeight;
+  }
+}
+
 // TODO implement this for any device
 class _SizedAnimValue extends AnimValueBase {
 
@@ -73,4 +97,8 @@ class _SizedAnimValue extends AnimValueBase {
     smallScale = 0.8;
     mediumScale = 0.8;
   }
+}
+
+void bruh() {
+  _SizedAnimValue();
 }

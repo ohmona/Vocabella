@@ -38,7 +38,6 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
         word2: w1,
         example1: e2,
         example2: e1,
-        id: word.id,
       );
       to.add(newPair);
     }

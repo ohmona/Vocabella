@@ -38,7 +38,7 @@ class ChapterSelectionScreen extends StatelessWidget {
               WordSelectionScreen.routeName,
               arguments: WordSelectionScreenArguments(
                 chapterList.getChapters(),
-                args.subject.languages,
+                args.subject.languages!,
               ),
             );
           },
@@ -67,7 +67,7 @@ class _ChapterListState extends State<ChapterList> {
 
   List<Chapter> getChapters() {
     selectedChapters = [];
-    for (Chapter chapter in widget.subject.wordlist) {
+    for (Chapter chapter in widget.subject.wordlist!) {
       if (isChecked[chapter.name] == true) {
         if(!selectedChapters.contains(chapter)) {
           selectedChapters.add(chapter);
@@ -95,7 +95,7 @@ class _ChapterListState extends State<ChapterList> {
     print("==============================");
     print("Initializing chapters");
 
-    for (Chapter chapter in widget.subject.wordlist) {
+    for (Chapter chapter in widget.subject.wordlist!) {
       isChecked[chapter.name] = true;
       print(chapter.name);
     }
@@ -107,7 +107,7 @@ class _ChapterListState extends State<ChapterList> {
       scrollDirection: Axis.vertical,
       padding: const EdgeInsets.all(10),
       children: [
-        for (Chapter chapter in widget.subject.wordlist)
+        for (Chapter chapter in widget.subject.wordlist!)
           Container(
             padding: const EdgeInsets.all(10),
             child: Row(
@@ -122,7 +122,7 @@ class _ChapterListState extends State<ChapterList> {
                     print("${chapter.name} : $value");
                   },
                 ),
-                Text(chapter.name),
+                Text("Chapter of : ${chapter.words[0].word1}"),
               ],
             ),
           ),

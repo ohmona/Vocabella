@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:vocabella/models/subject_data_model.dart';
 import 'package:vocabella/screens/chapter_selection_screen.dart';
 import 'package:vocabella/screens/home_screen.dart';
 
-import 'package:vocabella/classes.dart';
 import 'package:vocabella/screens/mode_selection_screen.dart';
 import 'package:vocabella/screens/quiz_screen.dart';
 import 'package:vocabella/screens/result_screen.dart';
@@ -27,14 +25,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    late List<WordPair> vocabulary = [];
+    /*late List<WordPair> vocabulary = [];
     for (Chapter chap in SubjectDataModel
         .createExampleData()
-        .wordlist) {
+        .wordlist!) {
       for (WordPair wordPair in chap.words) {
         vocabulary.add(wordPair);
       }
-    }
+    }*/
 
     return MaterialApp(
       theme: ThemeData(

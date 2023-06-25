@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vocabella/arguments.dart';
@@ -23,7 +24,10 @@ class QuizScreenParent extends StatelessWidget {
       onWillPop: () async {
         return false;
       },
-      child: QuizScreen(wordPack: args.wordPack, language1: args.language1, language2 :args.language2),
+      child: QuizScreen(
+          wordPack: args.wordPack,
+          language1: args.language1,
+          language2: args.language2),
     );
   }
 }
@@ -31,16 +35,18 @@ class QuizScreenParent extends StatelessWidget {
 class QuizScreen extends StatefulWidget {
   const QuizScreen({
     Key? key,
-    required this.wordPack, required this.language1, required this.language2,
+    required this.wordPack,
+    required this.language1,
+    required this.language2,
   }) : super(key: key);
 
+  // The list of words for quiz
   final List<WordPair> wordPack;
 
   static const routeName = '/quiz';
 
   final String language1;
   final String language2;
-  //TODO make language selectable when it's created
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -49,10 +55,6 @@ class QuizScreen extends StatefulWidget {
 class _QuizScreenState extends State<QuizScreen> {
   // Variables about gameplay
   bool bDontTypeAnswer = true;
-
-  // Variables about input
-  final fieldText = TextEditingController();
-  String inputValue = "";
 
   // Variables about questions
   int count = 1;
@@ -63,17 +65,21 @@ class _QuizScreenState extends State<QuizScreen> {
   // Variables about quiz
   bool wasWrong = false;
 
+  // Logics
+  late bool isOddTHCard;
+  late bool isShowingAnswer;
+  bool isDone = false;
+
+  // Variables about input
+  final fieldText = TextEditingController();
+  String inputValue = "";
+
   // Cards
   late WordCard questionCard;
   late WordCard answerCard;
   late WordCard questionCard2;
   late WordCard answerCard2;
   late Stack cardStack;
-
-  // Logics
-  late bool isOddTHCard;
-  late bool isShowingAnswer;
-  bool isDone = false;
 
   // Timer
   late Timer transitionTimer;
@@ -91,121 +97,20 @@ class _QuizScreenState extends State<QuizScreen> {
   int inFirstTry = 0;
   int inRepetitionFirstTry = 0;
 
+  /// Check if the answer was correctly given
   bool isAnswerCorrect(String answer) {
     // TODO implement correction detection system
     return answer == listOfQuestions[count - 1].word2;
   }
 
-  // Runs when user gives enter
-  void onSummit(String text) {
-    print("================================");
-    print("Answer summited");
-    print("================================");
+  /// Update stored data for input TextBox
+  void updateInputValue(String newInputValue) => inputValue = newInputValue;
 
-    showAnswer();
-
-    print("correct one : ${listOfQuestions[count - 1].word2}");
-    print("given answer : " + text);
-    print("Was Correct? : ${isAnswerCorrect(text)}");
-    if (isAnswerCorrect(text)) {
-      // Answer was correct
-      wasWrong = false;
-
-      if (!listOfWrongs.contains(listOfQuestions[count - 1]) &&
-          !hasRepetitionBegun) {
-        inFirstTry++;
-      } else if (!listOfWrongs.contains(listOfQuestions[count - 1]) &&
-          hasRepetitionBegun) {
-        inRepetitionFirstTry++;
-      }
-    } else {
-      // Answer was wrong
-      // so we have to put this word at the wrong list
-      if (!listOfWrongs.contains(listOfQuestions[count - 1])) {
-        listOfWrongs.add(listOfQuestions[count - 1]);
-      } else {
-        print("You've got wrong again! lol");
-      }
-      wasWrong = true;
-    }
-    setState(() {});
-
-    fieldText.clear();
-
-    print("================================");
-    print("Printing wrong answers");
-    print("================================");
-    for (WordPair pair in listOfWrongs) {
-      print(pair.word2);
-    }
-    print("================================");
-
-    print("Some conditions ======================");
-    print("Is done : ${count >= listOfQuestions.length}");
-    print(">> To Compare : length ${listOfQuestions.length} // count $count");
-    print("Has been wrong : ${listOfWrongs.isNotEmpty}");
-    print("Was just correct : ${!wasWrong}");
-
-    // repeat wrong answers if all words are done, there's at least one wrong answer
-    // and session should be continued
-    if (count >= listOfQuestions.length &&
-        listOfWrongs.isNotEmpty &&
-        !wasWrong) {
-      generateExtension();
-    } else if (count >= listOfQuestions.length &&
-        listOfWrongs.isEmpty &&
-        !wasWrong) {
-      isDone = true;
-    }
-
-    wasWrong ? repeatWord() : makeNextWord();
-  }
-
-  // Runs when user presses summit button
-  void onSummitByButton() {
-    onSummit(inputValue);
-  }
-
-  // Update stored data for input TextBox
-  void updateInputValue(String newInputValue) {
-    inputValue = newInputValue;
-  }
-
-  void generateExtension() {
-    print("================================");
-    print("Generate extension");
-
-    hasRepetitionBegun = true;
-    if (repetitionProgress == 0) repetitionProgress = 1;
-    if (absoluteRepetitionProgress == 0) absoluteRepetitionProgress = 1;
-
-    // shuffle all wrong answers firstly
-    listOfWrongs.shuffle();
-    for (WordPair pair in listOfWrongs) {
-      print("New extension : ${pair.word1}");
-    }
-
-    // add every wrong answers to queue
-    for (WordPair word in listOfWrongs) {
-      listOfQuestions.add(word);
-    }
-
-    // reset list of wrong answers
-    listOfWrongs = [];
-  }
-
-  void showAnswerOnly() {
-    print("================================");
-    print("Answer showing");
-    print("================================");
-
-    showAnswer();
-  }
-
-  void onWasWrong() {
-    // Check if the current sequence is Answer
+  /// Check current sequence for multi purpose
+  bool checkIsNotSequence(Sequence desired) {
     late bool trigger;
-    Sequence requiredSequence = Sequence.answer;
+    Sequence requiredSequence = desired;
+    // Check if sequence both of current cards aren't desired sequence
     if (isOddTHCard) {
       trigger = questionCard.sequence != requiredSequence &&
           answerCard.sequence != requiredSequence;
@@ -213,276 +118,290 @@ class _QuizScreenState extends State<QuizScreen> {
       trigger = questionCard2.sequence != requiredSequence &&
           answerCard2.sequence != requiredSequence;
     }
-    if (trigger) {
-      return;
-    }
-
-    print('Wrong');
-    // Answer was wrong
-    // so we have to put this word at the wrong list
-    if (!listOfWrongs.contains(listOfQuestions[count - 1])) {
-      listOfWrongs.add(listOfQuestions[count - 1]);
-    } else {
-      print("You've got wrong again! lol");
-    }
-    wasWrong = true;
-
-    _afterSummitingCorrectness();
+    return trigger;
   }
 
-  void onWasCorrect() {
-    // Check if the current sequence is Answer
-    late bool trigger;
-    Sequence requiredSequence = Sequence.answer;
-    if (isOddTHCard) {
-      trigger = questionCard.sequence != requiredSequence &&
-          answerCard.sequence != requiredSequence;
-    } else {
-      trigger = questionCard2.sequence != requiredSequence &&
-          answerCard2.sequence != requiredSequence;
-    }
-    if (trigger) {
-      return;
-    }
-
-    print("Correct");
-    // Answer was correct
-    wasWrong = false;
-
-    if (!listOfWrongs.contains(listOfQuestions[count - 1]) &&
-        !hasRepetitionBegun) {
-      inFirstTry++;
-    } else if (!listOfWrongs.contains(listOfQuestions[count - 1]) &&
-        hasRepetitionBegun) {
-      inRepetitionFirstTry++;
-    }
-
-    _afterSummitingCorrectness();
-  }
-
-  void _afterSummitingCorrectness() {
-    print("after summitting");
-    fieldText.clear();
-
-    // repeat wrong answers if all words are done, there's at least one wrong answer
-    // and session should be continued
-    if (count >= listOfQuestions.length &&
-        listOfWrongs.isNotEmpty &&
-        !wasWrong) {
-      generateExtension();
-    } else if (count >= listOfQuestions.length &&
-        listOfWrongs.isEmpty &&
-        !wasWrong) {
-      isDone = true;
-    }
-
-    wasWrong ? repeatWord() : makeNextWord();
-
-    Future.delayed(const Duration(milliseconds: 100), () {
-      showNext();
-    });
-  }
-
-  /*
-  *   Transition : Appearance of cards from bottom to top
-   */
-  // Body of transition timer
-  void onTransitionTick(Timer transitionTimer) {
+  // Transition : Appearance of cards from bottom to top
+  /// Body of transition timer
+  void _onTransitionTick(Timer transitionTimer) {
+    // Check if current process is Sequence.appear so that AnswerCard teleports
+    // to behind of the QuestionCard. Card to move is chosen depending on isOddTHCard,
+    // which means the stage is either 1st, 3rd, 5th... or 2nd, 4th, 6th...
     if (isOddTHCard
         ? questionCard.sequence == Sequence.appear
         : questionCard2.sequence == Sequence.appear) {
       setState(() {
-        // answer card should be placed here
+        // Answer card is placed into center
         isOddTHCard ? answerCard.resetCenter() : answerCard2.resetCenter();
-        transitionTimer.cancel();
+        transitionTimer.cancel(); // Stop the timer
       });
     } else {
       setState(() {});
     }
   }
 
-  // Trigger of transition Timer
+  /// Trigger of transition Timer
   void onTransitionStarted() {
     transitionTimer = Timer.periodic(
       const Duration(milliseconds: 1),
-      onTransitionTick,
+      _onTransitionTick,
     );
   }
 
-  /*
-  *   Disposal : Resetting previous cards into initial state
-   */
-  // Body of disposal timer
-  void onDisposalTick(Timer disposalTimer) {
-    if (isOddTHCard
-        ? questionCard2.sequence == Sequence.hidden
-        : questionCard.sequence == Sequence.hidden) {
-      setState(() {
-        // answer card should be placed here
-        isOddTHCard ? answerCard2.reset() : answerCard.reset();
-        isOddTHCard ? questionCard2.reset() : questionCard.reset();
-
-        disposalTimer.cancel();
-      });
+  /// Once user has submitted the answer
+  void onSummit(String text) {
+    if (kDebugMode) {
+      print("================================");
+      print("Answer summited");
+      print("================================");
     }
-  }
 
-  // Trigger of transition Timer
-  void onDisposalStarted() {
-    disposalTimer = Timer.periodic(
-      const Duration(milliseconds: 1),
-      onDisposalTick,
-    );
-  }
+    // Show answer initially
+    showAnswer();
 
-  // Show correct answer by animating cards sidewards and play tts immediately
-  void showAnswer() {
-    /* Check whether sequence of cards (depending of isOddTHCard) are
-    *  in sequence of question, if true blocks further commands
-    */
-    late bool trigger;
-    if (isOddTHCard) {
-      trigger = questionCard.sequence != Sequence.question &&
-          answerCard.sequence != Sequence.question;
+    // Print answer to check whether code works properly
+    if (kDebugMode) {
+      print("correct one : ${listOfQuestions[count - 1].word2}");
+      print("given answer : $text");
+      print("Was Correct? : ${isAnswerCorrect(text)}");
+    }
+
+    // Make sure that the given answer was correct or wrong
+    wasWrong = !isAnswerCorrect(text);
+
+    // Check if answer was correctly given or not
+    if (isAnswerCorrect(text) == true) {
+      // Count InFirstTry depending on it's repetition or not
+      // InFirstTry means that user had given wrong answer at least once
+      if (!listOfWrongs.contains(listOfQuestions[count - 1]) &&
+          !hasRepetitionBegun) {
+        // Pure InFirstTry count
+        inFirstTry++;
+      } else if (!listOfWrongs.contains(listOfQuestions[count - 1]) &&
+          hasRepetitionBegun) {
+        // InFirstTry but it's on revision
+        inRepetitionFirstTry++;
+      }
     } else {
-      trigger = questionCard2.sequence != Sequence.question &&
-          answerCard2.sequence != Sequence.question;
+      // The given answer was wrong so the corresponding word will be
+      // added into list and only if it's first time
+      // For that it'll be compared if current word doesn't exist in the list
+      if (!listOfWrongs.contains(listOfQuestions[count - 1])) {
+        listOfWrongs.add(listOfQuestions[count - 1]);
+      }
     }
-    if (trigger) {
-      return;
+    // Update widget
+    setState(() {});
+    fieldText.clear();
+
+    // Print some values to check for debug
+    if (kDebugMode) {
+      print("================================");
+      print("Printing wrong answers");
+      print("================================");
+
+      for (WordPair pair in listOfWrongs) {
+        print(pair.word2);
+      }
+      print("================================");
+
+      print("Some conditions ======================");
+      print("Is done : ${count >= listOfQuestions.length}");
+      print(">> To Compare : length ${listOfQuestions.length} // count $count");
+      print("Has been wrong : ${listOfWrongs.isNotEmpty}");
+      print("Was just correct : ${!wasWrong}");
     }
 
+    // Check whether answer was correct and current stage is over
+    if (!wasWrong && count >= listOfQuestions.length) {
+      // If current session is done, check whether revision should take place or not
+      // For revision, new list will be generated according to listOfWrongs
+      // Unless, isDone will be set to true to finish the session
+      if (listOfWrongs.isNotEmpty) {
+        generateExtension();
+      } else {
+        isDone = true;
+      }
+    }
+
+    // Depending on correctness, next step will be executed
+    wasWrong ? repeatWord() : makeNextWord();
+  }
+
+  /// Once user pressed summit button
+  void onSummitByButton() => onSummit(inputValue);
+
+  /// Show correct answer by animating cards and play tts immediately
+  void showAnswer() {
+    // Check if the current sequence is "Question"
+    // Unless, exit method to prevent from unexpected animation and sequencing
+    if (checkIsNotSequence(Sequence.question)) return;
+
+    // Remove focus from the keyboard
     if (FocusManager.instance.primaryFocus != null) {
       FocusManager.instance.primaryFocus?.unfocus();
     }
+    // Reset input
     fieldText.clear();
 
-    // answer is now being shown
+    // Answer is being shown now
     isShowingAnswer = true;
 
-    /* Change sequence of Cards (depending of isOddTHCard), then animate them
-    * and run tts */
+    // Show answer
     if (isOddTHCard) {
+      // Change sequence of Cards
       questionCard.sequence = Sequence.showing;
       answerCard.sequence = Sequence.showing;
 
+      // Animate cards
       questionCard.animSmall();
       answerCard.animMedium();
 
+      // Play TTS
       answerCard.wordTTS.play();
     } else {
+      // Change sequence of Cards
       questionCard2.sequence = Sequence.showing;
       answerCard2.sequence = Sequence.showing;
 
+      // Animate cards
       questionCard2.animSmall();
       answerCard2.animMedium();
 
+      // Play TTS
       answerCard2.wordTTS.play();
     }
   }
 
-  /* Show next cards by disposing (making invisible)
-  *  previous cards and making next card appeared and
-  *  play tts immediately if it exists */
-  void showNext() {
-    print("showNext");
-
-    // Check if the current sequence is Answer
-    late bool trigger;
-    Sequence requiredSequence = Sequence.answer;
-    if (isOddTHCard) {
-      trigger = questionCard.sequence != requiredSequence &&
-          answerCard.sequence != requiredSequence;
-    } else {
-      trigger = questionCard2.sequence != requiredSequence &&
-          answerCard2.sequence != requiredSequence;
-    }
-    if (trigger) {
-      print("this shall not happen");
-      return;
+  /// I don't know why make made this but I'll figure it out later
+  void showAnswerOnly() {
+    if (kDebugMode) {
+      print("================================");
+      print("Answer showing");
+      print("================================");
     }
 
-    // Check if it's done
-    if (isDone) {
-      // TODO Improve resulting system
-      print("===============================================");
-      print("===============================================");
-      print("Result :");
-      print(">> Number of all sessions : ${absoluteProgress}");
-      print(">> Number of all words : ${originalProgress}");
-      print(
-          ">> Number of wrong answers in first try given (overlap-able) : ${wrongAnswers}");
-      print(
-          ">> Number of all sessions during repetition : ${absoluteRepetitionProgress}");
-      print(
-          ">> Number of all repeated words (overlap-able) : ${repetitionProgress}");
-      print(">> In first try : ${inFirstTry}");
-
-      listOfQuestions = [];
-      listOfWrongs = [];
-
-      Navigator.pushNamed(
-        context,
-        ResultScreen.routeName,
-        arguments: ResultScreenArguments(
-            questionsNumber, inFirstTry / questionsNumber),
-      );
-      return;
-    }
-
-    // Animate cards to disappear
-    onDisposalStarted();
-
-    if (isOddTHCard) {
-      questionCard.sequence = Sequence.disappear;
-      answerCard.sequence = Sequence.disappear;
-
-      questionCard.animDisappear();
-      answerCard.animDisappear();
-      questionCard2.animAppear();
-      onTransitionStarted(); // Transition for behind card
-
-      questionCard2.wordTTS.play();
-    } else {
-      questionCard2.sequence = Sequence.disappear;
-      answerCard2.sequence = Sequence.disappear;
-
-      questionCard2.animDisappear();
-      answerCard2.animDisappear();
-      questionCard.animAppear();
-      onTransitionStarted(); // Transition for behind card
-
-      questionCard.wordTTS.play();
-    }
-    isOddTHCard = !isOddTHCard;
-    isShowingAnswer = false;
-    setState(() {});
+    // Jump to showing process
+    showAnswer();
   }
 
+  /// Once pressing "my answer was correct" button during "don't type answer" process
+  /// It looks similar to onSummit method
+  void onWasCorrect() {
+    // Check if the current sequence is "Answer"
+    // Unless, exit method to prevent from unexpected animation and sequencing
+    if (checkIsNotSequence(Sequence.answer)) return;
+
+    // Answer was correct
+    wasWrong = false;
+
+    // Count InFirstTry depending on it's repetition or not
+    // InFirstTry means that user had given wrong answer at least once
+    if (!listOfWrongs.contains(listOfQuestions[count - 1]) &&
+        !hasRepetitionBegun) {
+      // Pure InFirstTry count
+      inFirstTry++;
+    } else if (!listOfWrongs.contains(listOfQuestions[count - 1]) &&
+        hasRepetitionBegun) {
+      // InFirstTry but it's on revision
+      inRepetitionFirstTry++;
+    }
+
+    // Jump to next process
+    _afterSummitingCorrectness();
+  }
+
+  /// Once pressing "my answer was wrong" button during "don't type answer" process
+  /// It looks similar to onSummit method
+  void onWasWrong() {
+    // Check if the current sequence is "Answer"
+    // Unless, exit method to prevent from unexpected animation and sequencing
+    if (checkIsNotSequence(Sequence.answer)) return;
+
+    // The given answer was wrong so the corresponding word will be
+    // added into list and only if it's first time
+    // For that it'll be compared if current word doesn't exist in the list
+    if (!listOfWrongs.contains(listOfQuestions[count - 1])) {
+      listOfWrongs.add(listOfQuestions[count - 1]);
+    }
+
+    // Make sure that answer was wrong
+    wasWrong = true;
+
+    // Jump to next process
+    _afterSummitingCorrectness();
+  }
+
+  /// Once user has submitted whether his/her answer was correct or not
+  /// It looks similar to onSummit method
+  void _afterSummitingCorrectness() {
+    // Reset input
+    fieldText.clear();
+
+    // Print some values to check for debug
+    if (kDebugMode) {
+      print("================================");
+      print("Printing wrong answers");
+      print("================================");
+
+      for (WordPair pair in listOfWrongs) {
+        print(pair.word2);
+      }
+      print("================================");
+
+      print("Some conditions ======================");
+      print("Is done : ${count >= listOfQuestions.length}");
+      print(">> To Compare : length ${listOfQuestions.length} // count $count");
+      print("Has been wrong : ${listOfWrongs.isNotEmpty}");
+      print("Was just correct : ${!wasWrong}");
+    }
+
+    // Check whether answer was correct and current stage is over
+    if (!wasWrong && count >= listOfQuestions.length) {
+      // If current session is done, check whether revision should take place or not
+      // For revision, new list will be generated according to listOfWrongs
+      // Unless, isDone will be set to true to finish the session
+      if (listOfWrongs.isNotEmpty) {
+        generateExtension();
+      } else {
+        isDone = true;
+      }
+    }
+
+    // Depending on correctness, next step will be executed
+    wasWrong ? repeatWord() : makeNextWord();
+
+    // Since showing next step should take place immediately after (not by "continue" button)
+    // getting the correctness, a bit delay will be given
+    Future.delayed(const Duration(milliseconds: 100), () => showNext());
+  }
+
+  // TODO Add comments
+  /// Once the answer was wrong, make next card containing same word as before
   void repeatWord() {
     int step = count - 1;
 
     // Question part
     isOddTHCard
         ? questionCard2.setDisplayWordAndExample(
-            newWord: listOfQuestions[step].word1,
-            newExample: listOfQuestions[step].example1 ?? "",
-          )
+      newWord: listOfQuestions[step].word1,
+      newExample: listOfQuestions[step].example1 ?? "",
+    )
         : questionCard.setDisplayWordAndExample(
-            newWord: listOfQuestions[step].word1,
-            newExample: listOfQuestions[step].example1 ?? "",
-          );
+      newWord: listOfQuestions[step].word1,
+      newExample: listOfQuestions[step].example1 ?? "",
+    );
 
     // Answer part
     isOddTHCard
         ? answerCard2.setDisplayWordAndExample(
-            newWord: listOfQuestions[count - 1].word2,
-            newExample: listOfQuestions[count].example2 ?? "",
-          )
+      newWord: listOfQuestions[count - 1].word2,
+      newExample: listOfQuestions[count].example2 ?? "",
+    )
         : answerCard.setDisplayWordAndExample(
-            newWord: listOfQuestions[count - 1].word2,
-            newExample: listOfQuestions[count - 1].example2 ?? "",
-          );
+      newWord: listOfQuestions[count - 1].word2,
+      newExample: listOfQuestions[count - 1].example2 ?? "",
+    );
 
     if (!hasRepetitionBegun) wrongAnswers++;
     absoluteProgress++;
@@ -490,76 +409,219 @@ class _QuizScreenState extends State<QuizScreen> {
     setState(() {});
   }
 
+  // TODO Add comments
+  /// Once answer was correct, make next card containing next word in the list
   void makeNextWord() {
     try {
-      print("=======making new word========");
+      if (kDebugMode) {
+        print("=======making new word========");
+        print("Question part");
+        print(">> ${listOfQuestions[count].word1}");
+        print(">> ${listOfQuestions[count].example1}");
+        print("Answer part");
+        print(">> ${listOfQuestions[count].word2}");
+        print(">> ${listOfQuestions[count].example2}");
+      }
 
-      print("Question part");
-      print(">> ${listOfQuestions[count].word1}");
-      print(">> ${listOfQuestions[count].example1}");
-      print("Answer part");
-      print(">> ${listOfQuestions[count].word2}");
-      print(">> ${listOfQuestions[count].example2}");
-
-      // Update hidden Card for next one
-      // Question part
       isOddTHCard
           ? questionCard2.setDisplayWordAndExample(
-              newWord: listOfQuestions[count].word1,
-              newExample: listOfQuestions[count].example1 ?? "",
-            )
+        newWord: listOfQuestions[count].word1,
+        newExample: listOfQuestions[count].example1 ?? "",
+      )
           : questionCard.setDisplayWordAndExample(
-              newWord: listOfQuestions[count].word1,
-              newExample: listOfQuestions[count].example1 ?? "",
-            );
+        newWord: listOfQuestions[count].word1,
+        newExample: listOfQuestions[count].example1 ?? "",
+      );
 
-      // Answer part
       isOddTHCard
           ? answerCard2.setDisplayWordAndExample(
-              newWord: listOfQuestions[count].word2,
-              newExample: listOfQuestions[count].example2 ?? "",
-            )
+        newWord: listOfQuestions[count].word2,
+        newExample: listOfQuestions[count].example2 ?? "",
+      )
           : answerCard.setDisplayWordAndExample(
-              newWord: listOfQuestions[count].word2,
-              newExample: listOfQuestions[count].example2 ?? "",
-            );
+        newWord: listOfQuestions[count].word2,
+        newExample: listOfQuestions[count].example2 ?? "",
+      );
     } catch (e) {
-      print("It's most likely that you're done!");
-      print("Congratulations!!!");
-      print("To finish, press continue");
+      if (kDebugMode) {
+        print("It's most likely that you're done!");
+        print("Congratulations!!!");
+        print("To finish, press continue");
+      }
     }
 
     count++;
-    absoluteProgress++; // basically syncs with count but
-    if (!hasRepetitionBegun) originalProgress++; // basically syncs with count
+    absoluteProgress++;
+    if (!hasRepetitionBegun) originalProgress++;
     if (hasRepetitionBegun) absoluteRepetitionProgress++;
     if (hasRepetitionBegun) repetitionProgress++;
-    print(
-        "Next step index + 1 : $count, and is current step 2n+1 : $isOddTHCard");
+
+    if (kDebugMode) {
+      print(
+          "Next step index + 1 : $count, and is current step 2n+1 : $isOddTHCard");
+    }
 
     setState(() {});
   }
 
-  void makeList() {
-    // Initialise list
-    listOfQuestions = widget.wordPack;
-
-    // Shuffle list randomly
-    listOfQuestions.shuffle();
+  // Disposal : Resetting previous cards into initial state
+  /// Body of disposal timer
+  void _onDisposalTick(Timer disposalTimer) {
+    // Check if current process is Sequence.hidden so that Cards teleport
+    // to initial location (bottom). Card to move is chosen depending on isOddTHCard,
+    // which means the stage is either 1st, 3rd, 5th... or 2nd, 4th, 6th...
+    if (isOddTHCard
+        ? questionCard2.sequence == Sequence.hidden
+        : questionCard.sequence == Sequence.hidden) {
+      setState(() {
+        // Corresponding cards are placed into initial location (bottom)
+        isOddTHCard ? answerCard2.reset() : answerCard.reset();
+        isOddTHCard ? questionCard2.reset() : questionCard.reset();
+        disposalTimer.cancel(); // Stop the timer
+      });
+    }
   }
 
+  /// Trigger of transition Timer
+  void onDisposalStarted() {
+    disposalTimer = Timer.periodic(
+      const Duration(milliseconds: 1),
+      _onDisposalTick,
+    );
+  }
+
+  /// Show next cards by disposing (making invisible)
+  /// previous cards and making next card appeared and
+  /// play tts immediately if it exists
+  void showNext() {
+    // Check if the current sequence is Answer
+    if (checkIsNotSequence(Sequence.answer)) return;
+
+    // Before executing "NextShowing" process, consider if it's unnecessary to
+    // execute when the session is done.
+    if (isDone) {
+      // TODO Improve resulting system
+
+      if (kDebugMode) {
+        print("===============================================");
+        print("===============================================");
+        print("Result :");
+        print(">> Number of all sessions : $absoluteProgress");
+        print(">> Number of all words : $originalProgress");
+        print(
+            ">> Number of wrong answers in first try given (overlap-able) : $wrongAnswers");
+        print(
+            ">> Number of all sessions during repetition : $absoluteRepetitionProgress");
+        print(
+            ">> Number of all repeated words (overlap-able) : $repetitionProgress");
+        print(">> In first try : $inFirstTry");
+      }
+
+      // Reset every lists of session to prevent unexpected cases of next session.
+      listOfQuestions = [];
+      listOfWrongs = [];
+
+      // Display the result of the quiz by pushing user to ResultScreen screen.
+      Navigator.pushNamed(
+        context,
+        ResultScreen.routeName,
+        arguments: ResultScreenArguments(
+            questionsNumber, inFirstTry / questionsNumber),
+      );
+      return; // In this line, the quiz is finished
+    }
+
+    // Animate cards of disappear
+    onDisposalStarted();
+
+    // Dispose and appear cards (depending on isOddTHCard)
+    if (isOddTHCard) {
+      // Change sequence of Cards
+      questionCard.sequence = Sequence.disappear;
+      answerCard.sequence = Sequence.disappear;
+
+      // Animate cards
+      questionCard.animDisappear();
+      answerCard.animDisappear();
+      questionCard2.animAppear();
+
+      // Move answer card
+      onTransitionStarted();
+
+      // Play TTS
+      questionCard2.wordTTS.play();
+    } else {
+      // Change sequence of Cards
+      questionCard2.sequence = Sequence.disappear;
+      answerCard2.sequence = Sequence.disappear;
+
+      // Animate cards
+      questionCard2.animDisappear();
+      answerCard2.animDisappear();
+      questionCard.animAppear();
+
+      // Move answer card
+      onTransitionStarted();
+
+      // Play TTS
+      questionCard.wordTTS.play();
+    }
+
+    // Set values to current state for next step
+    isOddTHCard = !isOddTHCard;
+    isShowingAnswer = false;
+    setState(() {});
+  }
+
+  /// Make list for revision
+  void generateExtension() {
+    if (kDebugMode) {
+      print("================================");
+      print("Generate extension");
+    }
+
+    // Make sure that revision has begun and initialize progress values
+    hasRepetitionBegun = true;
+    if (repetitionProgress == 0) repetitionProgress = 1;
+    if (absoluteRepetitionProgress == 0) absoluteRepetitionProgress = 1;
+
+    // Initially, shuffle list of words to revise
+    listOfWrongs.shuffle();
+
+    // Print revising words for debug
+    if (kDebugMode) {
+      for (WordPair pair in listOfWrongs) {
+        print("New extension : ${pair.word1}");
+      }
+    }
+
+    // Add every wrong answers to queue
+    for (WordPair word in listOfWrongs) {
+      listOfQuestions.add(word);
+    }
+
+    // Reset wrong answer list
+    listOfWrongs = [];
+  }
+
+  // TODO Add comments
   @override
   void initState() {
     super.initState();
 
     listOfQuestions = widget.wordPack;
     questionsNumber = listOfQuestions.length;
-    print("listOfQuestions : ${listOfQuestions.length}");
-    for (WordPair str in listOfQuestions) print(str.word1);
 
-    print("languages : ");
-    print(widget.language1);
-    print(widget.language2);
+    if (kDebugMode) {
+      print("listOfQuestions : ${listOfQuestions.length}");
+      for (WordPair str in listOfQuestions) {
+        print(str.word1);
+      }
+
+      print("languages : ");
+      print(widget.language1);
+      print(widget.language2);
+    }
 
     // Initialise 4 cards for test
     questionCard = WordCard(
@@ -644,7 +706,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 cardStack,
                 if (!isShowingAnswer)
                   Transform.translate(
-                    offset: Offset(10, -10),
+                    offset: const Offset(10, -10),
                     child: Opacity(
                       opacity: 0.8,
                       child: FloatingActionButton(

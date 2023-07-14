@@ -3,7 +3,7 @@ import 'package:vocabella/arguments.dart';
 import 'package:vocabella/models/subject_data_model.dart';
 import 'package:vocabella/screens/word_selection_screen.dart';
 
-import '../classes.dart';
+import '../models/chapter_model.dart';
 
 class ChapterSelectionScreen extends StatelessWidget {
   ChapterSelectionScreen({Key? key,})
@@ -122,7 +122,7 @@ class _ChapterListState extends State<ChapterList> {
                     print("${chapter.name} : $value");
                   },
                 ),
-                Text("Chapter of : ${chapter.words[0].word1}"),
+                Text(chapter.name),
               ],
             ),
           ),

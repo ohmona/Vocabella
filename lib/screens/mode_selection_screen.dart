@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:vocabella/arguments.dart';
 import 'package:vocabella/screens/quiz_screen.dart';
 
-import '../classes.dart';
+import '../models/wordpair_model.dart';
 
 class ModeSelectionScreen extends StatefulWidget {
   ModeSelectionScreen({super.key});

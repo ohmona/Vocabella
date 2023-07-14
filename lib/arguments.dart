@@ -1,6 +1,6 @@
-
-import 'classes.dart';
+import 'models/chapter_model.dart';
 import 'models/subject_data_model.dart';
+import 'models/wordpair_model.dart';
 
 class ChapterSelectionScreenArguments {
   final SubjectDataModel subject;

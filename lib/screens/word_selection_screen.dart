@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:vocabella/arguments.dart';
 import 'package:vocabella/screens/mode_selection_screen.dart';
 
-import '../classes.dart';
+import '../models/chapter_model.dart';
+import '../models/wordpair_model.dart';
 
 class WordSelectionScreen extends StatelessWidget {
   WordSelectionScreen({Key? key}) : super(key: key);

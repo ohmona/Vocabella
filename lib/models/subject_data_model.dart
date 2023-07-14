@@ -1,6 +1,8 @@
 import 'dart:convert';
 
-import 'package:vocabella/classes.dart';
+import 'package:vocabella/models/wordpair_model.dart';
+
+import 'chapter_model.dart';
 
 // Word list.json will look like this
 /*"words": [
@@ -52,38 +54,50 @@ class SubjectDataModel {
     required this.languages,
   });
 
-  // create instance by json
-  factory SubjectDataModel.fromJson(Map<String, dynamic> json) {
-    final chapters = json['wordlist'] as List<dynamic>;
-    final parsedChapters = chapters.map((chapter) => Chapter.fromJson(chapter)).toList();
+  /// Create list of data from not decoded json data
+  /// Since json data has only type of a list, fromJson constructor isn't necessary
+  /// So use this function instead
+  static List<SubjectDataModel> listFromJson(dynamic json) {
+    // Declare list to return
+    List<SubjectDataModel> subjects = [];
 
-    List<String> tempSubjects = [];
-    tempSubjects.add(json['subjects'][0]);
-    tempSubjects.add(json['subjects'][1]);
+    // Decode received json data to dart List
+    final jsonList = jsonDecode(json) as List<dynamic>;
 
-    List<String> tempLanguages = [];
-    tempLanguages.add(json['languages'][0]);
-    tempLanguages.add(json['languages'][1]);
+    // Create individual instances from decoded json
+    for (dynamic inst in jsonList) {
+      // Since the data is currently dynamic, it's necessary to copy the data one by one
 
-    return SubjectDataModel(
-      wordlist: parsedChapters,
-      title: json['title'],
-      subjects: tempSubjects,
-      languages: tempLanguages,
-    );
+      // Create dummy instance having nothing
+      SubjectDataModel sub = SubjectDataModel(
+        languages: ['', ''],
+        subjects: ['', ''],
+        title: "",
+        wordlist: [],
+      );
+
+      // Now we copy the data
+      sub.title = inst['title'];
+      sub.subjects![0] = inst['subjects'][0];
+      sub.subjects![1] = inst['subjects'][1];
+      sub.languages![0] = inst['languages'][0];
+      sub.languages![1] = inst['languages'][1];
+      for (int i = 0; i < (inst['wordlist'] as List<dynamic>).length; i++) {
+        sub.wordlist!.add(Chapter.fromJson(inst['wordlist'][i]));
+      }
+
+      // Finally add created instance to the list to return
+      subjects.add(sub);
+    }
+    return subjects;
   }
 
-  static void addAll(List<SubjectDataModel> subjects) {
-    print("====================================");
-    print("add many subjects");
-
-    subjectList.addAll(subjects);
+  /// Convert current list into encoded json by converting individual instances
+  static String listToJson(List<SubjectDataModel> subjects) {
+    return jsonEncode(subjects.map((subject) => subject.toJson()).toList());
   }
 
-  static void setAll(List<SubjectDataModel> subjects) {
-    subjectList = subjects;
-  }
-
+  /// Convert current instance into encoded json
   Map<String, dynamic> toJson() {
     return {
       'title': title,
@@ -93,6 +107,28 @@ class SubjectDataModel {
     };
   }
 
+  /// Add current instance into list
+  void addToList() {
+    if (!subjectList.contains(this)) {
+      print("====================================");
+      print("Adding new subject");
+      subjectList.add(this);
+    } else {
+      print("====================================");
+      print("Subject already exists!");
+    }
+  }
+
+  /// Remove current instance from list
+  void removeFromList() {
+    if (subjectList.contains(this)) {
+      print("====================================");
+      print("Removing new subject");
+      subjectList.remove(this);
+    }
+  }
+
+  // Debug
   // Example data for test
   static SubjectDataModel createExampleData() {
     return SubjectDataModel(
@@ -137,130 +173,12 @@ class SubjectDataModel {
               word1: "purpose",
               word2: "Ziel; Absicht; Zweck",
               example1:
-              "If you have a purpose, you have a reason to do something.",
+                  "If you have a purpose, you have a reason to do something.",
             ),
           ],
         ),
       ],
     );
-  }
-
-  static List<SubjectDataModel> listFromJson(String json) {
-    final parsed = jsonDecode(json) as List<dynamic>;
-    return parsed.map((item) => SubjectDataModel.fromJson(item)).toList();
-  }
-
-  static String listToJson(List<SubjectDataModel> subjects) {
-    return jsonEncode(subjects.map((subject) => subject.toJson()).toList());
-  }
-
-  // Compresses this data into a JSON string
-  String convertToJson() {
-    Map<String, dynamic> jsonData = {
-      'title': title,
-      'thumb': thumb,
-      'subjects': jsonEncode(subjects),
-      'languages': jsonEncode(languages),
-      'wordlist': jsonEncode(convertWordlistToJson(wordlist)),
-    };
-
-    return jsonEncode(jsonData);
-  }
-
-  // Converts the wordlist into a JSON-encodable structure
-  static List<Map<String, dynamic>> convertWordlistToJson(WordsList? wordlist) {
-    List<Map<String, dynamic>> jsonWordlist = [];
-
-    if (wordlist != null) {
-      for (Chapter chapter in wordlist) {
-        List<Map<String, dynamic>> jsonWords = chapter.words.map((wordPair) {
-          return {
-            'word1': wordPair.word1,
-            'word2': wordPair.word2,
-            'example1': wordPair.example1,
-            'example2': wordPair.example2,
-          };
-        }).toList();
-
-        Map<String, dynamic> jsonChapter = {
-          'name': chapter.name,
-          'words': jsonWords,
-        };
-
-        jsonWordlist.add(jsonChapter);
-      }
-    }
-
-    return jsonWordlist;
-  }
-
-  // make list from compressed string
-  static List<SubjectDataModel> makeListFromJson(String jsonString) {
-    List<SubjectDataModel> temp = [];
-    for (String partJson in convertJsonToList(jsonString)) {
-      temp.add(SubjectDataModel.fromJson(jsonDecode(partJson)));
-    }
-    return temp;
-  }
-
-  static List<String> convertJsonToList(String jsonString) {
-    dynamic jsonObject = jsonDecode(jsonString);
-
-    if (jsonObject is List<dynamic>) {
-      // JSON string is enclosed in brackets []
-      return jsonObject.map((item) => item.toString()).toList();
-    } else if (jsonObject is Map<String, dynamic>) {
-      // JSON string is enclosed in braces {}
-      return jsonObject.values.map((item) => item.toString()).toList();
-    }
-
-    return [];
-  }
-
-
-  /*// convert json structure to desired structure
-  static List<Chapter> convertJsonToWordlist(String jsonString) {
-    List<dynamic> jsonList = jsonDecode(jsonString);
-    List<Chapter> chapters = jsonList.map((jsonChapter) {
-      List<dynamic> jsonWords = jsonChapter['words'];
-      List<WordPair> words = jsonWords.map((jsonWord) {
-        return WordPair(
-          word1: jsonWord['word1'],
-          word2: jsonWord['word2'],
-          example1: jsonWord['example1'],
-          example2: jsonWord['example2'],
-        );
-      }).toList();
-
-      return Chapter(
-        name: jsonChapter['name'],
-        words: words,
-      );
-    }).toList();
-
-    return chapters;
-  }*/
-
-  // add instance to list
-  void addToList() {
-    if (!subjectList.contains(this)) {
-      print("====================================");
-      print("Adding new subject");
-      subjectList.add(this);
-    }
-    else {
-      print("====================================");
-      print("Subject already exists!");
-    }
-  }
-
-  // remove instance from list
-  void removeFromList() {
-    if (subjectList.contains(this)) {
-      print("====================================");
-      print("Removing new subject");
-      subjectList.remove(this);
-    }
   }
 
   printData() {
@@ -269,9 +187,9 @@ class SubjectDataModel {
     print(title);
     print(languages);
     print(subjects);
-    for(Chapter chap in wordlist!) {
+    for (Chapter chap in wordlist!) {
       print(chap.name);
-      for(WordPair word in chap.words) {
+      for (WordPair word in chap.words) {
         print(word.word1);
         print(word.word2);
         print(word.example1);
@@ -281,8 +199,19 @@ class SubjectDataModel {
   }
 
   static printEveryData() {
-    for(SubjectDataModel sub in subjectList) {
+    for (SubjectDataModel sub in subjectList) {
       sub.printData();
     }
+  }
+
+  static void addAll(List<SubjectDataModel> subjects) {
+    print("====================================");
+    print("add many subjects");
+
+    subjectList.addAll(subjects);
+  }
+
+  static void setAll(List<SubjectDataModel> subjects) {
+    subjectList = subjects;
   }
 }

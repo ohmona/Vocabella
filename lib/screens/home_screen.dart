@@ -1,9 +1,6 @@
 
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:vocabella/arguments.dart';
-import 'package:vocabella/classes.dart';
 import 'package:vocabella/managers/data_handle_manager.dart';
 import 'package:vocabella/screens/chapter_selection_screen.dart';
 
@@ -40,28 +37,7 @@ class _SubjectListState extends State<SubjectList> {
             .then((value) {
           print('===================================================');
 
-          final jsonList = json.decode(value) as List<dynamic>;
-
-          for (dynamic value in jsonList) {
-            SubjectDataModel sub = SubjectDataModel(
-              languages: ['', ''],
-              subjects: ['', ''],
-              title: "",
-              wordlist: [],
-            );
-            sub.title = value['title'];
-            sub.subjects![0] = value['subjects'][0];
-            sub.subjects![1] = value['subjects'][1];
-            sub.languages![0] = value['languages'][0];
-            sub.languages![1] = value['languages'][1];
-            for (int i = 0;
-                i < (value['wordlist'] as List<dynamic>).length;
-                i++) {
-              sub.wordlist!.add(Chapter.fromJson(value['wordlist'][i]));
-            }
-            sub.addToList();
-          }
-
+          SubjectDataModel.addAll(SubjectDataModel.listFromJson(value));
           SubjectDataModel.printEveryData();
 
           refreshData();
@@ -76,47 +52,20 @@ class _SubjectListState extends State<SubjectList> {
   }
 
   void refreshData() {
-    print('refreshData() called');
     DataReadWriteManager.readData().then((value) {
       try {
         if (value.isNotEmpty) {
           print('===================================================');
           print("REFRESH");
 
-          final jsonList = json.decode(value) as List<dynamic>;
-          print(jsonList.length);
-
-          // Clear the subjectList before adding new data
-          SubjectDataModel.subjectList.clear();
-
-          for (dynamic value in jsonList) {
-            SubjectDataModel sub = SubjectDataModel(
-              languages: ['', ''],
-              subjects: ['', ''],
-              title: "",
-              wordlist: [],
-            );
-            sub.title = value['title'];
-            sub.subjects![0] = value['subjects'][0];
-            sub.subjects![1] = value['subjects'][1];
-            sub.languages![0] = value['languages'][0];
-            sub.languages![1] = value['languages'][1];
-            for (int i = 0;
-            i < (value['wordlist'] as List<dynamic>).length;
-            i++) {
-              sub.wordlist!.add(Chapter.fromJson(value['wordlist'][i]));
-              //TODO get chapter name
-            }
-            sub.addToList();
-          }
-
+          SubjectDataModel.subjectList = SubjectDataModel.listFromJson(value);
           SubjectDataModel.printEveryData();
 
           print("Length : ${SubjectDataModel.subjectList.length}");
         }
       } catch (e) {
         if(e is FormatException) {
-          print('cool');
+          print('You can only import files with extension ".json"');
         }
       }
       setState(() {});

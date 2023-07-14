@@ -4,11 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vocabella/arguments.dart';
-import 'package:vocabella/classes.dart';
 import 'package:vocabella/screens/result_screen.dart';
 import 'package:vocabella/widgets/progress_bar_widget.dart';
 import 'package:vocabella/widgets/word_card_widget.dart';
 import 'package:vocabella/widgets/bottom_bar_widget.dart';
+
+import '../models/wordpair_model.dart';
 
 class QuizScreenParent extends StatelessWidget {
   const QuizScreenParent({Key? key}) : super(key: key);

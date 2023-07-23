@@ -23,8 +23,8 @@ class Chapter {
 
   Map<String, dynamic> toJson() {
     return {
-      'words': words,
-      'name': words.map((wordPair) => wordPair.toJson()).toList(),
+      'name': name,
+      'words': words.map((wordPair) => wordPair.toJson()).toList(),
     };
   }
 }

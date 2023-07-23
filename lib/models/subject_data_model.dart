@@ -34,8 +34,6 @@ import 'chapter_model.dart';
   ]
 */
 
-typedef WordsList = List<Chapter>;
-
 class SubjectDataModel {
   static List<SubjectDataModel> subjectList = [];
 
@@ -44,7 +42,7 @@ class SubjectDataModel {
   List<String>? subjects;
   List<String>? languages;
 
-  WordsList? wordlist;
+  List<Chapter>? wordlist;
 
   SubjectDataModel({
     required this.title,
@@ -103,7 +101,7 @@ class SubjectDataModel {
       'title': title,
       'subjects': subjects,
       'languages': languages,
-      'wordlist': wordlist?.map((wordlist) => wordlist.toJson()).toList(),
+      'wordlist': wordlist?.map((chapter) => chapter.toJson()).toList(),
     };
   }
 
@@ -174,6 +172,12 @@ class SubjectDataModel {
               word2: "Ziel; Absicht; Zweck",
               example1:
                   "If you have a purpose, you have a reason to do something.",
+            ),
+            WordPair(
+              word1: "word",
+              word2: "Wort",
+              example1:
+              "If you don't learn words, you won't ever get better.",
             ),
           ],
         ),

@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vocabella/screens/chapter_selection_screen.dart';
@@ -9,8 +10,11 @@ import 'package:vocabella/screens/quiz_screen.dart';
 import 'package:vocabella/screens/result_screen.dart';
 import 'package:vocabella/screens/word_selection_screen.dart';
 
-void main() {
+import 'models/subject_data_model.dart';
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -35,7 +39,7 @@ class MyApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         //'/': (context) => const HomeScreen(),
-        '/': (context) => const EditorScreen(),
+        '/': (context) => EditorScreen(data: SubjectDataModel.createExampleData()),
         ChapterSelectionScreen.routeName: (context) => ChapterSelectionScreen(),
         WordSelectionScreen.routeName: (context) => WordSelectionScreen(),
         ModeSelectionScreen.routeName: (context) => ModeSelectionScreen(),

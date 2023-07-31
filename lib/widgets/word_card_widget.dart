@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:vocabella/managers/tts_manager.dart';
 import 'package:vocabella/constants.dart';
 
-import '../options.dart';
-
 enum Sequence {
   appear,
   question,
@@ -124,6 +122,11 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+
+    controller1 = AnimationController(vsync: this);
+    controller2 = AnimationController(vsync: this);
+    controller3 = AnimationController(vsync: this);
+    controller4 = AnimationController(vsync: this);
 
     displayWord = widget.word;
     displayExample = widget.example;
@@ -380,11 +383,6 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
   void dispose() {
     super.dispose();
 
-    controller1 = AnimationController(vsync: this);
-    controller2 = AnimationController(vsync: this);
-    controller3 = AnimationController(vsync: this);
-    controller4 = AnimationController(vsync: this);
-
     controller1.dispose();
     controller2.dispose();
     controller3.dispose();
@@ -433,7 +431,6 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     Size newSize = MediaQuery.of(context).size;
     if (_old != newSize) {
-      print(newSize);
 
       if (newSize.width > newSize.height) {
         divisionMode = DivisionMode.defaultLandscape;
@@ -444,10 +441,6 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
       onScreenSizeChanged();
     }
     _old = newSize;
-
-    print("printing example");
-    print(widget.example);
-    print(widget.example.isEmpty);
 
     bool noEx = widget.example.isEmpty;
 

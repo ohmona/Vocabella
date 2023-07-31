@@ -3,10 +3,6 @@ import 'package:flutter/material.dart';
 import '../models/chapter_model.dart';
 import '../models/wordpair_model.dart';
 
-/// TODO open data once the session has started
-/// TODO save data into local storage
-/// TODO make chapter rename-able
-
 class WordGridTile extends StatefulWidget {
   const WordGridTile({
     Key? key,
@@ -18,6 +14,9 @@ class WordGridTile extends StatefulWidget {
     required this.addWord,
     required this.bDeleteMode,
     required this.deleteWord,
+    required this.changeFocus,
+    required this.bFocused,
+    required this.openWordAdder,
   }) : super(key: key);
 
   final String text;
@@ -26,10 +25,13 @@ class WordGridTile extends StatefulWidget {
   final void Function(String newText, int index) saveText;
   final void Function(WordPair wordPair) addWord;
   final void Function(WordPair wordPair) deleteWord;
+  final void Function(int) changeFocus;
+  final Future<void> Function(BuildContext) openWordAdder;
 
   final Chapter currentChapter;
   final bool bShowingWords;
   final bool bDeleteMode;
+  final bool bFocused;
 
   @override
   State<WordGridTile> createState() => _WordGridTileState();
@@ -40,99 +42,7 @@ class _WordGridTileState extends State<WordGridTile> {
 
   TextEditingController controller = TextEditingController();
   TextEditingController secondController = TextEditingController();
-
-  Future<void> openTextEditor(BuildContext context) {
-    String originalText = text;
-    controller.text = text;
-    return showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Type new text"),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            onChanged: (value) {
-              text = value;
-            },
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                text = originalText;
-                Navigator.of(context).pop();
-              },
-              child: const Text("cancel"),
-            ),
-            TextButton(
-              onPressed: () {
-                if (text.isNotEmpty) {
-                  // apply new text
-                  setState(() {
-                    widget.saveText(text, widget.index);
-                    Navigator.of(context).pop();
-                  });
-                }
-              },
-              child: const Text("confirm"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> openWordAdder(BuildContext context) {
-    String text1 = "";
-    String text2 = "";
-
-    return showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Type new words"),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  autofocus: true,
-                  onChanged: (value) {
-                    text1 = value;
-                  },
-                ),
-                TextField(
-                  onChanged: (value) {
-                    text2 = value;
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text("cancel"),
-            ),
-            TextButton(
-              onPressed: () {
-                // apply new text
-                setState(() {
-                  if (text1.isNotEmpty && text2.isNotEmpty) {
-                    WordPair wordPair = WordPair(word1: text1, word2: text2);
-                    widget.addWord(wordPair);
-                    Navigator.of(context).pop();
-                  }
-                });
-              },
-              child: const Text("confirm"),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  FocusNode focusNode = FocusNode();
 
   void updateText() {
     final int wordPairIndex = widget.index ~/
@@ -212,8 +122,8 @@ class _WordGridTileState extends State<WordGridTile> {
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(
-            color: Colors.black,
-            width: 0.5,
+            color: widget.bFocused ? Colors.redAccent : Colors.black,
+            width: widget.bFocused ? 3 : 0.5,
             style: BorderStyle.solid,
           ),
         ),
@@ -229,9 +139,9 @@ class _WordGridTileState extends State<WordGridTile> {
         onTap: () {
           if (!widget.bDeleteMode) {
             if (widget.currentChapter.words.length * 2 > widget.index) {
-              openTextEditor(context);
+              widget.changeFocus(widget.index);
             } else if (widget.bShowingWords) {
-              openWordAdder(context);
+              widget.openWordAdder(context);
             }
           } else {
             if (widget.currentChapter.words.length * 2 > widget.index) {

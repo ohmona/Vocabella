@@ -102,3 +102,10 @@ class _SizedAnimValue extends AnimValueBase {
 void bruh() {
   _SizedAnimValue();
 }
+
+List<String> languageList = [
+  "en-US",
+  "de-DE",
+  "ko-KR",
+  "fr-FR",
+];

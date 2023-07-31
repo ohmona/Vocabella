@@ -1,6 +1,9 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
 class DataReadWriteManager {
@@ -36,6 +39,41 @@ class DataReadWriteManager {
       return await file.readAsString();
     } catch (e) {
       return '';
+    }
+  }
+
+  static Future<File?> loadNewImage(ImageSource imageSource) async {
+    final XFile? xImage = await ImagePicker().pickImage(source: imageSource);
+
+    if(xImage != null) {
+      final File image = File(xImage.path);
+      final String path = await _localPath + xImage.name;
+      final File newImage = await image.copy(path);
+
+      print("=========================================");
+      print("Loading new image from : ${xImage.path}");
+      print("Copying new image to : ${newImage.path}");
+
+      return newImage;
+    }
+    else {
+      print("=========================================");
+      print("Sry we have to deal with this");
+      return null;
+    }
+  }
+
+  static Future<File?> loadExistingImage(String path) async {
+    try {
+      final File image = File(path);
+      print("=========================================");
+      print("Loading existing image from : ${image.path}");
+      return image;
+    }
+    catch(e) {
+      print("=========================================");
+      print("Sry we have to deal with this 2");
+      return null;
     }
   }
 }

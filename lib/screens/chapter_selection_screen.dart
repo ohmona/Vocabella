@@ -19,6 +19,8 @@ class ChapterSelectionScreen extends StatelessWidget {
 
     chapterList = ChapterList(subject: args.subject);
 
+    args.subject.printData();
+
     return WillPopScope(
       onWillPop: () async {
         chapterList.setChapters([]);

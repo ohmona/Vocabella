@@ -64,8 +64,15 @@ class InputBox extends StatelessWidget {
               child: TextField(
                 decoration: InputDecoration(
                   border: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  errorBorder:  InputBorder.none,
+                  focusedBorder:  InputBorder.none,
+                  focusedErrorBorder:  InputBorder.none,
                   floatingLabelAlignment: FloatingLabelAlignment.start,
                   hintText: showHint ? answer : "",
+                  hoverColor: Colors.transparent,
+                  focusColor: Colors.transparent,
                   suffixIcon: Transform.translate(
                     offset: (MediaQuery.of(context).size.height < 600)
                         ? const Offset(0, 3)

@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../models/chapter_model.dart';
 
-class EditorScreenAppbar extends StatelessWidget {
-  const EditorScreenAppbar(
-      {Key? key,
-      required this.currentChapter,
-      required this.bShowingWords,
-      required this.toggleWords, required this.bDeleteMode, required this.toggleDeleteMode})
-      : super(key: key);
+class EditorScreenAppbar extends StatefulWidget {
+  const EditorScreenAppbar({
+    Key? key,
+    required this.currentChapter,
+    required this.bShowingWords,
+    required this.toggleWords,
+    required this.bDeleteMode,
+    required this.toggleDeleteMode,
+  }) : super(key: key);
 
   final Chapter currentChapter;
   final bool bShowingWords;
@@ -17,13 +19,20 @@ class EditorScreenAppbar extends StatelessWidget {
   final void Function() toggleDeleteMode;
 
   @override
+  State<EditorScreenAppbar> createState() => _EditorScreenAppbarState();
+}
+
+class _EditorScreenAppbarState extends State<EditorScreenAppbar> {
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(10),
-          bottomRight: Radius.circular(10),
-        ),
         color: Theme.of(context).cardColor,
         boxShadow: [
           BoxShadow(
@@ -59,11 +68,17 @@ class EditorScreenAppbar extends StatelessWidget {
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  currentChapter.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
+                child: TextButton(
+                  onPressed: () {},
+                  style: const ButtonStyle(
+                    splashFactory: NoSplash.splashFactory,
+                  ),
+                  child: Text(
+                    widget.currentChapter.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                    ),
                   ),
                 ),
               ),
@@ -73,25 +88,25 @@ class EditorScreenAppbar extends StatelessWidget {
             ),
             IconButton(
               icon: Icon(
-                bDeleteMode ? Icons.add_circle : Icons.delete,
+                widget.bDeleteMode ? Icons.add_circle : Icons.delete,
                 color: Colors.white,
               ),
-              tooltip:
-              bDeleteMode ? "Continue editing" : "Remove words",
+              tooltip: widget.bDeleteMode ? "Continue editing" : "Remove words",
               onPressed: () {
-                if(bShowingWords) {
-                  toggleDeleteMode();
+                if (widget.bShowingWords) {
+                  widget.toggleDeleteMode();
                 }
               },
             ),
             IconButton(
               icon: Icon(
-                bShowingWords ? Icons.edit : Icons.book,
+                widget.bShowingWords ? Icons.edit : Icons.book,
                 color: Colors.white,
               ),
-              tooltip:
-                  bShowingWords ? "Edit examples" : "Edit questions & answers",
-              onPressed: toggleWords,
+              tooltip: widget.bShowingWords
+                  ? "Edit examples"
+                  : "Edit questions & answers",
+              onPressed: widget.toggleWords,
             ),
           ],
         ),

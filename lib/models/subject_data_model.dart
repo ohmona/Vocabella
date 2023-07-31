@@ -72,10 +72,12 @@ class SubjectDataModel {
         subjects: ['', ''],
         title: "",
         wordlist: [],
+        thumb: "",
       );
 
       // Now we copy the data
       sub.title = inst['title'];
+      sub.thumb = inst['thumb'];
       sub.subjects![0] = inst['subjects'][0];
       sub.subjects![1] = inst['subjects'][1];
       sub.languages![0] = inst['languages'][0];
@@ -99,6 +101,7 @@ class SubjectDataModel {
   Map<String, dynamic> toJson() {
     return {
       'title': title,
+      'thumb': thumb,
       'subjects': subjects,
       'languages': languages,
       'wordlist': wordlist?.map((chapter) => chapter.toJson()).toList(),
@@ -131,7 +134,7 @@ class SubjectDataModel {
   static SubjectDataModel createExampleData() {
     return SubjectDataModel(
       title: "Green Line 5",
-      thumb: null,
+      thumb: "",
       subjects: ["English", "German"],
       languages: ["en-US", "de-DE"],
       wordlist: [
@@ -189,6 +192,7 @@ class SubjectDataModel {
     print("====================================");
     print("Printing data of:");
     print(title);
+    print(thumb);
     print(languages);
     print(subjects);
     for (Chapter chap in wordlist!) {

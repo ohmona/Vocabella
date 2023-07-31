@@ -137,7 +137,13 @@ class _QuizScreenState extends State<QuizScreen> {
         transitionTimer.cancel(); // Stop the timer
       });
     } else {
-      setState(() {});
+      if(!isDone) {
+        setState(() {});
+      }
+      else {
+        transitionTimer.cancel();
+
+      }
     }
   }
 
@@ -521,6 +527,10 @@ class _QuizScreenState extends State<QuizScreen> {
       // Reset every lists of session to prevent unexpected cases of next session.
       listOfQuestions = [];
       listOfWrongs = [];
+
+      // Reset all timers
+      disposalTimer.cancel();
+      transitionTimer.cancel();
 
       // Display the result of the quiz by pushing user to ResultScreen screen.
       Navigator.pushNamed(

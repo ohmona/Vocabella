@@ -31,7 +31,6 @@ class ResultScreen extends StatelessWidget {
               ElevatedButton(
                 onPressed: () {
                   Navigator.popUntil(context, ModalRoute.withName('/')); // Navigate back to the previous screen
-                  return;
                 },
                 child: const Text('Go Back'),
               ),

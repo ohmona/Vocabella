@@ -36,3 +36,9 @@ class ResultScreenArguments {
 
   ResultScreenArguments(this.total, this.inFirstTry);
 }
+
+class EditorScreenArguments {
+  final SubjectDataModel data;
+
+  EditorScreenArguments(this.data);
+}

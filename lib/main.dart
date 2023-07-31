@@ -10,8 +10,6 @@ import 'package:vocabella/screens/quiz_screen.dart';
 import 'package:vocabella/screens/result_screen.dart';
 import 'package:vocabella/screens/word_selection_screen.dart';
 
-import 'models/subject_data_model.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -35,11 +33,32 @@ class MyApp extends StatelessWidget {
         backgroundColor: Colors.white,
         cardColor: const Color(0xFF50ECC0),
         primaryColor: const Color(0xFFA7FFE0),
+        popupMenuTheme: const PopupMenuThemeData(
+          color: Colors.white,
+        ),
+        focusColor: const Color(0xFF50ECC0),
+        textSelectionTheme: const TextSelectionThemeData(
+          cursorColor: Color(0xFFA7FFE0),
+        ),
+        appBarTheme: const AppBarTheme(
+          color: Color(0xFF50ECC0),
+        ),
+        buttonTheme: const ButtonThemeData(
+          buttonColor: Color(0xFF50ECC0),
+        ),
+        inputDecorationTheme: const InputDecorationTheme(
+          focusedBorder: UnderlineInputBorder(
+            borderSide: BorderSide(
+              style: BorderStyle.solid,
+              color: Color(0xFF50ECC0),
+            ),
+          ),
+        ),
       ),
       initialRoute: '/',
       routes: {
-        //'/': (context) => const HomeScreen(),
-        '/': (context) => EditorScreen(data: SubjectDataModel.createExampleData()),
+        '/': (context) => const HomeScreen(),
+        EditorScreenParent.routeName: (context) => const EditorScreenParent(),
         ChapterSelectionScreen.routeName: (context) => ChapterSelectionScreen(),
         WordSelectionScreen.routeName: (context) => WordSelectionScreen(),
         ModeSelectionScreen.routeName: (context) => ModeSelectionScreen(),

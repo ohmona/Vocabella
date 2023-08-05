@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:vocabella/managers/data_handle_manager.dart';
 import 'package:vocabella/models/subject_data_model.dart';
 
@@ -108,25 +109,20 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
       return;
     }
 
-    print("=======================================");
-    print("Saved data : ${widget.subjectData.thumb}");
     DataReadWriteManager.loadExistingImage(widget.subjectData.thumb!)
         .then((value) {
       image = value;
-      print("=======================================");
-      print("is image valid? ${image != null}");
 
       if (image != null) {
-        print("=======================================");
-        print("Loaded data : ${image?.path}");
         setState(() {
           _loadedImage = Image(
             image: FileImage(image!),
-          ); // Update the loaded image
+            errorBuilder: (context, error, stackTrace) {
+              return dummyImage;
+            },
+          );
         });
       } else {
-        print("=======================================");
-        print("Image couldn't be loaded");
         _loadedImage = dummyImage;
       }
     });
@@ -142,8 +138,6 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
           image: FileImage(image),
         );
       });
-    } else {
-      print("Something went wrong...");
     }
   }
 
@@ -178,7 +172,8 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                       ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
                   child: Stack(
                     children: [
                       Text(
@@ -273,6 +268,26 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                IconButton(
+                  onPressed: () {
+                    Future<String> path = DataReadWriteManager.getLocalPath();
+                    path.then((value) async {
+                      File file =
+                          File("$value/${widget.subjectData.title}.json");
+                      await file.writeAsString(
+                          SubjectDataModel.listToJson([widget.subjectData]));
+                      XFile toShare =
+                          XFile("$value/${widget.subjectData.title}.json");
+                      Share.shareXFiles([toShare]);
+                    });
+
+                    Navigator.pop(context);
+                  },
+                  icon: const Icon(
+                    Icons.share,
+                    color: Colors.white,
+                  ),
+                ),
                 IconButton(
                   onPressed: () {
                     widget.saveData();

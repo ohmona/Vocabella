@@ -1,8 +1,7 @@
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -17,11 +16,21 @@ class DataReadWriteManager {
     return '$path/subjects.json';
   }
 
+  static Future<String> getLocalPath() {
+    return _localPath;
+  }
+
+  static Future<String> getLocalFilePath() {
+    return _localFilePath;
+  }
+
   static Future<String> readData() async {
     try {
       final file = File(await _localFilePath);
-      print("++++++++++++++++++++++++++++++++++++");
-      print(await file.readAsString());
+      if (kDebugMode) {
+        print("++++++++++++++++++++++++++++++++++++");
+        print(await file.readAsString());
+      }
       return await file.readAsString();
     } catch (e) {
       return '';
@@ -45,20 +54,23 @@ class DataReadWriteManager {
   static Future<File?> loadNewImage(ImageSource imageSource) async {
     final XFile? xImage = await ImagePicker().pickImage(source: imageSource);
 
-    if(xImage != null) {
+    if (xImage != null) {
       final File image = File(xImage.path);
       final String path = await _localPath + xImage.name;
       final File newImage = await image.copy(path);
 
-      print("=========================================");
-      print("Loading new image from : ${xImage.path}");
-      print("Copying new image to : ${newImage.path}");
+      if (kDebugMode) {
+        print("=========================================");
+        print("Loading new image from : ${xImage.path}");
+        print("Copying new image to : ${newImage.path}");
+      }
 
       return newImage;
-    }
-    else {
-      print("=========================================");
-      print("Sry we have to deal with this");
+    } else {
+      if (kDebugMode) {
+        print("=========================================");
+        print("Sry we have to deal with this");
+      }
       return null;
     }
   }
@@ -66,15 +78,28 @@ class DataReadWriteManager {
   static Future<File?> loadExistingImage(String path) async {
     try {
       final File image = File(path);
-      print("=========================================");
-      print("Loading existing image from : ${image.path}");
+      if (kDebugMode) {
+        print("=========================================");
+        print("Loading existing image from : ${image.path}");
+      }
       return image;
-    }
-    catch(e) {
-      print("=========================================");
-      print("Sry we have to deal with this 2");
+    } catch (e) {
+      if (kDebugMode) {
+        print("=========================================");
+        print("Sry we have to deal with this 2");
+      }
       return null;
     }
+  }
+
+  static void exportData({
+    required String folderPath,
+    required String name,
+    required String contents,
+  }) {
+    final url = "$folderPath/$name.vcb";
+    final file = File(url);
+    file.writeAsString(contents);
   }
 }
 

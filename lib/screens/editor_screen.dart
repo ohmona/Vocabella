@@ -232,9 +232,6 @@ class _EditorScreenState extends State<EditorScreen> {
         if (sub.title == subjectData.title) {
           // Find the index of the subject
           int index = SubjectDataModel.subjectList.indexOf(sub);
-          print("==========================================");
-          print("Saving...");
-          subjectData.printData();
           // Then replace the data with the edited one
           SubjectDataModel.subjectList[index] = subjectData;
         }
@@ -261,6 +258,9 @@ class _EditorScreenState extends State<EditorScreen> {
     if (focusedIndex != null) {
       if (getTextOf(focusedIndex!).isEmpty) return;
     }
+
+    // Make sure that user doesn't make silly issue
+    if(newIndex >= getWordsCount()) return;
 
     setState(() {
       focusedIndex = newIndex;
@@ -391,8 +391,6 @@ class _EditorScreenState extends State<EditorScreen> {
 
     // copy the data which is going to be edited
     subjectData = widget.data;
-    print("===============================++");
-    subjectData.printData();
 
     // initialize some values
     currentChapter = subjectData.wordlist![0];
@@ -417,9 +415,6 @@ class _EditorScreenState extends State<EditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print("====================================");
-    print("thumbnail path from editor screen side : ${subjectData.thumb}");
-
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: PreferredSize(

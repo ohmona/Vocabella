@@ -15,9 +15,9 @@ void main() async {
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
+    /*DeviceOrientation.portraitDown,
     DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
+    DeviceOrientation.landscapeRight,*/
   ]);
 
   runApp(const MyApp());
@@ -30,7 +30,6 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       theme: ThemeData(
-        backgroundColor: Colors.white,
         cardColor: const Color(0xFF50ECC0),
         primaryColor: const Color(0xFFA7FFE0),
         popupMenuTheme: const PopupMenuThemeData(

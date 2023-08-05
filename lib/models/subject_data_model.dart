@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:vocabella/models/wordpair_model.dart';
 
 import 'chapter_model.dart';
@@ -111,20 +112,26 @@ class SubjectDataModel {
   /// Add current instance into list
   void addToList() {
     if (!subjectList.contains(this)) {
-      print("====================================");
-      print("Adding new subject");
+      if (kDebugMode) {
+        print("====================================");
+        print("Adding new subject");
+      }
       subjectList.add(this);
     } else {
-      print("====================================");
-      print("Subject already exists!");
+      if (kDebugMode) {
+        print("====================================");
+        print("Subject already exists!");
+      }
     }
   }
 
   /// Remove current instance from list
   void removeFromList() {
     if (subjectList.contains(this)) {
-      print("====================================");
-      print("Removing new subject");
+      if (kDebugMode) {
+        print("====================================");
+        print("Removing new subject");
+      }
       subjectList.remove(this);
     }
   }
@@ -174,7 +181,7 @@ class SubjectDataModel {
               word1: "purpose",
               word2: "Ziel; Absicht; Zweck",
               example1:
-                  "If you have a purpose, you have a reason to do something.",
+              "If you have a purpose, you have a reason to do something.",
             ),
             WordPair(
               word1: "word",
@@ -189,19 +196,21 @@ class SubjectDataModel {
   }
 
   printData() {
-    print("====================================");
-    print("Printing data of:");
-    print(title);
-    print(thumb);
-    print(languages);
-    print(subjects);
-    for (Chapter chap in wordlist!) {
-      print(chap.name);
-      for (WordPair word in chap.words) {
-        print(word.word1);
-        print(word.word2);
-        print(word.example1);
-        print(word.example2);
+    if (kDebugMode) {
+      print("====================================");
+      print("Printing data of:");
+      print(title);
+      print(thumb);
+      print(languages);
+      print(subjects);
+      for (Chapter chap in wordlist!) {
+        print(chap.name);
+        for (WordPair word in chap.words) {
+          print(word.word1);
+          print(word.word2);
+          print(word.example1);
+          print(word.example2);
+        }
       }
     }
   }
@@ -213,8 +222,10 @@ class SubjectDataModel {
   }
 
   static void addAll(List<SubjectDataModel> subjects) {
-    print("====================================");
-    print("add many subjects");
+    if (kDebugMode) {
+      print("====================================");
+      print("add many subjects");
+    }
 
     subjectList.addAll(subjects);
   }

@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 const double _widgetHeight = 60;
 
+const Duration expirationDuration = Duration(hours: 24);
+
+
+
 class AnimValueBase {
   AnimValueBase()
       : mainOffset = const Offset(0, 0),

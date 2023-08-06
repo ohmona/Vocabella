@@ -57,12 +57,10 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
 
   void onLang1Change(String newValue) {
     language1 = newValue;
-    print(language1);
   }
 
   void onLang2Change(String newValue) {
     language2 = newValue;
-    print(language2);
   }
 
   List<WordPair> list = [];
@@ -70,10 +68,6 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
   @override
   void initState() {
     super.initState();
-
-    print("====================================");
-    print("mode selection");
-    print("====================================");
   }
 
   bool dataAlreadyReceived = false;
@@ -95,18 +89,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     controller1.text = language1;
     controller2.text = language2;
 
-    list.shuffle();
-    list.shuffle();
-    list.shuffle();
-
-    print("====================================");
-    print("languages");
-    print(language1);
-    print(language2);
-
     return Scaffold(
       appBar: AppBar(
-        title: Text('Choose mode'),
+        title: const Text('Choose mode'),
       ),
       body: Center(
         child: Column(
@@ -120,14 +105,14 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                   arguments: QuizScreenArguments(list, language1, language2),
                 );
               },
-              icon: Icon(Icons.navigate_next),
+              icon: const Icon(Icons.navigate_next),
             ),
-            Text("language 1 : "),
+            const Text("language 1 : "),
             TextField(
               controller: controller1,
               onChanged: onLang1Change,
             ),
-            Text("language 2 : "),
+            const Text("language 2 : "),
             TextField(
               controller: controller2,
               onChanged: onLang2Change,

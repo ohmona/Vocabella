@@ -1,4 +1,5 @@
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vocabella/screens/chapter_selection_screen.dart';
@@ -15,9 +16,6 @@ void main() async {
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
-    /*DeviceOrientation.portraitDown,
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,*/
   ]);
 
   runApp(const MyApp());
@@ -28,6 +26,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
+    if (MediaQuery.of(context).size.width > 500) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
+    else {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+    }
+
     return MaterialApp(
       theme: ThemeData(
         cardColor: const Color(0xFF50ECC0),

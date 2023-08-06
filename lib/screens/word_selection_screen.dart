@@ -13,8 +13,6 @@ class WordSelectionScreen extends StatelessWidget {
   late WordList wordList;
 
   void onPressContinue() {
-    print("==============================");
-    print("Continue");
     /*Navigator.push(
         context,
         MaterialPageRoute(
@@ -28,10 +26,6 @@ class WordSelectionScreen extends StatelessWidget {
 
     wordList = WordList(chapters: args.chapters);
 
-    print("====================================");
-    print("word selection");
-    print("====================================");
-
     return WillPopScope(
       onWillPop: () async {
         wordList.setWords([]);
@@ -44,13 +38,6 @@ class WordSelectionScreen extends StatelessWidget {
         body: wordList,
         bottomNavigationBar: FloatingActionButton(
           onPressed: () {
-            /*Navigator.pushReplacementNamed(
-              context,
-              QuizScreenParent.routeName,
-              arguments: QuizScreenArguments(
-                wordList.getWords(),
-              ),
-            );*/
             Navigator.pushNamed(
               context,
               ModeSelectionScreen.routeName,
@@ -89,7 +76,6 @@ class _WordListState extends State<WordList> {
         if (isChecked[word] == true) {
           if (!selectedWords.contains(word)) {
             selectedWords.add(word);
-            print("${word.word1} : ${word.word2} added");
           }
         }
       }
@@ -111,13 +97,9 @@ class _WordListState extends State<WordList> {
     selectedWords = [];
     isChecked = {};
 
-    print("==============================");
-    print("Initializing words");
-
     for (Chapter chapter in widget.chapters) {
       for (WordPair word in chapter.words) {
         isChecked[word] = true;
-        print("${word.word1} : ${word.word2}");
       }
     }
   }

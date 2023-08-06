@@ -1,10 +1,15 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:scroll_snap_list/scroll_snap_list.dart';
 import 'package:vocabella/managers/data_handle_manager.dart';
 import 'package:vocabella/models/chapter_model.dart';
+import 'package:vocabella/models/removed_subject_model.dart';
 import 'package:vocabella/models/wordpair_model.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:vocabella/widgets/recycle_bin_grid_tile_widget.dart';
 
 import '../arguments.dart';
 import '../models/subject_data_model.dart';
@@ -33,6 +38,8 @@ class Body extends StatefulWidget {
 
 class _BodyState extends State<Body> {
   int focusedIndex = 0;
+
+  late Timer autoRefresher;
 
   void loadNewData() {
     DataPickerManager.pickFile().then((result) {
@@ -111,7 +118,39 @@ class _BodyState extends State<Body> {
     });
   }
 
+  void openEditorByButton() {
+    if (SubjectDataModel.subjectList.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Hmm... It seems to be you haven't any subject to edit",
+          ),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 1),
+          elevation: 10,
+        ),
+      );
+      return;
+    }
+
+    openEditor(SubjectDataModel.subjectList[focusedIndex]);
+  }
+
   void continueWithSubject() {
+    if (SubjectDataModel.subjectList.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Hmm... It seems to be you haven't any subject to practice",
+          ),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 1),
+          elevation: 10,
+        ),
+      );
+      return;
+    }
+
     int wordNum = 0;
     for (Chapter chapter
         in SubjectDataModel.subjectList[focusedIndex].wordlist!) {
@@ -135,16 +174,98 @@ class _BodyState extends State<Body> {
             "Subjects should contain more than 2 words",
           ),
           behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 3),
+          duration: Duration(milliseconds: 500),
           elevation: 10,
         ),
       );
     }
   }
 
+  void deleteSubject() {
+    setState(() {
+      if (SubjectDataModel.subjectList.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Hmm... It seems to be you haven't any subject to delete",
+            ),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 1),
+            elevation: 10,
+          ),
+        );
+        return;
+      }
+
+      RemovedSubjectModel.moveToRecycleBin(focusedIndex);
+      RemovedSubjectModel.saveRecycleBinData();
+      DataReadWriteManager.writeData(
+          SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+      if (focusedIndex > SubjectDataModel.subjectList.length - 1) {
+        focusedIndex = 0;
+      }
+    });
+  }
+
+  void restoreSubject(int index) {
+    setState(() {
+      RemovedSubjectModel.recycleBin[index].restore();
+      DataReadWriteManager.writeData(
+          SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+      RemovedSubjectModel.saveRecycleBinData();
+    });
+  }
+
+  Future<void> openDeleteConfirmation(BuildContext context, int index) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Confirmation"),
+          content: const Text(
+              "Are you sure that you want to delete this subject permanently?"),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text("No"),
+            ),
+            TextButton(
+              onPressed: () {
+                removeSubjectCompletely(index);
+                Navigator.pop(context);
+              },
+              child: const Text("Yes"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void removeSubjectCompletely(int index) {
+    setState(() {
+      RemovedSubjectModel.recycleBin[index].remove();
+      RemovedSubjectModel.saveRecycleBinData();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+
+    autoRefresher = Timer.periodic(const Duration(minutes: 1), (timer) {
+      setState(() {
+        if (kDebugMode) print("auto-refreshing");
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    autoRefresher.cancel();
   }
 
   @override
@@ -153,12 +274,13 @@ class _BodyState extends State<Body> {
       future: DataReadWriteManager.readData(),
       builder: (context, snapshot) {
         bool bLoaded = snapshot.hasData;
+        RemovedSubjectModel.loadRecycleBinData();
+        RemovedSubjectModel.autoRemove();
 
         return Scaffold(
           appBar: buildAppBar(context, bLoaded),
           body: Column(
             children: [
-              const SizedBox(height: 40),
               buildScrollSnapList(
                 context: context,
                 subjects:
@@ -188,10 +310,31 @@ class _BodyState extends State<Body> {
                     ),
                   ),
                 ),
+                Container(
+                  height: 60,
+                  alignment: Alignment.bottomLeft,
+                  padding: const EdgeInsets.all(5),
+                  child: const Text(
+                    "recycle bin",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
+                  ),
+                ),
+                Container(
+                  height: 1,
+                  width: double.infinity,
+                  color: Colors.grey,
+                ),
                 Expanded(
                   child: ListView.builder(
+                    scrollDirection: Axis.vertical,
+                    itemCount: RemovedSubjectModel.recycleBin.length,
                     itemBuilder: (context, index) {
-                      return;
+                      return RecycleBinGridTile(
+                        data: RemovedSubjectModel.recycleBin[index],
+                        index: index,
+                        openDeleteConfirmation: openDeleteConfirmation,
+                        restoreSubject: restoreSubject,
+                      );
                     },
                   ),
                 ),
@@ -233,9 +376,7 @@ class _BodyState extends State<Body> {
         BottomButton(
           size: 75,
           bBig: false,
-          onPressed: () {
-            // TODO delete focused subject
-          },
+          onPressed: deleteSubject,
           icon: Icons.delete,
         ),
         const SizedBox(
@@ -253,9 +394,7 @@ class _BodyState extends State<Body> {
         BottomButton(
           size: 75,
           bBig: false,
-          onPressed: () {
-            openEditor(SubjectDataModel.subjectList[focusedIndex]);
-          },
+          onPressed: openEditorByButton,
           icon: Icons.edit,
         ),
       ],
@@ -274,10 +413,13 @@ class _BodyState extends State<Body> {
         return Expanded(
           child: ScrollSnapList(
             scrollPhysics: const BouncingScrollPhysics(),
+            focusOnItemTap: true,
+            updateOnScroll: true,
+            selectedItemAnchor: SelectedItemAnchor.MIDDLE,
             initialIndex: 0,
             scrollDirection: Axis.horizontal,
             itemCount: subjects.length,
-            itemSize: MediaQuery.of(context).size.width - 150,
+            itemSize: 250,
             dynamicItemSize: true,
             onItemFocus: (index) {
               setState(() {
@@ -308,8 +450,7 @@ class _BodyState extends State<Body> {
     late String title;
     try {
       title = SubjectDataModel.subjectList[focusedIndex].title!;
-    }
-    catch(e) {
+    } catch (e) {
       title = "";
     }
 

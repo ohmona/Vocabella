@@ -47,7 +47,7 @@ class SubjectDataModel {
 
   SubjectDataModel({
     required this.title,
-    this.thumb,
+    required this.thumb,
     required this.subjects,
     required this.wordlist,
     required this.languages,
@@ -57,40 +57,45 @@ class SubjectDataModel {
   /// Since json data has only type of a list, fromJson constructor isn't necessary
   /// So use this function instead
   static List<SubjectDataModel> listFromJson(dynamic json) {
-    // Declare list to return
-    List<SubjectDataModel> subjects = [];
+    try {
+      // Declare list to return
+      List<SubjectDataModel> subjects = [];
 
-    // Decode received json data to dart List
-    final jsonList = jsonDecode(json) as List<dynamic>;
+      // Decode received json data to dart List
+      final jsonList = jsonDecode(json) as List<dynamic>;
 
-    // Create individual instances from decoded json
-    for (dynamic inst in jsonList) {
-      // Since the data is currently dynamic, it's necessary to copy the data one by one
+      // Create individual instances from decoded json
+      for (dynamic inst in jsonList) {
+        // Since the data is currently dynamic, it's necessary to copy the data one by one
 
-      // Create dummy instance having nothing
-      SubjectDataModel sub = SubjectDataModel(
-        languages: ['', ''],
-        subjects: ['', ''],
-        title: "",
-        wordlist: [],
-        thumb: "",
-      );
+        // Create dummy instance having nothing
+        SubjectDataModel sub = SubjectDataModel(
+          languages: ['', ''],
+          subjects: ['', ''],
+          title: "",
+          wordlist: [],
+          thumb: "",
+        );
 
-      // Now we copy the data
-      sub.title = inst['title'];
-      sub.thumb = inst['thumb'];
-      sub.subjects![0] = inst['subjects'][0];
-      sub.subjects![1] = inst['subjects'][1];
-      sub.languages![0] = inst['languages'][0];
-      sub.languages![1] = inst['languages'][1];
-      for (int i = 0; i < (inst['wordlist'] as List<dynamic>).length; i++) {
-        sub.wordlist!.add(Chapter.fromJson(inst['wordlist'][i]));
+        // Now we copy the data
+        sub.title = inst['title'];
+        sub.thumb = inst['thumb'];
+        sub.subjects![0] = inst['subjects'][0];
+        sub.subjects![1] = inst['subjects'][1];
+        sub.languages![0] = inst['languages'][0];
+        sub.languages![1] = inst['languages'][1];
+        for (int i = 0; i < (inst['wordlist'] as List<dynamic>).length; i++) {
+          sub.wordlist!.add(Chapter.fromJson(inst['wordlist'][i]));
+        }
+
+        // Finally add created instance to the list to return
+        subjects.add(sub);
       }
-
-      // Finally add created instance to the list to return
-      subjects.add(sub);
+      return subjects;
     }
-    return subjects;
+    catch(e) {
+      return [];
+    }
   }
 
   /// Convert current list into encoded json by converting individual instances
@@ -199,17 +204,17 @@ class SubjectDataModel {
     if (kDebugMode) {
       print("====================================");
       print("Printing data of:");
-      print(title);
-      print(thumb);
-      print(languages);
-      print(subjects);
+      print("title : $title");
+      print("thumb : $thumb");
+      print("lang : $languages");
+      print("subs : $subjects");
       for (Chapter chap in wordlist!) {
-        print(chap.name);
+        print("Chapter name : '${chap.name}'");
         for (WordPair word in chap.words) {
-          print(word.word1);
-          print(word.word2);
-          print(word.example1);
-          print(word.example2);
+          print("First word : '${word.word1}'");
+          print("Second word : '${word.word2}'");
+          print("Fist example : '${word.example1}'");
+          print("Second example : '${word.example2}'");
         }
       }
     }

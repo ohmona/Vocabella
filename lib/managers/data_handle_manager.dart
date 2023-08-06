@@ -16,6 +16,11 @@ class DataReadWriteManager {
     return '$path/subjects.json';
   }
 
+  static Future<String> getLocalAnyFilePath(String name) async {
+    final path = await _localPath;
+    return '$path/$name.json';
+  }
+
   static Future<String> getLocalPath() {
     return _localPath;
   }
@@ -27,19 +32,19 @@ class DataReadWriteManager {
   static Future<String> readData() async {
     try {
       final file = File(await _localFilePath);
-      if (kDebugMode) {
-        print("++++++++++++++++++++++++++++++++++++");
-        print(await file.readAsString());
-      }
       return await file.readAsString();
     } catch (e) {
       return '';
     }
   }
 
-  static Future<void> writeData(String data) async {
-    final file = File(await _localFilePath);
-    await file.writeAsString(data);
+  static Future<String> readDataFrom({required String name}) async {
+    try {
+      final file = File(await getLocalAnyFilePath(name));
+      return await file.readAsString();
+    } catch (e) {
+      return '';
+    }
   }
 
   static Future<String> readDataByPath(String path) async {
@@ -51,6 +56,16 @@ class DataReadWriteManager {
     }
   }
 
+  static Future<void> writeData(String data) async {
+    final file = File(await _localFilePath);
+    await file.writeAsString(data);
+  }
+
+  static Future<void> writeDataTo({required String data, required name}) async {
+    final file = File(await getLocalAnyFilePath(name));
+    await file.writeAsString(data);
+  }
+
   static Future<File?> loadNewImage(ImageSource imageSource) async {
     final XFile? xImage = await ImagePicker().pickImage(source: imageSource);
 
@@ -58,12 +73,6 @@ class DataReadWriteManager {
       final File image = File(xImage.path);
       final String path = await _localPath + xImage.name;
       final File newImage = await image.copy(path);
-
-      if (kDebugMode) {
-        print("=========================================");
-        print("Loading new image from : ${xImage.path}");
-        print("Copying new image to : ${newImage.path}");
-      }
 
       return newImage;
     } else {
@@ -78,10 +87,6 @@ class DataReadWriteManager {
   static Future<File?> loadExistingImage(String path) async {
     try {
       final File image = File(path);
-      if (kDebugMode) {
-        print("=========================================");
-        print("Loading existing image from : ${image.path}");
-      }
       return image;
     } catch (e) {
       if (kDebugMode) {

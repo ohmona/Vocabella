@@ -33,8 +33,6 @@ class ChapterSelectionScreen extends StatelessWidget {
         body: chapterList,
         bottomNavigationBar: FloatingActionButton(
           onPressed: () {
-            print("==============================");
-            print("Continue");
             Navigator.pushNamed(
               context,
               WordSelectionScreen.routeName,
@@ -74,7 +72,6 @@ class _ChapterListState extends State<ChapterList> {
         if(!selectedChapters.contains(chapter)) {
           selectedChapters.add(chapter);
         }
-        print(chapter.name);
       }
     }
     return selectedChapters;
@@ -93,13 +90,8 @@ class _ChapterListState extends State<ChapterList> {
 
     widget.getChapters = getChapters;
     widget.setChapters = setChapters;
-
-    print("==============================");
-    print("Initializing chapters");
-
     for (Chapter chapter in widget.subject.wordlist!) {
       isChecked[chapter.name] = true;
-      print(chapter.name);
     }
   }
 

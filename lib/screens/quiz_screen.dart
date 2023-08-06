@@ -58,9 +58,9 @@ class _QuizScreenState extends State<QuizScreen> {
   bool bDontTypeAnswer = true;
 
   // Variables about questions
-  int count = 1;
+  late int count;
   late List<WordPair> listOfQuestions;
-  late List<WordPair> listOfWrongs = [];
+  late List<WordPair> listOfWrongs;
   late int questionsNumber;
 
   // Variables about quiz
@@ -87,20 +87,26 @@ class _QuizScreenState extends State<QuizScreen> {
   late Timer disposalTimer;
 
   // Progress
-  int absoluteProgress =
-      1; // progress of all combined, including wrong answers and extension
-  int originalProgress = 1; // progress of original cards
-  int wrongAnswers = 0; // number of all wrong answers
-  int absoluteRepetitionProgress =
-      0; // progress of extension, also wrong answers
-  int repetitionProgress = 0; // progress of extension
-  bool hasRepetitionBegun = false;
-  int inFirstTry = 0;
-  int inRepetitionFirstTry = 0;
+  late int absoluteProgress;// progress of all combined, including wrong answers and extension
+  late int originalProgress; // progress of original cards
+  late int wrongAnswers; // number of all wrong answers
+  late int absoluteRepetitionProgress; // progress of extension, also wrong answers
+  late int repetitionProgress; // progress of extension
+  late bool hasRepetitionBegun;
+  late int inFirstTry;
+  late int inRepetitionFirstTry;
 
   /// Check if the answer was correctly given
   bool isAnswerCorrect(String answer) {
     // TODO implement correction detection system
+
+    if (kDebugMode) {
+      print("======================================");
+      print("Given answer : $answer");
+      print("Given question : ${listOfQuestions[count - 1].word1}");
+      print("Correct answer : ${listOfQuestions[count - 1].word2}");
+    }
+
     return answer == listOfQuestions[count - 1].word2;
   }
 
@@ -137,12 +143,10 @@ class _QuizScreenState extends State<QuizScreen> {
         transitionTimer.cancel(); // Stop the timer
       });
     } else {
-      if(!isDone) {
+      if (!isDone) {
         setState(() {});
-      }
-      else {
+      } else {
         transitionTimer.cancel();
-
       }
     }
   }
@@ -157,21 +161,17 @@ class _QuizScreenState extends State<QuizScreen> {
 
   /// Once user has submitted the answer
   void onSummit(String text) {
-    if (kDebugMode) {
-      print("================================");
-      print("Answer summited");
-      print("================================");
-    }
+    print("================================");
+    print("Answer summited");
+    print("================================");
 
     // Show answer initially
     showAnswer();
 
     // Print answer to check whether code works properly
-    if (kDebugMode) {
-      print("correct one : ${listOfQuestions[count - 1].word2}");
-      print("given answer : $text");
-      print("Was Correct? : ${isAnswerCorrect(text)}");
-    }
+    print("correct one : ${listOfQuestions[count - 1].word2}");
+    print("given answer : $text");
+    print("Was Correct? : ${isAnswerCorrect(text)}");
 
     // Make sure that the given answer was correct or wrong
     wasWrong = !isAnswerCorrect(text);
@@ -386,29 +386,29 @@ class _QuizScreenState extends State<QuizScreen> {
   // TODO Add comments
   /// Once the answer was wrong, make next card containing same word as before
   void repeatWord() {
-    int step = count - 1;
+    int index = count - 1;
 
     // Question part
     isOddTHCard
         ? questionCard2.setDisplayWordAndExample(
-      newWord: listOfQuestions[step].word1,
-      newExample: listOfQuestions[step].example1 ?? "",
-    )
+            newWord: listOfQuestions[index].word1,
+            newExample: listOfQuestions[index].example1 ?? "",
+          )
         : questionCard.setDisplayWordAndExample(
-      newWord: listOfQuestions[step].word1,
-      newExample: listOfQuestions[step].example1 ?? "",
-    );
+            newWord: listOfQuestions[index].word1,
+            newExample: listOfQuestions[index].example1 ?? "",
+          );
 
     // Answer part
     isOddTHCard
         ? answerCard2.setDisplayWordAndExample(
-      newWord: listOfQuestions[count - 1].word2,
-      newExample: listOfQuestions[count].example2 ?? "",
-    )
+            newWord: listOfQuestions[index].word2,
+            newExample: listOfQuestions[index].example2 ?? "",
+          )
         : answerCard.setDisplayWordAndExample(
-      newWord: listOfQuestions[count - 1].word2,
-      newExample: listOfQuestions[count - 1].example2 ?? "",
-    );
+            newWord: listOfQuestions[index].word2,
+            newExample: listOfQuestions[index].example2 ?? "",
+          );
 
     if (!hasRepetitionBegun) wrongAnswers++;
     absoluteProgress++;
@@ -432,23 +432,23 @@ class _QuizScreenState extends State<QuizScreen> {
 
       isOddTHCard
           ? questionCard2.setDisplayWordAndExample(
-        newWord: listOfQuestions[count].word1,
-        newExample: listOfQuestions[count].example1 ?? "",
-      )
+              newWord: listOfQuestions[count].word1,
+              newExample: listOfQuestions[count].example1 ?? "",
+            )
           : questionCard.setDisplayWordAndExample(
-        newWord: listOfQuestions[count].word1,
-        newExample: listOfQuestions[count].example1 ?? "",
-      );
+              newWord: listOfQuestions[count].word1,
+              newExample: listOfQuestions[count].example1 ?? "",
+            );
 
       isOddTHCard
           ? answerCard2.setDisplayWordAndExample(
-        newWord: listOfQuestions[count].word2,
-        newExample: listOfQuestions[count].example2 ?? "",
-      )
+              newWord: listOfQuestions[count].word2,
+              newExample: listOfQuestions[count].example2 ?? "",
+            )
           : answerCard.setDisplayWordAndExample(
-        newWord: listOfQuestions[count].word2,
-        newExample: listOfQuestions[count].example2 ?? "",
-      );
+              newWord: listOfQuestions[count].word2,
+              newExample: listOfQuestions[count].example2 ?? "",
+            );
     } catch (e) {
       if (kDebugMode) {
         print("It's most likely that you're done!");
@@ -620,7 +620,20 @@ class _QuizScreenState extends State<QuizScreen> {
   void initState() {
     super.initState();
 
+    absoluteProgress = 1;
+    originalProgress = 1;
+    wrongAnswers = 0;
+    absoluteRepetitionProgress = 0;
+    repetitionProgress = 0;
+    hasRepetitionBegun = false;
+    inFirstTry = 0;
+    inRepetitionFirstTry = 0;
+
+    count = 1;
+    listOfWrongs = [];
+
     listOfQuestions = widget.wordPack;
+    listOfQuestions.shuffle();
     questionsNumber = listOfQuestions.length;
 
     if (kDebugMode) {
@@ -690,6 +703,15 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   @override
+  void dispose() {
+    super.dispose();
+
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -738,27 +760,31 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          if (!isShowingAnswer)
-            bDontTypeAnswer
-                ? GestureDetector(
+          Builder(
+            builder: (context) {
+              if (!isShowingAnswer) {
+                if (bDontTypeAnswer) {
+                  return GestureDetector(
                     onTap: showAnswerOnly,
                     child: ContinueButton(
                       color: Theme.of(context).cardColor,
                       correctState: CorrectState.correct,
                       text: "Reveal answer",
                     ),
-                  )
-                : InputBox(
+                  );
+                } else {
+                  return InputBox(
                     answer: listOfQuestions[count - 1].word2,
                     fieldText: fieldText,
                     onSummit: onSummit,
                     onSummitByButton: onSummitByButton,
                     updateInputValue: updateInputValue,
                     showHint: listOfWrongs.contains(listOfQuestions[count - 1]),
-                  ),
-          if (isShowingAnswer)
-            bDontTypeAnswer
-                ? Row(
+                  );
+                }
+              } else {
+                if (bDontTypeAnswer) {
+                  return Row(
                     children: [
                       GestureDetector(
                         onTap: onWasWrong,
@@ -777,12 +803,17 @@ class _QuizScreenState extends State<QuizScreen> {
                         ),
                       ),
                     ],
-                  )
-                : ContinueBox(
+                  );
+                } else {
+                  return ContinueBox(
                     onClicked: showNext,
                     correctState:
                         wasWrong ? CorrectState.wrong : CorrectState.correct,
-                  ),
+                  );
+                }
+              }
+            },
+          ),
         ],
       ),
     );

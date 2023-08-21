@@ -155,6 +155,9 @@ class _SubjectChangeDialogState extends State<SubjectChangeDialog> {
           onPressed: () {
             Navigator.of(context).pop();
           },
+          style: TextButton.styleFrom(
+            foregroundColor: mintColor,
+          ),
           child: const Text("cancel"),
         ),
         TextButton(
@@ -166,6 +169,9 @@ class _SubjectChangeDialogState extends State<SubjectChangeDialog> {
             );
             Navigator.of(context).pop();
           },
+          style: TextButton.styleFrom(
+            foregroundColor: mintColor,
+          ),
           child: const Text("confirm"),
         ),
       ],

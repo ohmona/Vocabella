@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vocabella/managers/tts_manager.dart';
-import 'package:vocabella/constants.dart';
+import 'package:vocabella/animations.dart';
 
 enum Sequence {
   appear,

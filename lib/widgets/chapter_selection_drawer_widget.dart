@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:vocabella/constants.dart';
 import 'package:vocabella/managers/data_handle_manager.dart';
 import 'package:vocabella/models/subject_data_model.dart';
 
@@ -51,6 +52,9 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
               onPressed: () {
                 Navigator.of(context).pop();
               },
+              style: TextButton.styleFrom(
+                foregroundColor: mintColor,
+              ),
               child: const Text("cancel"),
             ),
             TextButton(
@@ -61,6 +65,9 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                   Navigator.of(context).pop();
                 }
               },
+              style: TextButton.styleFrom(
+                foregroundColor: mintColor,
+              ),
               child: const Text("confirm"),
             ),
           ],
@@ -81,6 +88,9 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
               onPressed: () {
                 Navigator.of(context).pop();
               },
+              style: TextButton.styleFrom(
+                foregroundColor: mintColor,
+              ),
               child: const Text("No"),
             ),
             TextButton(
@@ -88,6 +98,9 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                 widget.saveData();
                 Navigator.popUntil(context, ModalRoute.withName('/'));
               },
+              style: TextButton.styleFrom(
+                foregroundColor: mintColor,
+              ),
               child: const Text("Yes"),
             ),
           ],

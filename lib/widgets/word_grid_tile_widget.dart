@@ -15,8 +15,7 @@ class WordGridTile extends StatefulWidget {
     required this.bDeleteMode,
     required this.deleteWord,
     required this.changeFocus,
-    required this.bFocused,
-    required this.openWordAdder,
+    required this.bFocused, required this.wordAdditionBuffer,
   }) : super(key: key);
 
   final String text;
@@ -26,9 +25,9 @@ class WordGridTile extends StatefulWidget {
   final void Function(WordPair wordPair) addWord;
   final void Function(WordPair wordPair) deleteWord;
   final void Function(int) changeFocus;
-  final Future<void> Function(BuildContext) openWordAdder;
 
   final Chapter currentChapter;
+  final WordPair wordAdditionBuffer;
   final bool bShowingWords;
   final bool bDeleteMode;
   final bool bFocused;
@@ -48,13 +47,19 @@ class _WordGridTileState extends State<WordGridTile> {
     final int wordPairIndex = widget.index ~/
         2; // Update this line to calculate the wordPairIndex correctly
 
-    if (wordPairIndex > widget.currentChapter.words.length - 1) {
+    if (wordPairIndex > widget.currentChapter.words.length) {
       text = "";
       return;
     }
 
-    // Get the WordPair from the currentChapter based on the wordPairIndex
-    WordPair wordPair = widget.currentChapter.words[wordPairIndex];
+    WordPair wordPair;
+    if(wordPairIndex <= widget.currentChapter.words.length - 1) {
+      // Get the WordPair from the currentChapter based on the wordPairIndex
+      wordPair = widget.currentChapter.words[wordPairIndex];
+    }
+    else {
+      wordPair = widget.wordAdditionBuffer;
+    }
 
     // Determine which text to display based on bShowingWords flag
     if (widget.bShowingWords) {
@@ -138,10 +143,10 @@ class _WordGridTileState extends State<WordGridTile> {
       child: GestureDetector(
         onTap: () {
           if (!widget.bDeleteMode) {
-            if (widget.currentChapter.words.length * 2 > widget.index) {
+            if (widget.currentChapter.words.length * 2 + 2 > widget.index) {
               widget.changeFocus(widget.index);
             } else if (widget.bShowingWords) {
-              widget.openWordAdder(context);
+              //widget.openWordAdder(context);
             }
           } else {
             if (widget.currentChapter.words.length * 2 > widget.index) {

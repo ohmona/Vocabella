@@ -28,3 +28,20 @@ class Chapter {
     };
   }
 }
+
+class EditedChapter extends Chapter {
+  EditedChapter({required super.name, required super.words});
+
+  static EditedChapter copyFrom(Chapter chapter) {
+    return EditedChapter(name: chapter.name, words: chapter.words);
+  }
+
+  Chapter toChapter() {
+    return Chapter(name: name, words: words);
+  }
+
+  List<int> excludedIndex = [];
+
+  @override
+  Map<String, dynamic> toJson() => throw Error();
+}

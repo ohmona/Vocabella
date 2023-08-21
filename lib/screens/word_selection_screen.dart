@@ -1,136 +1,168 @@
 import 'package:flutter/material.dart';
 import 'package:vocabella/arguments.dart';
-import 'package:vocabella/screens/mode_selection_screen.dart';
 
+import '../constants.dart';
 import '../models/chapter_model.dart';
-import '../models/wordpair_model.dart';
 
-class WordSelectionScreen extends StatelessWidget {
-  WordSelectionScreen({Key? key}) : super(key: key);
+class WordSelectionScreenParent extends StatelessWidget {
+  const WordSelectionScreenParent({Key? key}) : super(key: key);
 
   static const routeName = '/words';
-
-  late WordList wordList;
-
-  void onPressContinue() {
-    /*Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (context) => QuizScreen(wordPack: )));*/
-  }
 
   @override
   Widget build(BuildContext context) {
     final args = ModalRoute.of(context)!.settings.arguments
         as WordSelectionScreenArguments;
 
-    wordList = WordList(chapters: args.chapters);
-
-    return WillPopScope(
-      onWillPop: () async {
-        wordList.setWords([]);
-        return true;
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text("Select words"),
-        ),
-        body: wordList,
-        bottomNavigationBar: FloatingActionButton(
-          onPressed: () {
-            Navigator.pushNamed(
-              context,
-              ModeSelectionScreen.routeName,
-              arguments: ModeSelectionScreenArguments(
-                wordList.getWords(),
-                args.languages,
-              ),
-            );
-          },
-        ),
-      ),
+    return WordSelectionScreen(
+      chapter: args.chapter,
+      selected: args.selected,
+      applyEdit: args.applyEdit,
+      originalIndex: args.originalIndex,
     );
   }
 }
 
-class WordList extends StatefulWidget {
-  WordList({Key? key, required this.chapters}) : super(key: key);
+class WordSelectionScreen extends StatefulWidget {
+  const WordSelectionScreen(
+      {Key? key,
+      required this.chapter,
+      required this.selected,
+      required this.applyEdit,
+      required this.originalIndex})
+      : super(key: key);
 
-  final List<Chapter> chapters;
-
-  late List<WordPair> Function() getWords;
-  late void Function(List<WordPair>) setWords;
+  final EditedChapter chapter;
+  final bool selected;
+  final int originalIndex;
+  final void Function(int, List<int>) applyEdit;
 
   @override
-  State<WordList> createState() => _WordListState();
+  State<WordSelectionScreen> createState() => _WordSelectionScreenState();
 }
 
-class _WordListState extends State<WordList> {
-  List<WordPair> selectedWords = [];
-  Map<WordPair, bool> isChecked = {};
+class _WordSelectionScreenState extends State<WordSelectionScreen> {
+  late List<int> excludedIndex;
 
-  List<WordPair> getWords() {
-    selectedWords = [];
-    for (Chapter chapter in widget.chapters) {
-      for (WordPair word in chapter.words) {
-        if (isChecked[word] == true) {
-          if (!selectedWords.contains(word)) {
-            selectedWords.add(word);
-          }
-        }
-      }
+  void excludeAll() {
+    excludedIndex = [];
+    for (int i = 0; i < widget.chapter.words.length; i++) {
+      excludedIndex.add(i);
     }
-    return selectedWords;
   }
 
-  void setWords(List<WordPair> words) {
-    selectedWords = words;
+  void onExit() {
+    widget.applyEdit(widget.originalIndex, excludedIndex);
+  }
+
+  void onTileTap(int index) {
+    setState(() {
+      if (excludedIndex.contains(index)) {
+        excludedIndex.remove(index);
+      } else {
+        excludedIndex.add(index);
+      }
+    });
   }
 
   @override
   void initState() {
     super.initState();
 
-    widget.getWords = getWords;
-    widget.setWords = setWords;
-
-    selectedWords = [];
-    isChecked = {};
-
-    for (Chapter chapter in widget.chapters) {
-      for (WordPair word in chapter.words) {
-        isChecked[word] = true;
-      }
-    }
+    widget.selected
+        ? excludedIndex = widget.chapter.excludedIndex
+        : excludeAll();
   }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      scrollDirection: Axis.vertical,
-      padding: const EdgeInsets.all(10),
-      children: [
-        for (Chapter chapter in widget.chapters)
-          for (WordPair word in chapter.words)
-            Container(
-              padding: const EdgeInsets.all(10),
-              child: Row(
-                children: [
-                  Checkbox(
-                    checkColor: Colors.white,
-                    value: isChecked[word] ?? false,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        isChecked[word] = value!;
-                      });
-                      print("${word.word1} : ${word.word2} => $value");
-                    },
-                  ),
-                  Text(word.word1),
-                ],
+    return WillPopScope(
+      onWillPop: () async {
+        onExit();
+        return true;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text("Select words"),
+          actions: [
+            IconButton(
+              onPressed: () {
+                onExit();
+                Navigator.pop(context);
+              },
+              icon: const Icon(
+                Icons.check,
+                color: Colors.white,
               ),
             ),
-      ],
+          ],
+        ),
+        body: Container(
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              colors: [
+                firstBgColor.withOpacity(0.5),
+                secondBgColor.withOpacity(0.5),
+              ],
+            ),
+          ),
+          child: ListView.separated(
+            itemCount: widget.chapter.words.length,
+            itemBuilder: (context, index) {
+              bool bSelected = !excludedIndex.contains(index);
+
+              return GestureDetector(
+                onTap: () {
+                  onTileTap(index);
+                },
+                child: Container(
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: bSelected
+                        ? Color.lerp(
+                            firstBgColor,
+                            secondBgColor,
+                            index / widget.chapter.words.length,
+                          )
+                        : Color.lerp(
+                            firstBgColor.withOpacity(0.3),
+                            secondBgColor.withOpacity(0.3),
+                            index / widget.chapter.words.length,
+                          ),
+                  ),
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 10),
+                      Text(
+                        widget.chapter.words[index].word1,
+                        style: bSelected ?
+                        const TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w400,
+                          fontSize: 16,
+                        ) :
+                        TextStyle(
+                          color: Colors.black.withOpacity(0.5),
+                          fontWeight: FontWeight.w400,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+            separatorBuilder: (context, index) {
+              return Container(
+                height: 2,
+                color: Colors.white.withOpacity(0.5),
+              );
+            },
+          ),
+        ),
+      ),
     );
   }
 }

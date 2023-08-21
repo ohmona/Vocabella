@@ -1,22 +1,32 @@
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:scroll_snap_list/scroll_snap_list.dart';
+import 'package:vocabella/constants.dart';
+import 'package:vocabella/main.dart';
 import 'package:vocabella/managers/data_handle_manager.dart';
 import 'package:vocabella/models/chapter_model.dart';
 import 'package:vocabella/models/removed_subject_model.dart';
 import 'package:vocabella/models/wordpair_model.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:vocabella/screens/subject_creation_screen.dart';
 import 'package:vocabella/widgets/recycle_bin_grid_tile_widget.dart';
 
 import '../arguments.dart';
 import '../models/subject_data_model.dart';
+import '../widgets/bottom_button_widget.dart';
 import '../widgets/subject_creating_dialog_widget.dart';
 import '../widgets/subject_tile_widget.dart';
 import 'chapter_selection_screen.dart';
 import 'editor_screen.dart';
+
+enum AddOption {
+  import,
+  createNewSubject,
+}
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -41,42 +51,33 @@ class _BodyState extends State<Body> {
 
   late Timer autoRefresher;
 
-  void loadNewData() {
-    DataPickerManager.pickFile().then((result) {
-      if (result != null) {
-        DataReadWriteManager.readDataByPath(result.files.single.path!)
-            .then((value) {
-          setState(() {
-            SubjectDataModel.addAll(SubjectDataModel.listFromJson(value));
+  /// Load new subject by picking a file
+  void loadNewData() async {
+    // Pick a file
+    FilePickerResult? result = await DataPickerManager.pickFile();
 
-            DataReadWriteManager.writeData(
-                SubjectDataModel.listToJson(SubjectDataModel.subjectList));
-          });
-        });
-      }
-    });
-  }
+    if (result != null) {
+      // Get the path of the picked file
+      final String path = result.files.single.path!;
 
-  void reset() {
-    // Clear the subjectList before adding new data
-    SubjectDataModel.subjectList.clear();
+      // Read data from the file with got path
+      String content = await DataReadWriteManager.readDataByPath(path);
+
+      // Create a list of subject-objects by read data
+      List<SubjectDataModel> newSubjectList =
+          SubjectDataModel.listFromJson(content);
+
+      // Add them all to static list
+      SubjectDataModel.addAll(newSubjectList);
+
+      // Save updated data to file
+      DataReadWriteManager.writeData(
+          SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+    }
     setState(() {});
-    DataReadWriteManager.writeData("");
   }
 
-  late SubjectDataModel creatingSubject;
-
-  Future<void> openSubjectCreator(BuildContext context) {
-    return showDialog<void>(
-      context: context,
-      builder: (context) {
-        return SubjectCreatingDialog(
-          createNewSubject: createNewSubject,
-        );
-      },
-    );
-  }
-
+  /// Create a empty subject-data and open editor immediately
   void createNewSubject({
     required String newTitle,
     required String newSubject1,
@@ -85,9 +86,17 @@ class _BodyState extends State<Body> {
     required String newLanguage2,
     required String newChapter,
   }) {
-    WordPair dummyWord =
-        WordPair(word1: "type your word", word2: "type your word");
-    Chapter firstChapter = Chapter(name: newChapter, words: [dummyWord]);
+    // Create dummy-data of WordPair and Chapter to add
+    WordPair dummyWord = WordPair(
+      word1: "type your word",
+      word2: "type your word",
+    );
+    Chapter firstChapter = Chapter(
+      name: newChapter,
+      words: [dummyWord],
+    );
+
+    // Create dummy subject-data by just created dummy-data
     SubjectDataModel newSubject = SubjectDataModel(
       title: newTitle,
       subjects: [newSubject1, newSubject2],
@@ -97,11 +106,15 @@ class _BodyState extends State<Body> {
     );
 
     setState(() {
+      // Add just created, empty subject-data to static list
       SubjectDataModel.subjectList.add(newSubject);
+
+      // Save updated list to local storage
       DataReadWriteManager.writeData(
           SubjectDataModel.listToJson(SubjectDataModel.subjectList));
     });
 
+    // Open subject-editor with created subject
     openEditor(newSubject);
   }
 
@@ -118,17 +131,13 @@ class _BodyState extends State<Body> {
     });
   }
 
-  void openEditorByButton() {
+  /// Unless there's no existing subject to open, open the editor with focusing subject
+  void onPressOpenEditor() {
     if (SubjectDataModel.subjectList.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Hmm... It seems to be you haven't any subject to edit",
-          ),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 1),
-          elevation: 10,
-        ),
+      sendToastMessage(
+        context: context,
+        msg: "Hmm... It seems to be you haven't any subject to edit",
+        duration: const Duration(seconds: 1),
       );
       return;
     }
@@ -136,21 +145,18 @@ class _BodyState extends State<Body> {
     openEditor(SubjectDataModel.subjectList[focusedIndex]);
   }
 
-  void continueWithSubject() {
+  /// Unless there's no subject existing, push user to chapter selection
+  void onPressContinue() {
     if (SubjectDataModel.subjectList.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Hmm... It seems to be you haven't any subject to practice",
-          ),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 1),
-          elevation: 10,
-        ),
+      sendToastMessage(
+        context: context,
+        msg: "Hmm... It seems to be you haven't any subject to practice",
+        duration: const Duration(seconds: 1),
       );
       return;
     }
 
+    // Check number of word of focusing subject
     int wordNum = 0;
     for (Chapter chapter
         in SubjectDataModel.subjectList[focusedIndex].wordlist!) {
@@ -159,54 +165,52 @@ class _BodyState extends State<Body> {
         wordNum++;
       }
     }
-    if (wordNum >= 3) {
-      Navigator.pushNamed(
-        context,
-        ChapterSelectionScreen.routeName,
-        arguments: ChapterSelectionScreenArguments(
-          SubjectDataModel.subjectList[focusedIndex],
-        ),
+    final bool enoughWord = wordNum >= 3;
+    if (!enoughWord) {
+      sendToastMessage(
+        context: context,
+        msg: "Subjects should contain more than 2 words",
+        duration: const Duration(milliseconds: 500),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Subjects should contain more than 2 words",
-          ),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(milliseconds: 500),
-          elevation: 10,
-        ),
-      );
+      return;
     }
+
+    // If everything is ok, push user to chapter-selection
+    Navigator.pushNamed(
+      context,
+      ChapterSelectionScreenParent.routeName,
+      arguments: ChapterSelectionScreenArguments(
+        SubjectDataModel.subjectList[focusedIndex],
+      ),
+    );
   }
 
-  void deleteSubject() {
+  /// Unless there's no subject existing, move focusing subject to recycle bin
+  void onPressDeleteSubject() {
     setState(() {
       if (SubjectDataModel.subjectList.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Hmm... It seems to be you haven't any subject to delete",
-            ),
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 1),
-            elevation: 10,
-          ),
+        sendToastMessage(
+          context: context,
+          msg: "Hmm... It seems to be you haven't any subject to delete",
+          duration: const Duration(seconds: 1),
         );
         return;
       }
 
       RemovedSubjectModel.moveToRecycleBin(focusedIndex);
       RemovedSubjectModel.saveRecycleBinData();
+
       DataReadWriteManager.writeData(
           SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+
+      // If user deleted last subject, due to out of bound issue, reset focused index to 0
       if (focusedIndex > SubjectDataModel.subjectList.length - 1) {
         focusedIndex = 0;
       }
     });
   }
 
+  /// Move subject in recycle bin with specific index to static subject list
   void restoreSubject(int index) {
     setState(() {
       RemovedSubjectModel.recycleBin[index].restore();
@@ -214,6 +218,360 @@ class _BodyState extends State<Body> {
           SubjectDataModel.listToJson(SubjectDataModel.subjectList));
       RemovedSubjectModel.saveRecycleBinData();
     });
+  }
+
+  /// Delete data from recycle bin to dispose completely from session then save
+  void removeSubjectCompletely(int index) {
+    setState(() {
+      RemovedSubjectModel.recycleBin[index].remove();
+      RemovedSubjectModel.saveRecycleBinData();
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Activate auto-refresher
+    autoRefresher = Timer.periodic(const Duration(minutes: 1), (timer) {
+      setState(() {
+        if (kDebugMode) print("auto-refreshing");
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+
+    // Deactivate auto-refresher
+    autoRefresher.cancel();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: DataReadWriteManager.readData(),
+      builder: (context, snapshot) {
+        bool bLoaded = snapshot.hasData;
+        RemovedSubjectModel.loadRecycleBinData();
+        RemovedSubjectModel.autoRemove();
+
+        return Scaffold(
+          appBar: buildAppBar(context, bLoaded),
+          body: Container(
+            decoration: const BoxDecoration(
+              gradient: bgGradient,
+            ),
+            child: Column(
+              children: [
+                buildScrollSnapList(
+                  context: context,
+                  subjects: bLoaded
+                      ? SubjectDataModel.listFromJson(snapshot.data)
+                      : [],
+                  bLoaded: bLoaded,
+                ),
+                buildBottomButtons(context),
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+          drawer: buildDrawer(context),
+        );
+      },
+    );
+  }
+
+  PreferredSizeWidget? buildAppBar(BuildContext context, bool bLoaded) {
+    late String title;
+    // Since build method cannot be asynchronous, catch the time before data loaded
+    try {
+      title = SubjectDataModel.subjectList[focusedIndex].title!;
+    } catch (e) {
+      title = "";
+    }
+
+    return AppBar(
+      elevation: 0,
+      title: Text(title),
+      actions: <Widget>[
+        IconButton(
+          onPressed: () {
+            setState(() {
+              loadNewData();
+            });
+          },
+          icon: const Icon(
+            Icons.add_box_outlined,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Drawer buildDrawer(BuildContext context) {
+    bool bBuildRecycleBin = RemovedSubjectModel.recycleBin.isNotEmpty;
+    List<Widget> recycleBinWidget = buildRecycleBin();
+    List<Widget> emptyRecycleBinWidget = [buildEmptyRecycleBin()];
+
+    return Drawer(
+      child: Column(
+        children: [
+          Container(
+            height: 100,
+            width: double.infinity,
+            color: Theme.of(context).cardColor,
+            alignment: Alignment.bottomLeft,
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+            child: const Text(
+              "Vocabella",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 30,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          for (Widget widget
+              in (bBuildRecycleBin ? recycleBinWidget : emptyRecycleBinWidget))
+            widget,
+          Container(
+            height: 60,
+            width: double.infinity,
+            color: Theme.of(context).cardColor,
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+            child: Stack(
+              alignment: Alignment.bottomLeft,
+              children: [
+                Text(
+                  appInfo,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.5),
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      onPressed: () async {
+                        XFile file = XFile(
+                            await DataReadWriteManager.getLocalFilePath());
+                        Share.shareXFiles([file]);
+                      },
+                      icon: const Icon(
+                        Icons.share,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildEmptyRecycleBin() {
+    return const Expanded(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.delete,
+            color: Colors.grey,
+            size: 100,
+          ),
+          Text(
+            "Recycle bin is empty!",
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> buildRecycleBin() {
+    return [
+      Container(
+        height: 60,
+        alignment: Alignment.bottomLeft,
+        padding: const EdgeInsets.all(10),
+        child: const Text(
+          "recycle bin",
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+      Container(
+        height: 1,
+        width: double.infinity,
+        color: Colors.grey,
+      ),
+      Expanded(
+        child: ListView.builder(
+          scrollDirection: Axis.vertical,
+          itemCount: RemovedSubjectModel.recycleBin.length,
+          itemBuilder: (context, index) {
+            return RecycleBinGridTile(
+              data: RemovedSubjectModel.recycleBin[index],
+              index: index,
+              openDeleteConfirmation: openDeleteConfirmation,
+              restoreSubject: restoreSubject,
+            );
+          },
+        ),
+      ),
+    ];
+  }
+
+  var scroller = ScrollController();
+
+  Widget buildScrollSnapList({
+    required BuildContext context,
+    required List<SubjectDataModel> subjects,
+    required bool bLoaded,
+  }) {
+    return Builder(builder: (context) {
+      if (bLoaded) {
+        SubjectDataModel.subjectList = subjects;
+
+        return Expanded(
+          child: GestureDetector(
+            child: ScrollSnapList(
+              listController: scroller,
+              dynamicItemOpacity: 0.95,
+              scrollPhysics: const BouncingScrollPhysics(),
+              focusOnItemTap: true,
+              selectedItemAnchor: SelectedItemAnchor.MIDDLE,
+              initialIndex: 0,
+              scrollDirection: Axis.horizontal,
+              itemCount: subjects.length + 1,
+              itemSize: 250,
+              dynamicItemSize: true,
+              onItemFocus: (index) {
+                setState(() {
+                  focusedIndex = index;
+                });
+              },
+              itemBuilder: (context, index) {
+                if (index < subjects.length) {
+                  return SubjectTile(
+                    subject: subjects[index],
+                    openEditor: openEditor,
+                  );
+                } else {
+                  return Container(
+                    alignment: Alignment.center,
+                    width: 250,
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(
+                          context,
+                          SubjectCreationScreenParent.routeName,
+                          arguments: SubjectCreationScreenArguments(
+                            createNewSubject,
+                          ),
+                        );
+                      },
+                      child: const Opacity(
+                        opacity: 0.8,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_box_outlined,
+                              color: Colors.white,
+                              size: 250,
+                            ),
+                            SizedBox(
+                              height: 10,
+                            ),
+                            Text(
+                              "Touch to add new subject",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+              },
+            ),
+          ),
+        );
+      } else {
+        return Expanded(
+          child: Center(
+            child: SpinKitRing(
+              color: Theme.of(context).cardColor,
+            ),
+          ),
+        );
+      }
+    });
+  }
+
+  Row buildBottomButtons(BuildContext context) {
+    if (focusedIndex < SubjectDataModel.subjectList.length) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          BottomButton(
+            size: 75,
+            bBig: false,
+            onPressed: onPressDeleteSubject,
+            icon: Icons.delete,
+          ),
+          const SizedBox(width: 30),
+          BottomButton(
+            size: 100,
+            bBig: true,
+            onPressed: onPressContinue,
+            icon: Icons.arrow_right,
+          ),
+          const SizedBox(width: 30),
+          BottomButton(
+            size: 75,
+            bBig: false,
+            onPressed: onPressOpenEditor,
+            icon: Icons.edit,
+          ),
+        ],
+      );
+    } else {
+      return const Row(
+        children: [
+          SizedBox(
+            height: 100,
+          )
+        ],
+      );
+    }
+  }
+
+  Future<void> openSubjectCreator(BuildContext context) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) {
+        return SubjectCreatingDialog(
+          createNewSubject: createNewSubject,
+        );
+      },
+    );
   }
 
   Future<void> openDeleteConfirmation(BuildContext context, int index) {
@@ -241,297 +599,6 @@ class _BodyState extends State<Body> {
           ],
         );
       },
-    );
-  }
-
-  void removeSubjectCompletely(int index) {
-    setState(() {
-      RemovedSubjectModel.recycleBin[index].remove();
-      RemovedSubjectModel.saveRecycleBinData();
-    });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-
-    autoRefresher = Timer.periodic(const Duration(minutes: 1), (timer) {
-      setState(() {
-        if (kDebugMode) print("auto-refreshing");
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    autoRefresher.cancel();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: DataReadWriteManager.readData(),
-      builder: (context, snapshot) {
-        bool bLoaded = snapshot.hasData;
-        RemovedSubjectModel.loadRecycleBinData();
-        RemovedSubjectModel.autoRemove();
-
-        return Scaffold(
-          appBar: buildAppBar(context, bLoaded),
-          body: Column(
-            children: [
-              buildScrollSnapList(
-                context: context,
-                subjects:
-                    bLoaded ? SubjectDataModel.listFromJson(snapshot.data) : [],
-                bLoaded: bLoaded,
-              ),
-              buildBottomButtons(context),
-              const SizedBox(height: 40),
-            ],
-          ),
-          drawer: Drawer(
-            child: Column(
-              children: [
-                Container(
-                  height: 100,
-                  width: double.infinity,
-                  color: Theme.of(context).cardColor,
-                  alignment: Alignment.bottomLeft,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-                  child: const Text(
-                    "Vocabella",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                Container(
-                  height: 60,
-                  alignment: Alignment.bottomLeft,
-                  padding: const EdgeInsets.all(5),
-                  child: const Text(
-                    "recycle bin",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
-                  ),
-                ),
-                Container(
-                  height: 1,
-                  width: double.infinity,
-                  color: Colors.grey,
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    scrollDirection: Axis.vertical,
-                    itemCount: RemovedSubjectModel.recycleBin.length,
-                    itemBuilder: (context, index) {
-                      return RecycleBinGridTile(
-                        data: RemovedSubjectModel.recycleBin[index],
-                        index: index,
-                        openDeleteConfirmation: openDeleteConfirmation,
-                        restoreSubject: restoreSubject,
-                      );
-                    },
-                  ),
-                ),
-                Container(
-                  height: 60,
-                  width: double.infinity,
-                  color: Theme.of(context).cardColor,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      IconButton(
-                        onPressed: () async {
-                          XFile file = XFile(
-                              await DataReadWriteManager.getLocalFilePath());
-                          Share.shareXFiles([file]);
-                        },
-                        icon: const Icon(
-                          Icons.share,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Row buildBottomButtons(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        BottomButton(
-          size: 75,
-          bBig: false,
-          onPressed: deleteSubject,
-          icon: Icons.delete,
-        ),
-        const SizedBox(
-          width: 30,
-        ),
-        BottomButton(
-          size: 100,
-          bBig: true,
-          onPressed: continueWithSubject,
-          icon: Icons.arrow_right,
-        ),
-        const SizedBox(
-          width: 30,
-        ),
-        BottomButton(
-          size: 75,
-          bBig: false,
-          onPressed: openEditorByButton,
-          icon: Icons.edit,
-        ),
-      ],
-    );
-  }
-
-  Widget buildScrollSnapList({
-    required BuildContext context,
-    required List<SubjectDataModel> subjects,
-    required bool bLoaded,
-  }) {
-    return Builder(builder: (context) {
-      if (bLoaded) {
-        SubjectDataModel.subjectList = subjects;
-
-        return Expanded(
-          child: ScrollSnapList(
-            scrollPhysics: const BouncingScrollPhysics(),
-            focusOnItemTap: true,
-            updateOnScroll: true,
-            selectedItemAnchor: SelectedItemAnchor.MIDDLE,
-            initialIndex: 0,
-            scrollDirection: Axis.horizontal,
-            itemCount: subjects.length,
-            itemSize: 250,
-            dynamicItemSize: true,
-            onItemFocus: (index) {
-              setState(() {
-                focusedIndex = index;
-              });
-            },
-            itemBuilder: (context, index) {
-              return SubjectTile(
-                subject: subjects[index],
-                openEditor: openEditor,
-              );
-            },
-          ),
-        );
-      } else {
-        return Expanded(
-          child: Center(
-            child: SpinKitRing(
-              color: Theme.of(context).cardColor,
-            ),
-          ),
-        );
-      }
-    });
-  }
-
-  PreferredSizeWidget? buildAppBar(BuildContext context, bool bLoaded) {
-    late String title;
-    try {
-      title = SubjectDataModel.subjectList[focusedIndex].title!;
-    } catch (e) {
-      title = "";
-    }
-
-    return AppBar(
-      title: Text(title),
-      actions: <Widget>[
-        PopupMenuButton(
-          icon: const Icon(Icons.add),
-          itemBuilder: (context) {
-            return [
-              const PopupMenuItem(
-                value: AddOption.createNewSubject,
-                child: Text("create new project"),
-              ),
-              const PopupMenuItem(
-                value: AddOption.import,
-                child: Text("import existing data"),
-              ),
-            ];
-          },
-          onSelected: (value) {
-            setState(() {
-              if (value == AddOption.createNewSubject) {
-                openSubjectCreator(context);
-              } else if (value == AddOption.import) {
-                loadNewData();
-              }
-            });
-          },
-        ),
-      ],
-    );
-  }
-}
-
-enum AddOption {
-  import,
-  createNewSubject,
-}
-
-class BottomButton extends StatelessWidget {
-  const BottomButton(
-      {Key? key,
-      required this.size,
-      required this.bBig,
-      required this.onPressed,
-      required this.icon})
-      : super(key: key);
-
-  final double size;
-  final bool bBig;
-  final void Function() onPressed;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(90)),
-          ),
-          backgroundColor: Theme.of(context).cardColor,
-          shadowColor: Theme.of(context).cardColor,
-          elevation: 10,
-        ),
-        onPressed: onPressed,
-        child: Icon(
-          icon,
-          size: bBig ? 75 : 25,
-          color: Colors.white,
-          shadows: [
-            Shadow(
-              color: Colors.white,
-              blurRadius: bBig ? 10 : 5,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

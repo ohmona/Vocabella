@@ -30,9 +30,8 @@ class SubjectTile extends StatelessWidget {
                 boxShadow: [
                   BoxShadow(
                     blurRadius: 20,
-                    offset: Offset(5, 5),
                     spreadRadius: 1,
-                    color: Colors.grey,
+                    color: Colors.white,
                   ),
                 ],
               ),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vocabella/arguments.dart';
 import 'package:vocabella/screens/result_screen.dart';
+import 'package:vocabella/widgets/input_checker_box_widget.dart';
 import 'package:vocabella/widgets/progress_bar_widget.dart';
 import 'package:vocabella/widgets/word_card_widget.dart';
 import 'package:vocabella/widgets/bottom_bar_widget.dart';
@@ -82,88 +83,35 @@ class _QuizScreenState extends State<QuizScreen> {
   late WordCard answerCard2;
   late Stack cardStack;
 
+  late InputCheckerBox inputCheckerBox;
+
   // Timer
   late Timer transitionTimer;
   late Timer disposalTimer;
 
   // Progress
-  late int absoluteProgress;// progress of all combined, including wrong answers and extension
+  late int
+      absoluteProgress; // progress of all combined, including wrong answers and extension
   late int originalProgress; // progress of original cards
   late int wrongAnswers; // number of all wrong answers
-  late int absoluteRepetitionProgress; // progress of extension, also wrong answers
+  late int
+      absoluteRepetitionProgress; // progress of extension, also wrong answers
   late int repetitionProgress; // progress of extension
   late bool hasRepetitionBegun;
   late int inFirstTry;
   late int inRepetitionFirstTry;
-
-  /// Check if the answer was correctly given
-  bool isAnswerCorrect(String answer) {
-    // TODO implement correction detection system
-
-    if (kDebugMode) {
-      print("======================================");
-      print("Given answer : $answer");
-      print("Given question : ${listOfQuestions[count - 1].word1}");
-      print("Correct answer : ${listOfQuestions[count - 1].word2}");
-    }
-
-    return answer == listOfQuestions[count - 1].word2;
-  }
-
-  /// Update stored data for input TextBox
-  void updateInputValue(String newInputValue) => inputValue = newInputValue;
-
-  /// Check current sequence for multi purpose
-  bool checkIsNotSequence(Sequence desired) {
-    late bool trigger;
-    Sequence requiredSequence = desired;
-    // Check if sequence both of current cards aren't desired sequence
-    if (isOddTHCard) {
-      trigger = questionCard.sequence != requiredSequence &&
-          answerCard.sequence != requiredSequence;
-    } else {
-      trigger = questionCard2.sequence != requiredSequence &&
-          answerCard2.sequence != requiredSequence;
-    }
-    return trigger;
-  }
-
-  // Transition : Appearance of cards from bottom to top
-  /// Body of transition timer
-  void _onTransitionTick(Timer transitionTimer) {
-    // Check if current process is Sequence.appear so that AnswerCard teleports
-    // to behind of the QuestionCard. Card to move is chosen depending on isOddTHCard,
-    // which means the stage is either 1st, 3rd, 5th... or 2nd, 4th, 6th...
-    if (isOddTHCard
-        ? questionCard.sequence == Sequence.appear
-        : questionCard2.sequence == Sequence.appear) {
-      setState(() {
-        // Answer card is placed into center
-        isOddTHCard ? answerCard.resetCenter() : answerCard2.resetCenter();
-        transitionTimer.cancel(); // Stop the timer
-      });
-    } else {
-      if (!isDone) {
-        setState(() {});
-      } else {
-        transitionTimer.cancel();
-      }
-    }
-  }
-
-  /// Trigger of transition Timer
-  void onTransitionStarted() {
-    transitionTimer = Timer.periodic(
-      const Duration(milliseconds: 1),
-      _onTransitionTick,
-    );
-  }
 
   /// Once user has submitted the answer
   void onSummit(String text) {
     print("================================");
     print("Answer summited");
     print("================================");
+
+    // Make sure that the given answer was correct or wrong
+    wasWrong = !isAnswerCorrect(text);
+
+    // Apply given answer to checker
+    inputCheckerBox.changeText(text);
 
     // Show answer initially
     showAnswer();
@@ -172,9 +120,6 @@ class _QuizScreenState extends State<QuizScreen> {
     print("correct one : ${listOfQuestions[count - 1].word2}");
     print("given answer : $text");
     print("Was Correct? : ${isAnswerCorrect(text)}");
-
-    // Make sure that the given answer was correct or wrong
-    wasWrong = !isAnswerCorrect(text);
 
     // Check if answer was correctly given or not
     if (isAnswerCorrect(text) == true) {
@@ -278,6 +223,15 @@ class _QuizScreenState extends State<QuizScreen> {
       // Play TTS
       answerCard2.wordTTS.play();
     }
+
+    // show checker
+    if(wasWrong) {
+      inputCheckerBox.changeColor(Colors.redAccent);
+    }
+    else {
+      inputCheckerBox.changeColor(Colors.green);
+    }
+    if(!bDontTypeAnswer) inputCheckerBox.animTrigger(CheckerBoxState.appear);
   }
 
   /// I don't know why make made this but I'll figure it out later
@@ -337,50 +291,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
     // Jump to next process
     _afterSummitingCorrectness();
-  }
-
-  /// Once user has submitted whether his/her answer was correct or not
-  /// It looks similar to onSummit method
-  void _afterSummitingCorrectness() {
-    // Reset input
-    fieldText.clear();
-
-    // Print some values to check for debug
-    if (kDebugMode) {
-      print("================================");
-      print("Printing wrong answers");
-      print("================================");
-
-      for (WordPair pair in listOfWrongs) {
-        print(pair.word2);
-      }
-      print("================================");
-
-      print("Some conditions ======================");
-      print("Is done : ${count >= listOfQuestions.length}");
-      print(">> To Compare : length ${listOfQuestions.length} // count $count");
-      print("Has been wrong : ${listOfWrongs.isNotEmpty}");
-      print("Was just correct : ${!wasWrong}");
-    }
-
-    // Check whether answer was correct and current stage is over
-    if (!wasWrong && count >= listOfQuestions.length) {
-      // If current session is done, check whether revision should take place or not
-      // For revision, new list will be generated according to listOfWrongs
-      // Unless, isDone will be set to true to finish the session
-      if (listOfWrongs.isNotEmpty) {
-        generateExtension();
-      } else {
-        isDone = true;
-      }
-    }
-
-    // Depending on correctness, next step will be executed
-    wasWrong ? repeatWord() : makeNextWord();
-
-    // Since showing next step should take place immediately after (not by "continue" button)
-    // getting the correctness, a bit delay will be given
-    Future.delayed(const Duration(milliseconds: 100), () => showNext());
   }
 
   // TODO Add comments
@@ -471,32 +381,6 @@ class _QuizScreenState extends State<QuizScreen> {
     setState(() {});
   }
 
-  // Disposal : Resetting previous cards into initial state
-  /// Body of disposal timer
-  void _onDisposalTick(Timer disposalTimer) {
-    // Check if current process is Sequence.hidden so that Cards teleport
-    // to initial location (bottom). Card to move is chosen depending on isOddTHCard,
-    // which means the stage is either 1st, 3rd, 5th... or 2nd, 4th, 6th...
-    if (isOddTHCard
-        ? questionCard2.sequence == Sequence.hidden
-        : questionCard.sequence == Sequence.hidden) {
-      setState(() {
-        // Corresponding cards are placed into initial location (bottom)
-        isOddTHCard ? answerCard2.reset() : answerCard.reset();
-        isOddTHCard ? questionCard2.reset() : questionCard.reset();
-        disposalTimer.cancel(); // Stop the timer
-      });
-    }
-  }
-
-  /// Trigger of transition Timer
-  void onDisposalStarted() {
-    disposalTimer = Timer.periodic(
-      const Duration(milliseconds: 1),
-      _onDisposalTick,
-    );
-  }
-
   /// Show next cards by disposing (making invisible)
   /// previous cards and making next card appeared and
   /// play tts immediately if it exists
@@ -544,6 +428,9 @@ class _QuizScreenState extends State<QuizScreen> {
 
     // Animate cards of disappear
     onDisposalStarted();
+
+    // Make input checker box disappear
+    inputCheckerBox.animTrigger(CheckerBoxState.disappear);
 
     // Dispose and appear cards (depending on isOddTHCard)
     if (isOddTHCard) {
@@ -613,6 +500,246 @@ class _QuizScreenState extends State<QuizScreen> {
 
     // Reset wrong answer list
     listOfWrongs = [];
+  }
+
+  /// Check if the answer was correctly given
+  bool isAnswerCorrect(String answer) {
+    // TODO implement correction detection system
+
+    if (kDebugMode) {
+      print("======================================");
+      print("Given answer : $answer");
+      print("Given question : ${listOfQuestions[count - 1].word1}");
+      print("Correct answer : ${listOfQuestions[count - 1].word2}");
+      print("======================================");
+    }
+
+    var given = answer;
+    var correct = listOfQuestions[count - 1].word2;
+
+    // optional
+    const bIgnoreCase = true;
+
+    if(bIgnoreCase) {
+      given = given.toLowerCase();
+      correct = correct.toLowerCase();
+      if (kDebugMode) {
+        print("======================================");
+        print("Given : $given");
+        print("Correct : $correct");
+      }
+    }
+
+    late int minOpeningBracketIndex;
+    late int maxClosingBracketIndex;
+    if(given.contains('[') && given.contains(']')) {
+      minOpeningBracketIndex = given.indexOf('[');
+      maxClosingBracketIndex = given.lastIndexOf(']');
+
+      if(minOpeningBracketIndex < maxClosingBracketIndex) {
+        given = given.replaceRange(minOpeningBracketIndex, maxClosingBracketIndex + 1, "");
+      }
+
+      if (kDebugMode) {
+        print("======================================");
+        print("Given : $given");
+        print("Correct : $correct");
+      }
+    }
+
+    if(correct.contains('[') && correct.contains(']')) {
+      minOpeningBracketIndex = correct.indexOf('[');
+      maxClosingBracketIndex = correct.lastIndexOf(']');
+
+      if(minOpeningBracketIndex < maxClosingBracketIndex) {
+        correct = correct.replaceRange(minOpeningBracketIndex, maxClosingBracketIndex + 1, "");
+      }
+
+      if (kDebugMode) {
+        print("======================================");
+        print("Given : $given");
+        print("Correct : $correct");
+      }
+    }
+
+    if(!given.contains('(') && !given.contains(')')) {
+      if (kDebugMode) {
+        print("======================================");
+        print("Input doesn't have brackets");
+      }
+      minOpeningBracketIndex = correct.indexOf('(');
+      maxClosingBracketIndex = correct.lastIndexOf(')');
+
+      if (kDebugMode) {
+        print("======================================");
+        print("minOpeningBracketIndex : $minOpeningBracketIndex");
+        print("maxClosingBracketIndex : $maxClosingBracketIndex");
+      }
+
+      if(minOpeningBracketIndex < maxClosingBracketIndex) {
+        correct = correct.replaceRange(minOpeningBracketIndex, maxClosingBracketIndex + 1, '');
+
+        if (kDebugMode) {
+          print("======================================");
+          print("correct : $correct");
+        }
+      }
+
+      if (kDebugMode) {
+        print("======================================");
+        print("Given : $given");
+        print("Correct : $correct");
+      }
+    }
+
+    bool bContainSeparator = given.contains(';');
+    if(bContainSeparator) {
+      given = given.replaceAll(";", "/");
+    }
+
+    bContainSeparator = correct.contains(';');
+    if(bContainSeparator) {
+      correct = correct.replaceAll(";", "/");
+    }
+
+    if (kDebugMode) {
+      print("======================================");
+      print("Given : $given");
+      print("Correct : $correct");
+    }
+
+    if(given.startsWith(" ")) given = given.trimLeft();
+    if(given.endsWith(" ")) given = given.trimRight();
+    if(correct.startsWith(" ")) correct = correct.trimLeft();
+    if(correct.endsWith(" ")) correct = correct.trimRight();
+
+    if (kDebugMode) {
+      print("======================================");
+      print("Given : $given");
+      print("Correct : $correct");
+    }
+
+    bool bEqual = given == correct;
+    return bEqual;
+  }
+
+  /// Update stored data for input TextBox
+  void updateInputValue(String newInputValue) => inputValue = newInputValue;
+
+  /// Check current sequence for multi purpose
+  bool checkIsNotSequence(Sequence desired) {
+    late bool trigger;
+    Sequence requiredSequence = desired;
+    // Check if sequence both of current cards aren't desired sequence
+    if (isOddTHCard) {
+      trigger = questionCard.sequence != requiredSequence &&
+          answerCard.sequence != requiredSequence;
+    } else {
+      trigger = questionCard2.sequence != requiredSequence &&
+          answerCard2.sequence != requiredSequence;
+    }
+    return trigger;
+  }
+
+  // Transition : Appearance of cards from bottom to top
+  /// Body of transition timer
+  void _onTransitionTick(Timer transitionTimer) {
+    // Check if current process is Sequence.appear so that AnswerCard teleports
+    // to behind of the QuestionCard. Card to move is chosen depending on isOddTHCard,
+    // which means the stage is either 1st, 3rd, 5th... or 2nd, 4th, 6th...
+    if (isOddTHCard
+        ? questionCard.sequence == Sequence.appear
+        : questionCard2.sequence == Sequence.appear) {
+      setState(() {
+        // Answer card is placed into center
+        isOddTHCard ? answerCard.resetCenter() : answerCard2.resetCenter();
+        transitionTimer.cancel(); // Stop the timer
+      });
+    } else {
+      if (!isDone) {
+        setState(() {});
+      } else {
+        transitionTimer.cancel();
+      }
+    }
+  }
+
+  /// Trigger of transition Timer
+  void onTransitionStarted() {
+    transitionTimer = Timer.periodic(
+      const Duration(milliseconds: 1),
+      _onTransitionTick,
+    );
+  }
+
+  /// Once user has submitted whether his/her answer was correct or not
+  /// It looks similar to onSummit method
+  void _afterSummitingCorrectness() {
+    // Reset input
+    fieldText.clear();
+
+    // Print some values to check for debug
+    if (kDebugMode) {
+      print("================================");
+      print("Printing wrong answers");
+      print("================================");
+
+      for (WordPair pair in listOfWrongs) {
+        print(pair.word2);
+      }
+      print("================================");
+
+      print("Some conditions ======================");
+      print("Is done : ${count >= listOfQuestions.length}");
+      print(">> To Compare : length ${listOfQuestions.length} // count $count");
+      print("Has been wrong : ${listOfWrongs.isNotEmpty}");
+      print("Was just correct : ${!wasWrong}");
+    }
+
+    // Check whether answer was correct and current stage is over
+    if (!wasWrong && count >= listOfQuestions.length) {
+      // If current session is done, check whether revision should take place or not
+      // For revision, new list will be generated according to listOfWrongs
+      // Unless, isDone will be set to true to finish the session
+      if (listOfWrongs.isNotEmpty) {
+        generateExtension();
+      } else {
+        isDone = true;
+      }
+    }
+
+    // Depending on correctness, next step will be executed
+    wasWrong ? repeatWord() : makeNextWord();
+
+    // Since showing next step should take place immediately after (not by "continue" button)
+    // getting the correctness, a bit delay will be given
+    Future.delayed(const Duration(milliseconds: 100), () => showNext());
+  }
+
+  // Disposal : Resetting previous cards into initial state
+  /// Body of disposal timer
+  void _onDisposalTick(Timer disposalTimer) {
+    // Check if current process is Sequence.hidden so that Cards teleport
+    // to initial location (bottom). Card to move is chosen depending on isOddTHCard,
+    // which means the stage is either 1st, 3rd, 5th... or 2nd, 4th, 6th...
+    if (isOddTHCard
+        ? questionCard2.sequence == Sequence.hidden
+        : questionCard.sequence == Sequence.hidden) {
+      setState(() {
+        // Corresponding cards are placed into initial location (bottom)
+        isOddTHCard ? answerCard2.reset() : answerCard.reset();
+        isOddTHCard ? questionCard2.reset() : questionCard.reset();
+        disposalTimer.cancel(); // Stop the timer
+      });
+    }
+  }
+
+  /// Trigger of transition Timer
+  void onDisposalStarted() {
+    disposalTimer = Timer.periodic(
+      const Duration(milliseconds: 1),
+      _onDisposalTick,
+    );
   }
 
   // TODO Add comments
@@ -685,6 +812,11 @@ class _QuizScreenState extends State<QuizScreen> {
     answerCard2.sequence = Sequence.hidden;
     questionCard2.sequence = Sequence.hidden;
 
+    inputCheckerBox = InputCheckerBox(
+      color: Colors.white,
+      text: "Nothing is here...",
+    );
+
     // Initialise Stack Component
     cardStack = Stack(
       clipBehavior: Clip.hardEdge,
@@ -693,6 +825,7 @@ class _QuizScreenState extends State<QuizScreen> {
         questionCard,
         answerCard2,
         questionCard2,
+        inputCheckerBox,
       ],
     );
 
@@ -705,10 +838,6 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   void dispose() {
     super.dispose();
-
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]);
   }
 
   @override
@@ -719,7 +848,7 @@ class _QuizScreenState extends State<QuizScreen> {
         preferredSize: const Size.fromHeight(0),
         child: AppBar(
           systemOverlayStyle: const SystemUiOverlayStyle(
-            statusBarColor: Colors.black,
+            statusBarColor: Colors.transparent,
           ),
           elevation: 0,
         ),

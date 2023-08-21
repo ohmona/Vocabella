@@ -141,6 +141,14 @@ class SubjectDataModel {
     }
   }
 
+  int getWordCount() {
+    int count = 0;
+    for(Chapter chapter in wordlist!) {
+      count += chapter.words.length;
+    }
+    return count;
+  }
+
   // Debug
   // Example data for test
   static SubjectDataModel createExampleData() {

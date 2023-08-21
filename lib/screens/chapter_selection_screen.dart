@@ -1,126 +1,288 @@
 import 'package:flutter/material.dart';
 import 'package:vocabella/arguments.dart';
+import 'package:vocabella/constants.dart';
 import 'package:vocabella/models/subject_data_model.dart';
+import 'package:vocabella/screens/mode_selection_screen.dart';
 import 'package:vocabella/screens/word_selection_screen.dart';
+import 'package:vocabella/widgets/bottom_bar_widget.dart';
 
 import '../models/chapter_model.dart';
+import '../models/wordpair_model.dart';
 
-class ChapterSelectionScreen extends StatelessWidget {
-  ChapterSelectionScreen({Key? key,})
-      : super(key: key);
-
-  static const routeName = '/chapters';
-
-  late ChapterList chapterList;
-
-  @override
-  Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)!.settings.arguments as ChapterSelectionScreenArguments;
-
-    chapterList = ChapterList(subject: args.subject);
-
-    args.subject.printData();
-
-    return WillPopScope(
-      onWillPop: () async {
-        chapterList.setChapters([]);
-        return true;
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text("Select chapters"),
-        ),
-        body: chapterList,
-        bottomNavigationBar: FloatingActionButton(
-          onPressed: () {
-            Navigator.pushNamed(
+// Reminder, this screen gets subject-data as parameter
+// 1. routeName static const routeName = '/chapters';
+// 2. args final args = ModalRoute.of(context)!.settings.arguments as ChapterSelectionScreenArguments;
+/* To next screen
+Navigator.pushNamed(
               context,
               WordSelectionScreen.routeName,
               arguments: WordSelectionScreenArguments(
-                chapterList.getChapters(),
-                args.subject.languages!,
+                chapterList.getChapters(), <- selected chpaters
+                args.subject.languages!, <- for tts
               ),
             );
-          },
-        ),
-      ),
-    );
-  }
-}
+ */
+// 3. Should be able to pass selected chapters for the next screen
 
-class ChapterList extends StatefulWidget {
-  ChapterList({Key? key, required this.subject}) : super(key: key);
+class ChapterSelectionScreenParent extends StatelessWidget {
+  const ChapterSelectionScreenParent({Key? key}) : super(key: key);
 
-  final SubjectDataModel subject;
-
-  late List<Chapter> Function() getChapters;
-  late void Function(List<Chapter>) setChapters;
+  static const routeName = '/chapters';
 
   @override
-  State<ChapterList> createState() => _ChapterListState();
+  Widget build(BuildContext context) {
+    final args = ModalRoute.of(context)!.settings.arguments
+        as ChapterSelectionScreenArguments;
+
+    return ChapterSelectionScreen(subjectData: args.subject);
+  }
 }
 
-class _ChapterListState extends State<ChapterList> {
+class ChapterSelectionScreen extends StatefulWidget {
+  const ChapterSelectionScreen({
+    Key? key,
+    required this.subjectData,
+  }) : super(key: key);
 
-  List<Chapter> selectedChapters = [];
-  Map<String, bool> isChecked = {};
+  final SubjectDataModel subjectData;
 
-  List<Chapter> getChapters() {
-    selectedChapters = [];
-    for (Chapter chapter in widget.subject.wordlist!) {
-      if (isChecked[chapter.name] == true) {
-        if(!selectedChapters.contains(chapter)) {
-          selectedChapters.add(chapter);
-        }
-      }
+  @override
+  State<ChapterSelectionScreen> createState() => _ChapterSelectionScreenState();
+}
+
+class _ChapterSelectionScreenState extends State<ChapterSelectionScreen> {
+  late Map<int, EditedChapter> selectedChapters; // original index, data
+
+  late final List<Chapter> originalChapters;
+
+  void applyEdit(int originalIndex, List<int> excludedIndex) {
+    final bool wasSelected = selectedChapters.containsKey(originalIndex);
+
+    if (excludedIndex.length == originalChapters[originalIndex].words.length) {
+      setState(() {
+        if (wasSelected) selectedChapters.remove(originalIndex);
+      });
+      return;
     }
-    return selectedChapters;
+
+    setState(() {
+      if (!wasSelected) {
+        selectedChapters[originalIndex] =
+            EditedChapter.copyFrom(originalChapters[originalIndex]);
+      }
+
+      selectedChapters[originalIndex]!.excludedIndex = excludedIndex;
+    });
   }
 
-  void setChapters(List<Chapter> newChapters) {
-    selectedChapters = newChapters;
+  void onTileTap(int index) {
+    setState(() {
+      if (!selectedChapters.containsKey(index)) {
+        // if chapter hasn't been selected, add it to selected
+        selectedChapters[index] =
+            EditedChapter.copyFrom(originalChapters[index]);
+      } else {
+        selectedChapters.remove(index);
+      }
+    });
+  }
+
+  void onTileHold(int index) {
+    setState(() {
+      EditedChapter passingChapter =
+          EditedChapter.copyFrom(originalChapters[index]);
+      if (selectedChapters.containsKey(index)) {
+        passingChapter = selectedChapters[index]!;
+      }
+
+      final bool selected = selectedChapters.containsKey(index);
+
+      Navigator.pushNamed(
+        context,
+        WordSelectionScreenParent.routeName,
+        arguments: WordSelectionScreenArguments(
+          passingChapter,
+          selected,
+          applyEdit,
+          index,
+        ),
+      );
+    });
+  }
+
+  int getSelectedWordCount() {
+    int count = 0;
+    selectedChapters.forEach((key, value) {
+      count += value.words.length - value.excludedIndex.length;
+    });
+    return count;
   }
 
   @override
   void initState() {
     super.initState();
 
-    selectedChapters = [];
-    isChecked = {};
-
-    widget.getChapters = getChapters;
-    widget.setChapters = setChapters;
-    for (Chapter chapter in widget.subject.wordlist!) {
-      isChecked[chapter.name] = true;
-    }
+    originalChapters = widget.subjectData.wordlist!;
+    selectedChapters = {};
   }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      scrollDirection: Axis.vertical,
-      padding: const EdgeInsets.all(10),
-      children: [
-        for (Chapter chapter in widget.subject.wordlist!)
-          Container(
-            padding: const EdgeInsets.all(10),
-            child: Row(
-              children: [
-                Checkbox(
-                  checkColor: Colors.white,
-                  value: isChecked[chapter.name],
-                  onChanged: (bool? value) {
-                    setState(() {
-                      isChecked[chapter.name] = value!;
-                    });
-                    print("${chapter.name} : $value");
-                  },
-                ),
-                Text(chapter.name),
-              ],
-            ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Select practicing chapters"),
+      ),
+      body: Container(
+        height: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            colors: [
+              firstBgColor.withOpacity(0.3),
+              secondBgColor.withOpacity(0.3),
+            ],
           ),
-      ],
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            Expanded(
+              child: GridView.builder(
+                physics: const BouncingScrollPhysics(),
+                itemCount: originalChapters.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: MediaQuery.of(context).size.width ~/ 150,
+                  childAspectRatio: 1 / 1,
+                ),
+                itemBuilder: (context, index) {
+                  bool bSelected = selectedChapters.containsKey(index);
+
+                  return GridTile(
+                    child: GestureDetector(
+                      onTap: () {
+                        onTileTap(index);
+                      },
+                      onLongPress: () {
+                        onTileHold(index);
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius:
+                              const BorderRadius.all(Radius.circular(10)),
+                          color: bSelected
+                              ? Color.lerp(
+                                  firstBgColor,
+                                  secondBgColor,
+                                  index / originalChapters.length,
+                                )
+                              : Color.lerp(
+                                  firstBgColor.withOpacity(0.3),
+                                  secondBgColor.withOpacity(0.3),
+                                  index / originalChapters.length,
+                                ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: bSelected
+                                  ? Color.lerp(
+                                      firstBgColor,
+                                      secondBgColor,
+                                      index / originalChapters.length,
+                                    )!
+                                  : Color.lerp(
+                                      firstBgColor.withOpacity(0.3),
+                                      secondBgColor.withOpacity(0.3),
+                                      index / originalChapters.length,
+                                    )!,
+                              blurRadius: 15,
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(5),
+                        margin: const EdgeInsets.all(10),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            FittedBox(
+                              child: Text(
+                                originalChapters[index].name,
+                                style: TextStyle(
+                                  color: bSelected
+                                      ? Colors.black
+                                      : Colors.black.withOpacity(0.5),
+                                  fontWeight: FontWeight.w600,
+                                  shadows: const [
+                                    Shadow(
+                                      color: Colors.white,
+                                      blurRadius: 15,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const Divider(),
+                            bSelected
+                                ? Text(
+                                    "${originalChapters[index].words.length - selectedChapters[index]!.excludedIndex.length} / ${originalChapters[index].words.length}",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w400,
+                                      shadows: (selectedChapters[index]!
+                                              .excludedIndex
+                                              .isEmpty)
+                                          ? [
+                                              const Shadow(
+                                                color: Colors.white,
+                                                blurRadius: 15,
+                                              ),
+                                            ]
+                                          : [],
+                                    ),
+                                  )
+                                : Text(
+                                    "Not selected",
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.5),
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            if (getSelectedWordCount() >= 3)
+              GestureDetector(
+                onTap: () {
+                  List<WordPair> wordList = [];
+                  selectedChapters.forEach((key, value) {
+                    for (int i = 0; i < value.words.length; i++) {
+                      if (!value.excludedIndex.contains(i)) {
+                        wordList.add(value.words[i]);
+                      }
+                    }
+                  });
+                  Navigator.pushNamed(
+                    context,
+                    ModeSelectionScreenParent.routeName,
+                    arguments: ModeSelectionScreenArguments(
+                      wordList,
+                      widget.subjectData.languages!,
+                      widget.subjectData
+                    ),
+                  );
+                },
+                child: ContinueButton(
+                  color: Colors.green,
+                  text: "Continue (${getSelectedWordCount()} words selected) ",
+                  correctState: CorrectState.correct,
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

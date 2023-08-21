@@ -28,85 +28,59 @@ class InputBox extends StatelessWidget {
       padding: MediaQuery.of(context).viewInsets,
       duration: const Duration(milliseconds: 20),
       child: Container(
-        // Input Box Container
-        decoration: BoxDecoration(
-          color: Colors.grey,
-          borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(10), topRight: Radius.circular(10)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.5),
-              blurRadius: 10,
-              blurStyle: BlurStyle.normal,
+        alignment: Alignment.center,
+        height: 40,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            top: BorderSide(
+              width: 2,
+              color: Colors.grey,
             ),
-          ],
+            bottom: BorderSide(
+              width: 2,
+              color: Colors.grey,
+            ),
+          ),
         ),
-        height: _widgetHeight,
-        child: Padding(
-          padding: const EdgeInsets.all(_widgetHeight * 0.1),
-          child: Container(
-            // Input Box
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(5),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.white,
-                  blurRadius: 15,
-                ),
-              ],
+        child: TextField(
+          decoration: InputDecoration(
+            border: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
+            floatingLabelAlignment: FloatingLabelAlignment.start,
+            hintText: showHint ? answer : "",
+            hoverColor: Colors.transparent,
+            focusColor: Colors.transparent,
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.send_rounded),
+              color: Colors.black.withOpacity(0.8),
+              onPressed: onSummitByButton,
             ),
-            child: Transform.translate(
+            prefixIcon: Transform.translate(
               offset: (MediaQuery.of(context).size.height < 600)
-                  ? const Offset(0, -6)
-                  : const Offset(0, 3),
-              child: TextField(
-                decoration: InputDecoration(
-                  border: InputBorder.none,
-                  disabledBorder: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  errorBorder:  InputBorder.none,
-                  focusedBorder:  InputBorder.none,
-                  focusedErrorBorder:  InputBorder.none,
-                  floatingLabelAlignment: FloatingLabelAlignment.start,
-                  hintText: showHint ? answer : "",
-                  hoverColor: Colors.transparent,
-                  focusColor: Colors.transparent,
-                  suffixIcon: Transform.translate(
-                    offset: (MediaQuery.of(context).size.height < 600)
-                        ? const Offset(0, 3)
-                        : const Offset(0, 0),
-                    child: IconButton(
-                      icon: const Icon(Icons.send_rounded),
-                      color: Colors.grey.withOpacity(0.5),
-                      onPressed: onSummitByButton,
-                    ),
-                  ),
-                  prefixIcon: Transform.translate(
-                    offset: (MediaQuery.of(context).size.height < 600)
-                        ? const Offset(0, 3)
-                        : const Offset(0, 0),
-                    child: Icon(
-                      Icons.keyboard_alt_outlined,
-                      color: Colors.grey.withOpacity(0.5),
-                    ),
-                  ),
-                ),
-                style: TextStyle(
-                  fontSize: (MediaQuery.of(context).size.height < 600)
-                      ? smallTextSize
-                      : defaultTextSize,
-                  fontWeight: FontWeight.w400,
-                ),
-                controller: fieldText,
-                cursorColor: Colors.grey.withOpacity(0.5),
-                textAlign: TextAlign.center,
-                onChanged: updateInputValue,
-                onSubmitted: onSummit,
+                  ? const Offset(0, 3)
+                  : const Offset(0, 0),
+              child: Icon(
+                Icons.keyboard_alt_outlined,
+                color: Colors.black.withOpacity(0.8),
               ),
             ),
           ),
+          style: TextStyle(
+            fontSize: (MediaQuery.of(context).size.height < 600)
+                ? smallTextSize
+                : defaultTextSize,
+            fontWeight: FontWeight.w400,
+          ),
+          controller: fieldText,
+          cursorColor: Colors.black.withOpacity(0.1),
+          textAlign: TextAlign.center,
+          onChanged: updateInputValue,
+          onSubmitted: onSummit,
         ),
       ),
     );
@@ -180,15 +154,16 @@ class ContinueButton extends StatelessWidget {
         child: Text(
           text,
           style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              shadows: [
-                Shadow(
-                  color: Colors.white,
-                  blurRadius: 10,
-                ),
-              ]),
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            shadows: [
+              Shadow(
+                color: Colors.white,
+                blurRadius: 10,
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -90,12 +90,30 @@ class _EditorScreenState extends State<EditorScreen> {
   // check whether the index is targeting a question or an answer
   bool isTargetingQuestion(int index) => index % 2 == 0;
 
+  bool isValidIndex(int index) => index < getWordsCount();
+
+  bool bAddingNewWord = false;
+
+  WordPair wordAdditionBuffer = WordPair(word1: "", word2: "");
+
+  late String textBeforeEdit;
+
   /// returns the text of targeting index
   String getTextOf(int index) {
     final int wordPairIndex = getWordPairIndex(index);
     final bool bQuestionTargeting = isTargetingQuestion(index);
 
-    WordPair target = currentChapter.words[wordPairIndex];
+    WordPair target;
+    if (isValidIndex(index)) {
+      target = currentChapter.words[wordPairIndex];
+    } else if (bAddingNewWord) {
+      print("=============================");
+      print(wordAdditionBuffer.word1);
+      print(wordAdditionBuffer.word2);
+      target = wordAdditionBuffer;
+    } else {
+      return "";
+    }
 
     if (bShowingWords) {
       if (bQuestionTargeting) return target.word1;
@@ -122,26 +140,53 @@ class _EditorScreenState extends State<EditorScreen> {
     final int wordPairIndex = getWordPairIndex(index);
     final bool bQuestionTargeting = isTargetingQuestion(index);
 
-    // copy the targeting WordPair
-    WordPair target = currentChapter.words[wordPairIndex];
+    if (!bAddingNewWord) {
+      // copy the targeting WordPair
+      WordPair target = currentChapter.words[wordPairIndex];
 
-    // check whether words should be changed or examples
-    if (bShowingWords) {
-      // change then depending on its index
-      if (bQuestionTargeting) target.word1 = newText;
-      if (!bQuestionTargeting) target.word2 = newText;
+      // check whether words should be changed or examples
+      if (bShowingWords) {
+        // change then depending on its index
+        if (bQuestionTargeting) target.word1 = newText;
+        if (!bQuestionTargeting) target.word2 = newText;
+      } else {
+        // change then depending on its index
+        if (bQuestionTargeting) target.example1 = newText;
+        if (!bQuestionTargeting) target.example2 = newText;
+      }
+
+      // apply to actual data
+      currentChapter.words[wordPairIndex] = target;
     } else {
-      // change then depending on its index
-      if (bQuestionTargeting) target.example1 = newText;
-      if (!bQuestionTargeting) target.example2 = newText;
+      if (bQuestionTargeting) {
+        wordAdditionBuffer.word1 = newText;
+      } else {
+        wordAdditionBuffer.word2 = newText;
+      }
     }
-
-    // apply to actual data
-    currentChapter.words[wordPairIndex] = target;
   }
 
   void addWord(WordPair wordPair) {
     setState(() {
+      bool fine = false;
+      while (!fine) {
+        if (!wordPair.word1.endsWith(" ")) {
+          fine = true;
+        } else {
+          wordPair.word1 =
+              wordPair.word1.substring(0, wordPair.word1.length - 1);
+        }
+      }
+      fine = false;
+      while (!fine) {
+        if (!wordPair.word2.endsWith(" ")) {
+          fine = true;
+        } else {
+          wordPair.word2 =
+              wordPair.word2.substring(0, wordPair.word2.length - 1);
+        }
+      }
+
       currentChapter.words.add(wordPair);
     });
   }
@@ -157,6 +202,7 @@ class _EditorScreenState extends State<EditorScreen> {
     setState(() {
       bDeleteMode = false;
       bShowingWords = !bShowingWords;
+      changeFocus(focusedIndex!);
     });
   }
 
@@ -222,11 +268,15 @@ class _EditorScreenState extends State<EditorScreen> {
     }
   }
 
+  bool ableToSave() {
+    return true;
+  }
+
   /// Save all data to local storage
   void saveData() {
     if (focusedIndex == null) return;
 
-    if (getTextOf(focusedIndex!).isNotEmpty) {
+    if (ableToSave()) {
       for (SubjectDataModel sub in SubjectDataModel.subjectList) {
         // Find the correct data
         if (sub.title == subjectData.title) {
@@ -254,121 +304,62 @@ class _EditorScreenState extends State<EditorScreen> {
     }
   }
 
-  void changeFocus(int newIndex) {
-    if (focusedIndex != null) {
-      if (getTextOf(focusedIndex!).isEmpty) return;
+  void terminateWordAddition() {
+    bAddingNewWord = false;
+    if (wordAdditionBuffer.word1.isNotEmpty &&
+        wordAdditionBuffer.word2.isNotEmpty) {
+      addWord(wordAdditionBuffer);
+      saveData();
     }
 
+    wordAdditionBuffer = WordPair(word1: "", word2: "");
+  }
+
+  void changeFocus(int newIndex) {
     // Make sure that user doesn't make silly issue
-    if(newIndex >= getWordsCount()) return;
+    if (newIndex >= getWordsCount() + 2) return;
+    if (!isValidIndex(newIndex) && !bShowingWords) return;
+
+    if (focusedIndex != null) {
+      if (getTextOf(focusedIndex!).isEmpty) {
+        updateWord(textBeforeEdit, focusedIndex!);
+      }
+    }
+
+    // Word addition begins here
+    if (!bAddingNewWord && !isValidIndex(newIndex)) {
+      bAddingNewWord = true;
+      wordAdditionBuffer = WordPair(word1: "", word2: "");
+    }
+
+    if (bAddingNewWord && isValidIndex(newIndex)) {
+      terminateWordAddition();
+    }
 
     setState(() {
       focusedIndex = newIndex;
       textEditingController.text = getTextOf(newIndex);
       bottomBarFocusNode.requestFocus();
-      scrollToFocus();
       textEditingController.selection = TextSelection.fromPosition(
         TextPosition(
           offset: textEditingController.text.length,
         ),
       );
+      textBeforeEdit = getTextOf(newIndex);
     });
   }
 
   void scrollToFocus() {
     int currentPosition = scrollController.position.pixels.toInt();
-    int targetPosition = ((focusedIndex! /~ 2) * 60).toInt();
+    int targetPosition = ((focusedIndex! / ~2) * 60).toInt();
 
     int minRange = currentPosition;
     int maxRange = currentPosition + 12 * 60;
 
-    if(targetPosition < minRange && targetPosition > maxRange) {
-      scrollController.animateTo(
-          targetPosition.toDouble(),
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeOut);
+    if (targetPosition < minRange && targetPosition > maxRange) {
+      scrollController.animateTo(targetPosition.toDouble(),
+          duration: const Duration(milliseconds: 500), curve: Curves.easeOut);
     }
-  }
-
-  Future<void> openWordAdder(BuildContext context) {
-    String text1 = "";
-    String text2 = "";
-
-    return showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Type new words"),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  decoration: const InputDecoration(
-                    hintText: "first word",
-                  ),
-                  autofocus: true,
-                  onChanged: (value) {
-                    text1 = value;
-                  },
-                  onSubmitted: (value) {
-                    text1 = value;
-                    wordAdderFocusNode.requestFocus();
-                  },
-                ),
-                TextField(
-                  decoration: const InputDecoration(
-                    hintText: "second word",
-                  ),
-                  focusNode: wordAdderFocusNode,
-                  onChanged: (value) {
-                    text2 = value;
-                  },
-                  onSubmitted: (value) {
-                    wordAdderFocusNode.unfocus();
-                    // apply new text
-                    setState(() {
-                      if (text1.isNotEmpty && text2.isNotEmpty) {
-                        WordPair wordPair =
-                            WordPair(word1: text1, word2: text2);
-                        addWord(wordPair);
-                        Navigator.of(context).pop();
-                        changeFocus(getWordsCount() + 1);
-                        bottomBarFocusNode.requestFocus();
-                      }
-                    });
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text("cancel"),
-            ),
-            TextButton(
-              onPressed: () {
-                // apply new text
-                setState(() {
-                  if (text1.isNotEmpty && text2.isNotEmpty) {
-                    WordPair wordPair = WordPair(word1: text1, word2: text2);
-                    addWord(wordPair);
-                    Navigator.of(context).pop();
-                    scrollController.animateTo(
-                        getWordsCount() < 12 ? 0 : 60 * (getWordsCount() / 2) - 60 * 11,
-                        duration: const Duration(milliseconds: 500),
-                        curve: Curves.easeOut);
-                  }
-                });
-              },
-              child: const Text("confirm"),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void changeThumbnail(String path) {
@@ -376,6 +367,19 @@ class _EditorScreenState extends State<EditorScreen> {
       subjectData.thumb = path;
     });
     saveData();
+  }
+
+  void scrollToFocused() {
+    double fi = focusedIndex! / 2;
+    int fii = fi.toInt();
+
+    var targetOffset = fii * 56.0;
+
+    if (fii > (getWordsCount() / 2) - 3) {
+      targetOffset = targetOffset - 56 * 3;
+    }
+
+    scrollController.jumpTo(targetOffset);
   }
 
   @override
@@ -388,7 +392,6 @@ class _EditorScreenState extends State<EditorScreen> {
   @override
   void initState() {
     super.initState();
-
     // copy the data which is going to be edited
     subjectData = widget.data;
 
@@ -396,6 +399,8 @@ class _EditorScreenState extends State<EditorScreen> {
     currentChapter = subjectData.wordlist![0];
     bShowingWords = true;
     focusedIndex = 0;
+
+    textBeforeEdit = getTextOf(focusedIndex!);
 
     // activate auto-save
     autoSaveTimer = Timer.periodic(const Duration(seconds: 60), (timer) {
@@ -421,7 +426,7 @@ class _EditorScreenState extends State<EditorScreen> {
         preferredSize: const Size.fromHeight(0),
         child: AppBar(
           systemOverlayStyle: const SystemUiOverlayStyle(
-            statusBarColor: Colors.black,
+            statusBarColor: Colors.transparent,
           ),
           elevation: 0,
         ),
@@ -449,15 +454,17 @@ class _EditorScreenState extends State<EditorScreen> {
                       child: GridView.builder(
                         physics: const BouncingScrollPhysics(),
                         controller: scrollController,
-                        itemCount: getWordsCount() + 2,
+                        itemCount: getWordsCount() + 2 + 10,
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           childAspectRatio: calcRatio(context),
                         ),
                         itemBuilder: ((context, index) {
-                          bool bValid = index + 1 <= getWordsCount();
+                          bool bValid = index < getWordsCount() + 2;
+                          final displayingText = bValid ? getTextOf(index) : "";
+
                           return WordGridTile(
-                            text: bValid ? getTextOf(index) : "",
+                            text: displayingText,
                             index: index,
                             saveText: updateWord,
                             bShowingWords: bShowingWords,
@@ -467,7 +474,7 @@ class _EditorScreenState extends State<EditorScreen> {
                             deleteWord: removeWord,
                             changeFocus: changeFocus,
                             bFocused: index == focusedIndex,
-                            openWordAdder: openWordAdder,
+                            wordAdditionBuffer: wordAdditionBuffer,
                           );
                         }),
                       ),
@@ -508,7 +515,7 @@ class _EditorScreenState extends State<EditorScreen> {
           ),
           AnimatedPadding(
             padding: MediaQuery.of(context).viewInsets,
-            duration: const Duration(milliseconds: 20),
+            duration: const Duration(milliseconds: 1),
             child: Container(
               // Input Box Container
               decoration: BoxDecoration(
@@ -591,18 +598,45 @@ class _EditorScreenState extends State<EditorScreen> {
                       },
                       onSubmitted: (value) {
                         if (focusedIndex != null) {
-                          setState(() {
-                            updateWord(value, focusedIndex!);
-                            textEditingController.text = "";
-                            if (focusedIndex! < getWordsCount() - 1) {
+                          if (!bAddingNewWord) {
+                            setState(() {
+                              updateWord(value, focusedIndex!);
+                              textEditingController.text = "";
                               changeFocus(focusedIndex! + 1);
-                            } else if (focusedIndex! >= getWordsCount() - 1) {
-                              openWordAdder(context);
-                            }
-                          });
+                            });
+                          } else {
+                            setState(() {
+                              updateWord(value, focusedIndex!);
+                              textEditingController.text = "";
+
+                              if (wordAdditionBuffer.word1.isNotEmpty &&
+                                  wordAdditionBuffer.word2.isNotEmpty) {
+                                terminateWordAddition();
+                                changeFocus(focusedIndex! + 1);
+                                return;
+                              }
+
+                              if (isTargetingQuestion(focusedIndex!)) {
+                                if (wordAdditionBuffer.word2.isEmpty ||
+                                    wordAdditionBuffer.word1.isNotEmpty) {
+                                  changeFocus(focusedIndex! + 1);
+                                } else {
+                                  changeFocus(focusedIndex!);
+                                }
+                              } else {
+                                if (wordAdditionBuffer.word1.isEmpty ||
+                                    wordAdditionBuffer.word2.isNotEmpty) {
+                                  changeFocus(focusedIndex! - 1);
+                                } else {
+                                  changeFocus(focusedIndex!);
+                                }
+                              }
+                            });
+                          }
                         }
                       },
                       onTap: () {
+                        scrollToFocused();
                         if (focusedIndex == null) {
                           bottomBarFocusNode.unfocus();
                         }
@@ -618,49 +652,6 @@ class _EditorScreenState extends State<EditorScreen> {
     );
   }
 
-  double calcRatio(BuildContext context) {
-    late double val;
-
-    double width = MediaQuery.of(context).size.width;
-    double height = MediaQuery.of(context).size.height;
-
-    if (height > 720) {
-      if (width / height < 1.2 && width / height > 0.5) {
-        val = (width / 2) / (height / 25);
-      } else if (width / height > 1.2 && width / height <= 2.5) {
-        val = (width / 3) / (height / 25);
-      } else if (width / height > 2.5) {
-        val = (width / 10) / (height / 25);
-      } else if (width / height <= 0.5) {
-        val = (width / 1) / (height / 8);
-      } else {
-        val = 1;
-      }
-    } else if (height > 360) {
-      if (width / height < 1.2 && width / height > 0.5) {
-        val = (width / 4) / (height / 25);
-      } else if (width / height > 1.2 && width / height <= 2.5) {
-        val = (width / 4) / (height / 25);
-      } else if (width / height > 2.5) {
-        val = (width / 10) / (height / 25);
-      } else if (width / height <= 0.5) {
-        val = (width / 1) / (height / 8);
-      } else {
-        val = 1;
-      }
-    } else {
-      if (width / height < 1.2 && width / height > 0.5) {
-        val = (width / 4) / (height / 25);
-      } else if (width / height > 1.2 && width / height <= 2.5) {
-        val = (width / 6) / (height / 25);
-      } else if (width / height > 2.5) {
-        val = (width / 10) / (height / 25);
-      } else if (width / height <= 0.5) {
-        val = (width / 1) / (height / 8);
-      } else {
-        val = 1;
-      }
-    }
-    return val;
-  }
+  double calcRatio(BuildContext context) =>
+      (MediaQuery.of(context).size.width / 2) / 50;
 }

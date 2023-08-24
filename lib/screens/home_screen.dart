@@ -94,7 +94,9 @@ class _BodyState extends State<Body> {
     Chapter firstChapter = Chapter(
       name: newChapter,
       words: [dummyWord],
+      id: 1,
     );
+    firstChapter.updateAllId();
 
     // Create dummy subject-data by just created dummy-data
     SubjectDataModel newSubject = SubjectDataModel(
@@ -103,6 +105,8 @@ class _BodyState extends State<Body> {
       languages: [newLanguage1, newLanguage2],
       wordlist: [firstChapter],
       thumb: "",
+      id: makeSubjectId(date: DateTime.now().toString(), name: newTitle),
+      version: appVersion,
     );
 
     setState(() {
@@ -125,6 +129,7 @@ class _BodyState extends State<Body> {
       EditorScreenParent.routeName,
       arguments: EditorScreenArguments(
         subject,
+        () => setState(() {}),
       ),
     ).then((value) {
       setState(() {});
@@ -159,7 +164,7 @@ class _BodyState extends State<Body> {
     // Check number of word of focusing subject
     int wordNum = 0;
     for (Chapter chapter
-        in SubjectDataModel.subjectList[focusedIndex].wordlist!) {
+        in SubjectDataModel.subjectList[focusedIndex].wordlist) {
       for (WordPair word in chapter.words) {
         word.word1;
         wordNum++;
@@ -287,7 +292,7 @@ class _BodyState extends State<Body> {
     late String title;
     // Since build method cannot be asynchronous, catch the time before data loaded
     try {
-      title = SubjectDataModel.subjectList[focusedIndex].title!;
+      title = SubjectDataModel.subjectList[focusedIndex].title;
     } catch (e) {
       title = "";
     }
@@ -496,7 +501,7 @@ class _BodyState extends State<Body> {
                               height: 10,
                             ),
                             Text(
-                              "Touch to add new subject",
+                              "Touch to add new project",
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,

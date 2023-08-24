@@ -17,6 +17,9 @@ class ChapterSelectionDrawer extends StatefulWidget {
     required this.addChapter,
     required this.saveData,
     required this.changeThumbnail,
+    required this.changeSubjectName,
+    required this.reorderChapter,
+    required this.existChapterNameAlready,
   }) : super(key: key);
 
   final SubjectDataModel subjectData;
@@ -26,6 +29,9 @@ class ChapterSelectionDrawer extends StatefulWidget {
   final void Function(String) addChapter;
   final void Function() saveData;
   final void Function(String) changeThumbnail;
+  final void Function(String) changeSubjectName;
+  final void Function(int, int) reorderChapter;
+  final bool Function(String) existChapterNameAlready;
 
   static TextEditingController controller = TextEditingController();
   static String newTitle = "";
@@ -109,6 +115,46 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
     );
   }
 
+  Future<void> openSubjectNameEditor(BuildContext context) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Type the new title of the project"),
+          content: TextField(
+            controller: ChapterSelectionDrawer.controller,
+            autofocus: true,
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: mintColor,
+              ),
+              child: const Text("cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                if (ChapterSelectionDrawer.controller.text.isNotEmpty) {
+                  widget.changeSubjectName(
+                      ChapterSelectionDrawer.controller.text);
+                  ChapterSelectionDrawer.controller.text = "";
+                  Navigator.of(context).pop();
+                }
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: mintColor,
+              ),
+              child: const Text("confirm"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void loadImage() {
     const Image dummyImage = Image(
       image: AssetImage('assets/400x400.jpg'),
@@ -173,7 +219,10 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
       child: Column(
         children: [
           GestureDetector(
-            onTap: addThumbnail,
+            onLongPress: addThumbnail,
+            onTap: () {
+              openSubjectNameEditor(context);
+            },
             child: Stack(
               alignment: Alignment.bottomLeft,
               children: [
@@ -190,7 +239,7 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                   child: Stack(
                     children: [
                       Text(
-                        widget.subjectData.title!,
+                        widget.subjectData.title,
                         style: TextStyle(
                             fontSize: 30,
                             fontWeight: FontWeight.bold,
@@ -206,7 +255,7 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                             ]),
                       ),
                       Text(
-                        widget.subjectData.title!,
+                        widget.subjectData.title,
                         style: const TextStyle(
                           fontSize: 30,
                           fontWeight: FontWeight.bold,
@@ -236,37 +285,44 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
             ],
           ),
           Expanded(
-            child: ListView.separated(
-              itemCount: widget.subjectData.wordlist!.length,
-              separatorBuilder: (context, index) {
-                return Container(
-                  color: Colors.grey,
-                  height: 1,
-                );
-              },
+            child: ReorderableListView.builder(
+              itemCount: widget.subjectData.wordlist.length,
+              physics: const BouncingScrollPhysics(),
+              onReorder: widget.reorderChapter,
               itemBuilder: (context, index) {
                 return GridTile(
+                  key: Key("$index"),
                   child: GestureDetector(
                     onTap: () {
                       widget.changeChapter(widget.getChapterName(index));
                       Navigator.of(context).pop();
                     },
-                    child: Row(
-                      children: [
-                        Container(
-                          margin: const EdgeInsets.all(15),
-                          child: Text(
-                            widget.subjectData.wordlist![index].name,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w500,
-                            ),
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: Colors.black,
+                            width: 0.5,
                           ),
                         ),
-                        (widget.currentChapterIndex == index)
-                            ? const Icon(Icons.arrow_left)
-                            : Container(),
-                      ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.all(15),
+                            child: Text(
+                              widget.subjectData.wordlist[index].name,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          (widget.currentChapterIndex == index)
+                              ? const Icon(Icons.arrow_left)
+                              : Container(),
+                        ],
+                      ),
                     ),
                   ),
                 );

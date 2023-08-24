@@ -42,8 +42,9 @@ class ResultScreenArguments {
 
 class EditorScreenArguments {
   final SubjectDataModel data;
+  final void Function() refresh;
 
-  EditorScreenArguments(this.data);
+  EditorScreenArguments(this.data, this.refresh);
 }
 
 class SubjectCreationScreenArguments {

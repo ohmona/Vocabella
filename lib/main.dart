@@ -13,7 +13,8 @@ import 'package:vocabella/screens/word_selection_screen.dart';
 
 import 'constants.dart';
 
-const appInfo = 'ver. 1.0  by ohmona';
+const appVersion = "1.1";
+const appInfo = 'ver. $appVersion by ohmona';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

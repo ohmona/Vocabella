@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../constants.dart';
 import '../models/chapter_model.dart';
 
 class EditorScreenAppbar extends StatefulWidget {
@@ -9,7 +10,7 @@ class EditorScreenAppbar extends StatefulWidget {
     required this.bShowingWords,
     required this.toggleWords,
     required this.bDeleteMode,
-    required this.toggleDeleteMode,
+    required this.toggleDeleteMode, required this.changeChapterName,
   }) : super(key: key);
 
   final Chapter currentChapter;
@@ -17,12 +18,55 @@ class EditorScreenAppbar extends StatefulWidget {
   final bool bDeleteMode;
   final void Function() toggleWords;
   final void Function() toggleDeleteMode;
+  final void Function(String) changeChapterName;
 
   @override
   State<EditorScreenAppbar> createState() => _EditorScreenAppbarState();
 }
 
 class _EditorScreenAppbarState extends State<EditorScreenAppbar> {
+  TextEditingController controller = TextEditingController();
+
+  Future<void> openChapterNameEditor(BuildContext context) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Type the new title of the chapter"),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: mintColor,
+              ),
+              child: const Text("cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                if (controller.text.isNotEmpty) {
+                  widget.changeChapterName(controller.text);
+
+
+                  controller.text = "";
+                  Navigator.of(context).pop();
+                }
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: mintColor,
+              ),
+              child: const Text("confirm"),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -69,7 +113,9 @@ class _EditorScreenAppbarState extends State<EditorScreenAppbar> {
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: TextButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    openChapterNameEditor(context);
+                  },
                   style: const ButtonStyle(
                     splashFactory: NoSplash.splashFactory,
                   ),

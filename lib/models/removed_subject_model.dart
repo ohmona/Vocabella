@@ -14,8 +14,10 @@ class RemovedSubjectModel extends SubjectDataModel {
     required super.subjects,
     required super.wordlist,
     required super.languages,
-    required this.removeDate,
     required super.thumb,
+    required super.version,
+    required super.id,
+    required this.removeDate,
   });
 
   static List<RemovedSubjectModel> recycleBin = [];
@@ -29,6 +31,8 @@ class RemovedSubjectModel extends SubjectDataModel {
       wordlist: temp.wordlist,
       languages: temp.languages,
       thumb: temp.thumb,
+      id: temp.id,
+      version: temp.version,
       removeDate: DateTime.now(),
     );
 
@@ -98,17 +102,26 @@ class RemovedSubjectModel extends SubjectDataModel {
         wordlist: [],
         thumb: "",
         removeDate: DateTime.now(),
+        version: '',
+        id: '',
       );
 
       temp.title = inst['title'];
       temp.thumb = inst['thumb'];
-      temp.subjects![0] = inst['subjects'][0];
-      temp.subjects![1] = inst['subjects'][1];
-      temp.languages![0] = inst['languages'][0];
-      temp.languages![1] = inst['languages'][1];
+      temp.subjects[0] = inst['subjects'][0];
+      temp.subjects[1] = inst['subjects'][1];
+      temp.languages[0] = inst['languages'][0];
+      temp.languages[1] = inst['languages'][1];
       for (int i = 0; i < (inst['wordlist'] as List<dynamic>).length; i++) {
-        temp.wordlist!.add(Chapter.fromJson(inst['wordlist'][i]));
+        temp.wordlist.add(
+          Chapter.fromJson(
+            inst['wordlist'][i],
+          ),
+        );
       }
+      temp.version =  "1.1";
+      temp.chapterCount = temp.wordlist.length;
+      temp.id = inst['id'];
       temp.removeDate = DateTime.parse(inst['removeDate']);
 
       data.add(temp);
@@ -129,8 +142,10 @@ class RemovedSubjectModel extends SubjectDataModel {
       'thumb': thumb,
       'subjects': subjects,
       'languages': languages,
-      'wordlist': wordlist?.map((chapter) => chapter.toJson()).toList(),
+      'wordlist': wordlist.map((chapter) => chapter.toJson()).toList(),
       'removeDate': removeDate.toString(),
+      'version': version,
+      'id': id,
     };
   }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+const String idSeparator = "/-{o[w]n}-/";
+
 const int smallDeviceWidthLimit = 500;
 
 const double widgetHeight = 60;
@@ -25,6 +27,14 @@ List<String> languageList = [
   "ko-KR",
   "fr-FR",
 ];
+
+String makeSubjectId({required String date, required String name}) {
+  return "$date$idSeparator$name";
+}
+
+String makeWordPairId({required int id, required String name}) {
+  return "$id$idSeparator$name";
+}
 
 void sendToastMessage({
   required BuildContext context,

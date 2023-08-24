@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:vocabella/main.dart';
 import 'package:vocabella/models/wordpair_model.dart';
 
+import '../constants.dart';
 import 'chapter_model.dart';
 
 // Word list.json will look like this
@@ -38,12 +40,17 @@ import 'chapter_model.dart';
 class SubjectDataModel {
   static List<SubjectDataModel> subjectList = [];
 
-  String? title;
+  String title;
   String? thumb;
-  List<String>? subjects;
-  List<String>? languages;
+  List<String> subjects;
+  List<String> languages;
 
-  List<Chapter>? wordlist;
+  List<Chapter> wordlist;
+
+  // Added after 1.1
+  String? version;
+  String? id;
+  int chapterCount = -1;
 
   SubjectDataModel({
     required this.title,
@@ -51,12 +58,16 @@ class SubjectDataModel {
     required this.subjects,
     required this.wordlist,
     required this.languages,
+    this.version,
+    this.id,
   });
 
   /// Create list of data from not decoded json data
   /// Since json data has only type of a list, fromJson constructor isn't necessary
   /// So use this function instead
   static List<SubjectDataModel> listFromJson(dynamic json) {
+    print("========================================");
+    print("make list");
     try {
       // Declare list to return
       List<SubjectDataModel> subjects = [];
@@ -77,23 +88,54 @@ class SubjectDataModel {
           thumb: "",
         );
 
-        // Now we copy the data
+        // Copy essential data
         sub.title = inst['title'];
         sub.thumb = inst['thumb'];
-        sub.subjects![0] = inst['subjects'][0];
-        sub.subjects![1] = inst['subjects'][1];
-        sub.languages![0] = inst['languages'][0];
-        sub.languages![1] = inst['languages'][1];
-        for (int i = 0; i < (inst['wordlist'] as List<dynamic>).length; i++) {
-          sub.wordlist!.add(Chapter.fromJson(inst['wordlist'][i]));
+        sub.subjects[0] = inst['subjects'][0];
+        sub.subjects[1] = inst['subjects'][1];
+        sub.languages[0] = inst['languages'][0];
+        sub.languages[1] = inst['languages'][1];
+
+        print("========================================");
+        print("make list2");
+
+        sub.version = inst['version'];
+        // Check if json hasn't version data
+        if(inst['version'] == null) {
+          // if there's no data, assume that the data was created in version 1.0
+          sub.version = "1.0";
         }
 
+        sub.id = inst['id'];
+        if(inst['id'] == null) {
+          // Create Id
+          final date = DateTime.now().toString();
+          if (kDebugMode) {
+            print("data creation date: $date");
+          }
+          sub.id = makeSubjectId(date: date, name: sub.title);
+        }
+
+        Chapter.globalCount = 1;
+        // Copy word data
+        for (int i = 0; i < (inst['wordlist'] as List<dynamic>).length; i++) {
+          sub.wordlist.add(Chapter.fromJson(inst['wordlist'][i]));
+        }
+
+        // Get the length of current chapters
+        sub.chapterCount = sub.wordlist.length;
+
+        // Update version
+        sub.version = appVersion;
+
+        sub.printData();
         // Finally add created instance to the list to return
         subjects.add(sub);
       }
       return subjects;
-    }
-    catch(e) {
+    } catch (e) {
+      print("An error was threw while creating new subject instance");
+      print(e);
       return [];
     }
   }
@@ -110,7 +152,9 @@ class SubjectDataModel {
       'thumb': thumb,
       'subjects': subjects,
       'languages': languages,
-      'wordlist': wordlist?.map((chapter) => chapter.toJson()).toList(),
+      'wordlist': wordlist.map((chapter) => chapter.toJson()).toList(),
+      'version': version,
+      'id': id,
     };
   }
 
@@ -143,7 +187,7 @@ class SubjectDataModel {
 
   int getWordCount() {
     int count = 0;
-    for(Chapter chapter in wordlist!) {
+    for (Chapter chapter in wordlist) {
       count += chapter.words.length;
     }
     return count;
@@ -194,13 +238,12 @@ class SubjectDataModel {
               word1: "purpose",
               word2: "Ziel; Absicht; Zweck",
               example1:
-              "If you have a purpose, you have a reason to do something.",
+                  "If you have a purpose, you have a reason to do something.",
             ),
             WordPair(
               word1: "word",
               word2: "Wort",
-              example1:
-              "If you don't learn words, you won't ever get better.",
+              example1: "If you don't learn words, you won't ever get better.",
             ),
           ],
         ),
@@ -216,13 +259,18 @@ class SubjectDataModel {
       print("thumb : $thumb");
       print("lang : $languages");
       print("subs : $subjects");
-      for (Chapter chap in wordlist!) {
+      print("version : $version");
+      print("id : $id");
+      for (Chapter chap in wordlist) {
         print("Chapter name : '${chap.name}'");
+        print("Chapter id : '${chap.id}'");
         for (WordPair word in chap.words) {
           print("First word : '${word.word1}'");
           print("Second word : '${word.word2}'");
           print("Fist example : '${word.example1}'");
           print("Second example : '${word.example2}'");
+          print("id : '${word.id}'");
+          print("global id : '${word.globalId}'");
         }
       }
     }

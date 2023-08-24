@@ -113,10 +113,7 @@ class _WordGridTileState extends State<WordGridTile> {
   Widget _buildCell() {
     // Determine the width and height of the cell
     final cellWidth = MediaQuery.of(context).size.width / 2;
-    final cellHeight = cellWidth /
-        (widget.bShowingWords
-            ? 3
-            : 2); // Adjust the aspect ratio based on your requirement
+    const cellHeight = 50.0; // Adjust the aspect ratio based on your requirement
 
     // Use a ConstrainedBox to limit the cell size
     return ConstrainedBox(

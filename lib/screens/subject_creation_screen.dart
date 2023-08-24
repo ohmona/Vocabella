@@ -59,7 +59,8 @@ class _SubjectCreationScreenState extends State<SubjectCreationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Create new subject"),
+        title: const Text("Create new project"),
+        elevation: 0,
       ),
       body: Container(
         height: double.infinity,
@@ -86,7 +87,7 @@ class _SubjectCreationScreenState extends State<SubjectCreationScreen> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Text(
-                    "Create your own unique subject \nto improve your language skill!",
+                    "Create your own unique project \nto improve your language skill!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white,
@@ -104,7 +105,7 @@ class _SubjectCreationScreenState extends State<SubjectCreationScreen> {
                 height: 60,
               ),
               InformationInputBox(
-                title: "Title of new subject",
+                title: "Title of new project",
                 label: "title",
                 controller: titleCtr,
                 widgetWidth: MediaQuery.of(context).size.width - 40,

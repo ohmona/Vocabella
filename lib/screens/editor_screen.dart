@@ -86,8 +86,7 @@ class _EditorScreenState extends State<EditorScreen> {
     return -1;
   }
 
-  int getChapterIndex(Chapter chapter) =>
-      subjectData.wordlist.indexOf(chapter);
+  int getChapterIndex(Chapter chapter) => subjectData.wordlist.indexOf(chapter);
 
   int getCurrentChapterIndex() => subjectData.wordlist.indexOf(currentChapter);
 
@@ -262,7 +261,7 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   void addChapter(String newName) {
-    if(existChapterNameAlready(newName)) {
+    if (existChapterNameAlready(newName)) {
       return;
     }
 
@@ -367,7 +366,10 @@ class _EditorScreenState extends State<EditorScreen> {
     setState(() {
       focusedIndex = newIndex;
       textEditingController.text = getTextOf(newIndex);
-      bottomBarFocusNode.requestFocus();
+      Future.delayed(
+        const Duration(milliseconds: 1),
+        () => bottomBarFocusNode.requestFocus(),
+      );
       textEditingController.selection = TextSelection.fromPosition(
         TextPosition(
           offset: textEditingController.text.length,
@@ -434,15 +436,14 @@ class _EditorScreenState extends State<EditorScreen> {
       if (oldIndex < newIndex) {
         newIndex -= 1;
       }
-      final item =
-      subjectData.wordlist.removeAt(oldIndex);
+      final item = subjectData.wordlist.removeAt(oldIndex);
       subjectData.wordlist.insert(newIndex, item);
     });
   }
 
   bool existChapterNameAlready(String name) {
     for (var element in subjectData.wordlist) {
-      if(element.name == name) {
+      if (element.name == name) {
         return true;
       }
     }
@@ -487,15 +488,6 @@ class _EditorScreenState extends State<EditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (focusedIndex != null) {
-      textEditingController.text = getTextOf(focusedIndex!);
-      textEditingController.selection = TextSelection.fromPosition(
-        TextPosition(
-          offset: textEditingController.text.length,
-        ),
-      );
-    }
-
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: PreferredSize(
@@ -543,7 +535,7 @@ class _EditorScreenState extends State<EditorScreen> {
                             final maxIndex = getWordsCount() ~/ 2;
                             final currentIndexNormalized = focusedIndex! ~/ 2;
 
-                            if(oldIndex >= maxIndex || newIndex > maxIndex) {
+                            if (oldIndex >= maxIndex || newIndex > maxIndex) {
                               return;
                             }
 
@@ -556,18 +548,17 @@ class _EditorScreenState extends State<EditorScreen> {
                               currentChapter.words.insert(newIndex, item);
                               currentChapter.updateAllId();
 
-                              if(oldIndex == currentIndexNormalized) {
-                                focusedIndex = isTargetingQuestion(focusedIndex!) ?
-                                    newIndex * 2 :
-                                    newIndex * 2 + 1;
-                              }
-                              else if(currentIndexNormalized < oldIndex) {
-                                if(currentIndexNormalized >= newIndex) {
+                              if (oldIndex == currentIndexNormalized) {
+                                focusedIndex =
+                                    isTargetingQuestion(focusedIndex!)
+                                        ? newIndex * 2
+                                        : newIndex * 2 + 1;
+                              } else if (currentIndexNormalized < oldIndex) {
+                                if (currentIndexNormalized >= newIndex) {
                                   focusedIndex = focusedIndex! + 2;
                                 }
-                              }
-                              else if(currentIndexNormalized > oldIndex) {
-                                if(currentIndexNormalized <= newIndex) {
+                              } else if (currentIndexNormalized > oldIndex) {
+                                if (currentIndexNormalized <= newIndex) {
                                   focusedIndex = focusedIndex! - 2;
                                 }
                               }

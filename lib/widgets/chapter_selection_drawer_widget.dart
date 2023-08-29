@@ -200,6 +200,17 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
     }
   }
 
+  void shareSubject() async {
+    String path = await DataReadWriteManager.getLocalPath();
+    File file = File("$path/${widget.subjectData.title}.json");
+    await file.writeAsString(
+        SubjectDataModel.listToJson([widget.subjectData])).then((value) async {
+      XFile toShare =
+      XFile("$path/${widget.subjectData.title}.json");
+      await Share.shareXFiles([toShare]);
+    });
+  }
+
   @override
   void initState() {
     loadImage();
@@ -338,20 +349,7 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 IconButton(
-                  onPressed: () {
-                    Future<String> path = DataReadWriteManager.getLocalPath();
-                    path.then((value) async {
-                      File file =
-                          File("$value/${widget.subjectData.title}${DateTime.now()}.json");
-                      await file.writeAsString(
-                          SubjectDataModel.listToJson([widget.subjectData]));
-                      XFile toShare =
-                          XFile("$value/${widget.subjectData.title}.json");
-                      Share.shareXFiles([toShare]);
-                    });
-
-                    Navigator.pop(context);
-                  },
+                  onPressed: shareSubject,
                   icon: const Icon(
                     Icons.share,
                     color: Colors.white,

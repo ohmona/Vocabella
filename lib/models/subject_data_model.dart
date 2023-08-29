@@ -96,9 +96,6 @@ class SubjectDataModel {
         sub.languages[0] = inst['languages'][0];
         sub.languages[1] = inst['languages'][1];
 
-        print("========================================");
-        print("make list2");
-
         sub.version = inst['version'];
         // Check if json hasn't version data
         if(inst['version'] == null) {
@@ -128,7 +125,6 @@ class SubjectDataModel {
         // Update version
         sub.version = appVersion;
 
-        sub.printData();
         // Finally add created instance to the list to return
         subjects.add(sub);
       }
@@ -293,5 +289,72 @@ class SubjectDataModel {
 
   static void setAll(List<SubjectDataModel> subjects) {
     subjectList = subjects;
+  }
+
+  /// Copy merging data to target data
+  /// Where Chapter is copied if there's no Chapter with same name
+  /// and if there's Chapter with same name, the words will be stacked to data
+  /// After all, the data will be replaced to original data
+  ///
+  /// subject : data to be copied to target data
+  /// to : target data which should have already been added to subjectList
+  static void merge(SubjectDataModel subject, {required SubjectDataModel to}) {
+    if(!subjectList.contains(to)) {
+      return;
+    }
+
+    var temp = to;
+    final id = to.id;
+
+    for(Chapter copyingChapter in subject.wordlist) {
+      if(temp.existChapterNameAlready(copyingChapter.name)) {
+        for(int i = 0; i < temp.wordlist.length; i++) {
+          if(temp.wordlist[i].name == copyingChapter.name) {
+            // Copy every words
+            for (var element in copyingChapter.words) {
+
+              // If they aren't same, add it to list
+              if(!temp.wordlist[i].existWordAlready(element)) {
+                print("adding non existing word!!!!!!!");
+                temp.wordlist[i].words.add(element);
+              }
+            }
+            temp.wordlist[i].updateAllId();
+          }
+        }
+      }
+      else {
+        copyingChapter.id = temp.wordlist.length + 1;
+        temp.wordlist.add(copyingChapter);
+        temp.chapterCount = temp.wordlist.length;
+      }
+    }
+
+    for(int i = 0; i < subjectList.length; i++) {
+      if(subjectList[i].id == id) {
+        subjectList[i] = temp;
+        if (kDebugMode) {
+          print("data successfully merged");
+        }
+      }
+    }
+  }
+
+  static int getSubjectIndexByName(String name) {
+    for(int i = 0; i < subjectList.length; i++) {
+      if(subjectList[i].title == name) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  bool existChapterNameAlready(String name) {
+    for (var element in wordlist) {
+      if(element.name == name) {
+        return true;
+      }
+    }
+    return false;
   }
 }

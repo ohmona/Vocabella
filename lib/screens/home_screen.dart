@@ -67,8 +67,16 @@ class _BodyState extends State<Body> {
       List<SubjectDataModel> newSubjectList =
           SubjectDataModel.listFromJson(content);
 
-      // Add them all to static list
-      SubjectDataModel.addAll(newSubjectList);
+      final existingIndex =
+          SubjectDataModel.getSubjectIndexByName(newSubjectList[0].title);
+      if (newSubjectList.length > 1 || existingIndex == -1) {
+        // Add them all to static list
+        SubjectDataModel.addAll(newSubjectList);
+      } else {
+        // Merge data
+        SubjectDataModel.merge(newSubjectList[0],
+            to: SubjectDataModel.subjectList[existingIndex]);
+      }
 
       // Save updated data to file
       DataReadWriteManager.writeData(

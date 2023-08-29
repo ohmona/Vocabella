@@ -1,4 +1,3 @@
-
 import 'package:vocabella/models/wordpair_model.dart';
 
 class Chapter {
@@ -50,12 +49,21 @@ class Chapter {
   }
 
   void updateAllId() {
-    for(int i = 0; i < words.length; i++) {
+    for (int i = 0; i < words.length; i++) {
       words[i].updateId(i);
       words[i].updateGlobalId(name);
     }
   }
 
+  bool existWordAlready(WordPair wordPair) {
+    for (var word in words) {
+      if (word.isSameWord(as: wordPair)) {
+        return true;
+      }
+    }
+    print("printing false");
+    return false;
+  }
 }
 
 class EditedChapter extends Chapter {

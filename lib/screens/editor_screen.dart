@@ -232,6 +232,7 @@ class _EditorScreenState extends State<EditorScreen> {
     // Reset to initial state
     bShowingWords = true;
     bDeleteMode = false;
+    focusedIndex = 0;
 
     if (currentChapter.name == newName) return;
 
@@ -536,9 +537,16 @@ class _EditorScreenState extends State<EditorScreen> {
                       Expanded(
                         child: ReorderableListView.builder(
                           physics: const BouncingScrollPhysics(),
-                          itemCount: (getWordsCount() / 2 + 1 + 5).toInt(),
+                          itemCount: (getWordsCount() / 2 + 1).toInt(),
                           dragStartBehavior: DragStartBehavior.start,
                           onReorder: (oldIndex, newIndex) {
+                            final maxIndex = getWordsCount() ~/ 2;
+                            final currentIndexNormalized = focusedIndex! ~/ 2;
+
+                            if(oldIndex >= maxIndex || newIndex > maxIndex) {
+                              return;
+                            }
+
                             setState(() {
                               if (oldIndex < newIndex) {
                                 newIndex -= 1;
@@ -547,9 +555,22 @@ class _EditorScreenState extends State<EditorScreen> {
                                   currentChapter.words.removeAt(oldIndex);
                               currentChapter.words.insert(newIndex, item);
                               currentChapter.updateAllId();
-                              focusedIndex = isTargetingQuestion(focusedIndex!)
-                                  ? 2 * newIndex
-                                  : 2 * newIndex + 1;
+
+                              if(oldIndex == currentIndexNormalized) {
+                                focusedIndex = isTargetingQuestion(focusedIndex!) ?
+                                    newIndex * 2 :
+                                    newIndex * 2 + 1;
+                              }
+                              else if(currentIndexNormalized < oldIndex) {
+                                if(currentIndexNormalized >= newIndex) {
+                                  focusedIndex = focusedIndex! + 2;
+                                }
+                              }
+                              else if(currentIndexNormalized > oldIndex) {
+                                if(currentIndexNormalized <= newIndex) {
+                                  focusedIndex = focusedIndex! - 2;
+                                }
+                              }
                             });
                           },
                           itemBuilder: ((context, index) {

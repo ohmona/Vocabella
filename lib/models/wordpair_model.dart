@@ -28,12 +28,12 @@ class WordPair {
     example2 = json['example2'];
 
     id = json['id'];
-    if(json['id'] == null) {
+    if (json['id'] == null) {
       id = globalCount;
     }
 
     globalId = json['globalId'];
-    if(json['globalId'] == null) {
+    if (json['globalId'] == null) {
       globalId = makeWordPairId(id: globalCount, name: name);
     }
     globalCount += 1;
@@ -65,5 +65,14 @@ class WordPair {
     print("second example : $example2");
     print("id : $id");
     print("global id : $globalId");
+  }
+
+  bool isSameWord({required WordPair as}) {
+
+    if (word1 == as.word1 && word2 == as.word2) {
+      // TODO currently examples aren't checked
+      return true;
+    }
+    return false;
   }
 }

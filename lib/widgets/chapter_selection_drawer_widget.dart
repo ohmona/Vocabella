@@ -342,7 +342,7 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                     Future<String> path = DataReadWriteManager.getLocalPath();
                     path.then((value) async {
                       File file =
-                          File("$value/${widget.subjectData.title}.json");
+                          File("$value/${widget.subjectData.title}${DateTime.now()}.json");
                       await file.writeAsString(
                           SubjectDataModel.listToJson([widget.subjectData]));
                       XFile toShare =

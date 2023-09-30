@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vocabella/arguments.dart';
 import 'package:vocabella/constants.dart';
+import 'package:vocabella/managers/double_backup.dart';
 import 'package:vocabella/models/subject_data_model.dart';
 import 'package:vocabella/widgets/chapter_selection_drawer_widget.dart';
 import 'package:vocabella/widgets/editor_screen_appbar_widget.dart';
@@ -300,21 +301,26 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   /// Save all data to local storage
-  void saveData() {
+  void saveData() async {
     if (focusedIndex == null) return;
 
     if (ableToSave()) {
-      for (SubjectDataModel sub in SubjectDataModel.subjectList) {
+      for (int i = 0; i < SubjectDataModel.subjectList.length; i++) {
         // Find the correct data
-        if (sub.id == subjectData.id) {
-          // Find the index of the subject
-          int index = SubjectDataModel.subjectList.indexOf(sub);
+        if (SubjectDataModel.subjectList[i].id == subjectData.id) {
           // Then replace the data with the edited one
-          SubjectDataModel.subjectList[index] = subjectData;
+          SubjectDataModel.subjectList[i] = subjectData;
         }
 
         // Finally we have to save data to the local no matter it should be
-        DataReadWriteManager.writeData(
+        await DataReadWriteManager.writeData(
+            SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+
+        // After that we need to create another backup for fatal case like loosing data
+        // Firstly, we toggle the count
+        await DoubleBackup.toggleDBCount();
+        // Then save the backup data
+        await DoubleBackup.saveDoubleBackup(
             SubjectDataModel.listToJson(SubjectDataModel.subjectList));
       }
     } else {
@@ -368,7 +374,10 @@ class _EditorScreenState extends State<EditorScreen> {
       textEditingController.text = getTextOf(newIndex);
       Future.delayed(
         const Duration(milliseconds: 1),
-        () => bottomBarFocusNode.requestFocus(),
+        () {
+          bottomBarFocusNode.requestFocus();
+          scrollToFocus();
+        },
       );
       textEditingController.selection = TextSelection.fromPosition(
         TextPosition(
@@ -380,15 +389,16 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   void scrollToFocus() {
-    int currentPosition = scrollController.position.pixels.toInt();
-    int targetPosition = ((focusedIndex! / ~2) * 60).toInt();
+    var targetIndex = (focusedIndex! ~/ 2);
+    var cellHeight = 50.0;
+    var itemsOnScreen = (_screenHeight - 160 - _viewInsetsBottom) ~/ cellHeight;
 
-    int minRange = currentPosition;
-    int maxRange = currentPosition + 12 * 60;
-
-    if (targetPosition < minRange && targetPosition > maxRange) {
-      scrollController.animateTo(targetPosition.toDouble(),
-          duration: const Duration(milliseconds: 500), curve: Curves.easeOut);
+    if(targetIndex >= itemsOnScreen - 1 && targetIndex < getWordsCount() ~/ 2) {
+      scrollController.animateTo(
+        ((targetIndex - itemsOnScreen + 2) * cellHeight),
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -418,17 +428,17 @@ class _EditorScreenState extends State<EditorScreen> {
     saveData();
   }
 
+  @Deprecated("Don't use tis")
   void scrollToFocused() {
-    double fi = focusedIndex! / 2;
-    int fii = fi.toInt();
+    //int target = focusedIndex! ~/ 2;
 
-    var targetOffset = fii * 56.0;
+    //var targetOffset = target * 150.0;
 
-    if (fii > (getWordsCount() / 2) - 3) {
+    /*if (fii > (getWordsCount() / 2) - 3) {
       targetOffset = targetOffset - 56 * 3;
-    }
+    }*/
 
-    scrollController.jumpTo(targetOffset);
+    //scrollController.jumpTo(targetOffset);
   }
 
   void reorderChapter(int oldIndex, int newIndex) {
@@ -473,21 +483,17 @@ class _EditorScreenState extends State<EditorScreen> {
     // activate auto-save
     autoSaveTimer = Timer.periodic(const Duration(seconds: 60), (timer) {
       saveData();
-      /*ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "auto saving...",
-          ),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 2),
-          elevation: 10,
-        ),
-      );*/
     });
   }
 
+  late double _screenHeight;
+  late double _viewInsetsBottom;
+
   @override
   Widget build(BuildContext context) {
+    _screenHeight = MediaQuery.of(context).size.height;
+    _viewInsetsBottom = MediaQuery.of(context).viewInsets.bottom;
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: PreferredSize(
@@ -528,6 +534,7 @@ class _EditorScreenState extends State<EditorScreen> {
                       ),
                       Expanded(
                         child: ReorderableListView.builder(
+                          scrollController: scrollController,
                           physics: const BouncingScrollPhysics(),
                           itemCount: (getWordsCount() / 2 + 1).toInt(),
                           dragStartBehavior: DragStartBehavior.start,
@@ -640,9 +647,8 @@ class _EditorScreenState extends State<EditorScreen> {
                 ],
               ),
             ),
-            AnimatedPadding(
-              padding: MediaQuery.of(context).viewInsets,
-              duration: const Duration(milliseconds: 1),
+            Padding(
+              padding:MediaQuery.of(context).viewInsets,
               child: Container(
                 // Input Box Container
                 decoration: BoxDecoration(
@@ -725,6 +731,7 @@ class _EditorScreenState extends State<EditorScreen> {
                         },
                         onSubmitted: (value) {
                           if (focusedIndex != null) {
+                            bottomBarFocusNode.requestFocus();
                             if (!bAddingNewWord) {
                               setState(() {
                                 updateWord(value, focusedIndex!);

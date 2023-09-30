@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vocabella/managers/tts_manager.dart';
 import 'package:vocabella/animations.dart';
+import 'package:vocabella/short_languages.dart';
 
 enum Sequence {
   appear,
@@ -96,20 +97,31 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
 
   late DivisionMode divisionMode;
 
+  // Sync text-to-speech button to currently displaying text
   void updateTTS() {
+    var ttsWord = displayWord;
+    var ttsExample = displayExample;
+
+    for (var str in shortLanguage.keys) {
+      if (ttsWord.contains(str)) {
+        // TODO figure out how to replace short form to long form
+      }
+    }
+
     widget.wordTTS = TTSButton(
-      textToRead: displayWord,
+      textToRead: ttsWord,
       language: widget.language,
     );
 
     widget.exampleTTS = TTSButton(
-      textToRead: displayExample,
+      textToRead: ttsExample,
       language: widget.language,
     );
 
     setState(() {});
   }
 
+  // Change currently displaying text and update corresponding text-to-speech
   void _setDisplayWordAndExample(
       {required String newWord, required String newExample}) {
     setState(() {
@@ -431,7 +443,6 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     Size newSize = MediaQuery.of(context).size;
     if (_old != newSize) {
-
       if (newSize.width > newSize.height) {
         divisionMode = DivisionMode.defaultLandscape;
       } else if (newSize.width <= newSize.height) {

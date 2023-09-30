@@ -73,14 +73,14 @@ class RemovedSubjectModel extends SubjectDataModel {
   }
 
   /// Save data of recycle bin data to local
-  static void saveRecycleBinData() async {
+  static Future<void> saveRecycleBinData() async {
     const String name = "recycleBin";
     final String content = listToJson(recycleBin);
     DataReadWriteManager.writeDataTo(data: content, name: name);
   }
 
   /// Load data from local and save it to dart list
-  static void loadRecycleBinData() async {
+  static Future<void> loadRecycleBinData() async {
     const String name = "recycleBin";
     final String content = await DataReadWriteManager.readDataFrom(name: name);
 

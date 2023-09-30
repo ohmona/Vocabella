@@ -7,11 +7,13 @@ import 'package:scroll_snap_list/scroll_snap_list.dart';
 import 'package:vocabella/constants.dart';
 import 'package:vocabella/main.dart';
 import 'package:vocabella/managers/data_handle_manager.dart';
+import 'package:vocabella/managers/double_backup.dart';
 import 'package:vocabella/models/chapter_model.dart';
 import 'package:vocabella/models/removed_subject_model.dart';
 import 'package:vocabella/models/wordpair_model.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:vocabella/screens/debug_screen.dart';
 import 'package:vocabella/screens/subject_creation_screen.dart';
 import 'package:vocabella/widgets/recycle_bin_grid_tile_widget.dart';
 
@@ -199,38 +201,46 @@ class _BodyState extends State<Body> {
   }
 
   /// Unless there's no subject existing, move focusing subject to recycle bin
-  void onPressDeleteSubject() {
-    setState(() {
-      if (SubjectDataModel.subjectList.isEmpty) {
-        sendToastMessage(
-          context: context,
-          msg: "Hmm... It seems to be you haven't any subject to delete",
-          duration: const Duration(seconds: 1),
-        );
-        return;
-      }
+  void onPressDeleteSubject() async {
+    if (SubjectDataModel.subjectList.isEmpty) {
+      sendToastMessage(
+        context: context,
+        msg: "Hmm... It seems to be you haven't any subject to delete",
+        duration: const Duration(seconds: 1),
+      );
+      return;
+    }
 
-      RemovedSubjectModel.moveToRecycleBin(focusedIndex);
-      RemovedSubjectModel.saveRecycleBinData();
+    RemovedSubjectModel.moveToRecycleBin(focusedIndex);
+    await RemovedSubjectModel.saveRecycleBinData();
 
-      DataReadWriteManager.writeData(
-          SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+    await DataReadWriteManager.writeData(
+        SubjectDataModel.listToJson(SubjectDataModel.subjectList));
 
-      // If user deleted last subject, due to out of bound issue, reset focused index to 0
-      if (focusedIndex > SubjectDataModel.subjectList.length - 1) {
-        focusedIndex = 0;
-      }
-    });
+    // Since data has been updated, we have to backup it as well
+    await DoubleBackup.toggleDBCount();
+    await DoubleBackup.saveDoubleBackup(
+        SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+
+    // If user deleted last subject, due to out of bound issue, reset focused index to 0
+    if (focusedIndex > SubjectDataModel.subjectList.length - 1) {
+      focusedIndex = 0;
+    }
+    setState(() {});
   }
 
   /// Move subject in recycle bin with specific index to static subject list
-  void restoreSubject(int index) {
-    setState(() {
-      RemovedSubjectModel.recycleBin[index].restore();
-      DataReadWriteManager.writeData(
-          SubjectDataModel.listToJson(SubjectDataModel.subjectList));
-      RemovedSubjectModel.saveRecycleBinData();
-    });
+  void restoreSubject(int index) async {
+    RemovedSubjectModel.recycleBin[index].restore();
+    await DataReadWriteManager.writeData(
+        SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+    await RemovedSubjectModel.saveRecycleBinData();
+
+    // Since data has been updated, we have to backup it as well
+    await DoubleBackup.toggleDBCount();
+    await DoubleBackup.saveDoubleBackup(
+        SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+    setState(() {});
   }
 
   /// Delete data from recycle bin to dispose completely from session then save
@@ -239,6 +249,128 @@ class _BodyState extends State<Body> {
       RemovedSubjectModel.recycleBin[index].remove();
       RemovedSubjectModel.saveRecycleBinData();
     });
+  }
+
+  /// Restore backup data
+  void restoreFromBackup() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          "Restoring files...",
+        ),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+        elevation: 10,
+      ),
+    );
+
+    if (kDebugMode) {
+      print("[Double Backup] Trying to restore...");
+    }
+
+    // load double backup data
+    final firstData =
+        await DoubleBackup.loadDoubleBackup(DoubleBackup.dbFirstSpec);
+    final secondData =
+        await DoubleBackup.loadDoubleBackup(DoubleBackup.dbSecondSpec);
+    final lastCount = await DoubleBackup.loadDBCount();
+
+    if (lastCount == DoubleBackup.dbFirstSpec) {
+      if (firstData!.isEmpty || firstData == "[]") {
+        await DoubleBackup.saveBackupDataToOriginal(secondData!);
+      } else {
+        await DoubleBackup.saveBackupDataToOriginal(firstData);
+      }
+    } else if (lastCount == DoubleBackup.dbSecondSpec) {
+      if (secondData!.isEmpty || secondData == "[]") {
+        await DoubleBackup.saveBackupDataToOriginal(firstData!);
+      } else {
+        await DoubleBackup.saveBackupDataToOriginal(secondData);
+      }
+    }
+
+    Future.delayed(
+      const Duration(milliseconds: 10),
+      () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Restoration is finishing in 10 seconds...",
+            ),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 10),
+            elevation: 10,
+          ),
+        );
+      },
+    );
+    Future.delayed(
+      const Duration(seconds: 10),
+      () {
+        setState(() {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "Restoration done",
+              ),
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 1),
+              elevation: 10,
+            ),
+          );
+          if (kDebugMode) {
+            print("[Double Backup] Restoring done");
+          }
+        });
+      },
+    );
+  }
+
+  Future<bool> isDataValid() async {
+    final data = await DataReadWriteManager.readData();
+    if (data.isEmpty || data == "[]") {
+      if (kDebugMode) {
+        print("[Vocabella] Data is not valid.");
+        print("[Vocabella] It's possible that there's actually no data");
+        print("[Vocabella] or you're using the app for the first time.");
+        print(
+            "[Vocabella] If the app crashed once, the data can possibly be destroyed");
+        print("[Vocabella] It's necessary to try to restore the data then");
+      }
+      return false;
+    } else {
+      return true;
+    }
+  }
+
+  Future<void> openReminder(BuildContext context) {
+    String info = "This app was made by none-professional.\n"
+        "So some parts of the app could not work properly.\n"
+        "If you found any issue, please contact via email [ohmona.uhu@gmail.com].\n"
+        "Once the app doesn't show correct data or anything,\n"
+        "try restoring through [menu (left-top)] -> [restore (right-bottom)]\n";
+        "And also remind that this popup will appear every startup\n";
+
+    return showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Reminder"),
+          content: Text(info),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: mintColor,
+              ),
+              child: const Text("ok"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -251,6 +383,30 @@ class _BodyState extends State<Body> {
         if (kDebugMode) print("auto-refreshing");
       });
     });
+
+    isDataValid().then((validity) {
+      if (!validity) {
+        if (kDebugMode) {
+          print("[Vocabella] Automatically restoring data");
+        }
+        restoreFromBackup();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Loading files...",
+            ),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+            elevation: 10,
+          ),
+        );
+      }
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      openReminder(context);
+    });
   }
 
   @override
@@ -261,8 +417,11 @@ class _BodyState extends State<Body> {
     autoRefresher.cancel();
   }
 
+  bool startUp = true;
+
   @override
   Widget build(BuildContext context) {
+
     return FutureBuilder(
       future: DataReadWriteManager.readData(),
       builder: (context, snapshot) {
@@ -337,12 +496,20 @@ class _BodyState extends State<Body> {
             color: Theme.of(context).cardColor,
             alignment: Alignment.bottomLeft,
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-            child: const Text(
-              "Vocabella",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 30,
-                fontWeight: FontWeight.w500,
+            child: GestureDetector(
+              onDoubleTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DebugScreen()),
+                );
+              },
+              child: const Text(
+                "Vocabella",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
@@ -366,6 +533,17 @@ class _BodyState extends State<Body> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    IconButton(
+                      onPressed: () {
+                        setState(() {
+                          restoreFromBackup();
+                        });
+                      },
+                      icon: const Icon(
+                        Icons.settings_backup_restore,
+                        color: Colors.white,
+                      ),
+                    ),
                     IconButton(
                       onPressed: () async {
                         XFile file = XFile(
@@ -470,6 +648,7 @@ class _BodyState extends State<Body> {
               itemCount: subjects.length + 1,
               itemSize: 250,
               dynamicItemSize: true,
+
               onItemFocus: (index) {
                 setState(() {
                   focusedIndex = index;

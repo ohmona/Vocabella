@@ -53,9 +53,6 @@ class DataReadWriteManager {
   static Future<String> readDataByPath(String path) async {
     try {
       final file = File(path);
-      print('=================================');
-      print('Printing reading file');
-      print(await file.readAsString());
       return await file.readAsString();
     } catch (e) {
       return '';
@@ -64,14 +61,16 @@ class DataReadWriteManager {
 
   static Future<void> writeData(String data) async {
     final file = File(await _localFilePath);
-    print('=================================');
-    print('Printing wrting data');
-    print(data);
     await file.writeAsString(data);
   }
 
-  static Future<void> writeDataTo({required String data, required name}) async {
+  static Future<void> writeDataTo({required String data, required String name}) async {
     final file = File(await getLocalAnyFilePath(name));
+    await file.writeAsString(data);
+  }
+
+  static Future<void> writeDataToPath({required String data, required String path}) async {
+    final file = File(path);
     await file.writeAsString(data);
   }
 

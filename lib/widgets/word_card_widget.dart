@@ -453,7 +453,7 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
     }
     _old = newSize;
 
-    bool noEx = widget.example.isEmpty;
+    bool noEx = displayExample.isEmpty;
 
     return Transform.translate(
       offset: transformOffset,

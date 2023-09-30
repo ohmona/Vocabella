@@ -376,9 +376,18 @@ class _EditorScreenState extends State<EditorScreen> {
         const Duration(milliseconds: 1),
         () {
           bottomBarFocusNode.requestFocus();
-          scrollToFocus();
         },
       );
+      if(!bottomBarFocusNode.hasFocus) {
+        Future.delayed(const Duration(milliseconds: 450), () {
+          scrollToFocus();
+        });
+      }
+      else {
+        Future.delayed(const Duration(milliseconds: 1), () {
+          scrollToFocus();
+        });
+      }
       textEditingController.selection = TextSelection.fromPosition(
         TextPosition(
           offset: textEditingController.text.length,
@@ -393,10 +402,11 @@ class _EditorScreenState extends State<EditorScreen> {
     var cellHeight = 50.0;
     var itemsOnScreen = (_screenHeight - 160 - _viewInsetsBottom) ~/ cellHeight;
 
-    if(targetIndex >= itemsOnScreen - 1 && targetIndex < getWordsCount() ~/ 2) {
+    if (targetIndex >= itemsOnScreen - 1 &&
+        targetIndex < (getWordsCount() ~/ 2) + 1) {
       scrollController.animateTo(
         ((targetIndex - itemsOnScreen + 2) * cellHeight),
-        duration: const Duration(milliseconds: 500),
+        duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
       );
     }
@@ -648,7 +658,7 @@ class _EditorScreenState extends State<EditorScreen> {
               ),
             ),
             Padding(
-              padding:MediaQuery.of(context).viewInsets,
+              padding: MediaQuery.of(context).viewInsets,
               child: Container(
                 // Input Box Container
                 decoration: BoxDecoration(

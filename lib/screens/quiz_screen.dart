@@ -430,7 +430,7 @@ class _QuizScreenState extends State<QuizScreen> {
     onDisposalStarted();
 
     // Make input checker box disappear
-    inputCheckerBox.animTrigger(CheckerBoxState.disappear);
+    if(!bDontTypeAnswer) inputCheckerBox.animTrigger(CheckerBoxState.disappear);
 
     // Dispose and appear cards (depending on isOddTHCard)
     if (isOddTHCard) {

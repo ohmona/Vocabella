@@ -122,7 +122,7 @@ class _ChapterSelectionScreenState extends State<ChapterSelectionScreen> {
   void initState() {
     super.initState();
 
-    originalChapters = widget.subjectData.wordlist!;
+    originalChapters = widget.subjectData.wordlist;
     selectedChapters = {};
   }
 
@@ -131,6 +131,7 @@ class _ChapterSelectionScreenState extends State<ChapterSelectionScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Select practicing chapters"),
+        elevation: 0,
       ),
       body: Container(
         height: double.infinity,
@@ -269,7 +270,7 @@ class _ChapterSelectionScreenState extends State<ChapterSelectionScreen> {
                     ModeSelectionScreenParent.routeName,
                     arguments: ModeSelectionScreenArguments(
                       wordList,
-                      widget.subjectData.languages!,
+                      widget.subjectData.languages,
                       widget.subjectData
                     ),
                   );

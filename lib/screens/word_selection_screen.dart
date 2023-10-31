@@ -84,6 +84,7 @@ class _WordSelectionScreenState extends State<WordSelectionScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text("Select words"),
+          elevation: 0,
           actions: [
             IconButton(
               onPressed: () {

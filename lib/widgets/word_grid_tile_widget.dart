@@ -15,7 +15,8 @@ class WordGridTile extends StatefulWidget {
     required this.bDeleteMode,
     required this.deleteWord,
     required this.changeFocus,
-    required this.bFocused, required this.wordAdditionBuffer,
+    required this.bFocused,
+    required this.wordAdditionBuffer,
   }) : super(key: key);
 
   final String text;
@@ -24,7 +25,11 @@ class WordGridTile extends StatefulWidget {
   final void Function(String newText, int index) saveText;
   final void Function(WordPair wordPair) addWord;
   final void Function(WordPair wordPair) deleteWord;
-  final void Function(int) changeFocus;
+  final void Function(
+    int newIndex, {
+    bool requestFocus,
+    bool force,
+  }) changeFocus;
 
   final Chapter currentChapter;
   final WordPair wordAdditionBuffer;
@@ -53,11 +58,10 @@ class _WordGridTileState extends State<WordGridTile> {
     }
 
     WordPair wordPair;
-    if(wordPairIndex <= widget.currentChapter.words.length - 1) {
+    if (wordPairIndex <= widget.currentChapter.words.length - 1) {
       // Get the WordPair from the currentChapter based on the wordPairIndex
       wordPair = widget.currentChapter.words[wordPairIndex];
-    }
-    else {
+    } else {
       wordPair = widget.wordAdditionBuffer;
     }
 
@@ -113,7 +117,8 @@ class _WordGridTileState extends State<WordGridTile> {
   Widget _buildCell() {
     // Determine the width and height of the cell
     final cellWidth = MediaQuery.of(context).size.width / 2;
-    const cellHeight = 50.0; // Adjust the aspect ratio based on your requirement
+    const cellHeight =
+        50.0; // Adjust the aspect ratio based on your requirement
 
     // Use a ConstrainedBox to limit the cell size
     return ConstrainedBox(
@@ -141,7 +146,7 @@ class _WordGridTileState extends State<WordGridTile> {
         onTap: () {
           if (!widget.bDeleteMode) {
             if (widget.currentChapter.words.length * 2 + 2 > widget.index) {
-              widget.changeFocus(widget.index);
+              widget.changeFocus(widget.index, requestFocus: true, force: false);
             } else if (widget.bShowingWords) {
               //widget.openWordAdder(context);
             }

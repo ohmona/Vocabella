@@ -7,11 +7,13 @@ class Chapter {
   int? id;
   static int globalCount = 1;
   int? wordCount;
+  int? lastIndex;
 
   Chapter({
     required this.name,
     required this.words,
     this.id,
+    this.lastIndex,
   });
 
   Chapter.fromJson(dynamic json) {
@@ -38,6 +40,12 @@ class Chapter {
 
     // get length of words
     wordCount = words.length;
+
+    // Get last focused index
+    lastIndex = json['lastIndex'];
+    if(json['lastIndex'] == null) {
+      lastIndex = 0;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -45,6 +53,7 @@ class Chapter {
       'name': name,
       'words': words.map((wordPair) => wordPair.toJson()).toList(),
       'id': id,
+      'lastIndex': lastIndex,
     };
   }
 

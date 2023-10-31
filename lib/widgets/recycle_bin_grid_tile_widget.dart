@@ -30,25 +30,28 @@ class RecycleBinGridTile extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  data.title!,
-                  style:
-                      const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          SizedBox(
+            width: 180,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    data.title,
+                    style:
+                        const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
                 ),
-              ),
-              Text(
-                calcExpiration() > 1 ? "expired in ${calcExpiration()} hours" : "expired in ${calcExpiration()} hour",
-                style: const TextStyle(
-                  fontSize: 10,
+                Text(
+                  calcExpiration() > 1 ? "expired in ${calcExpiration()} hours" : "expired in ${calcExpiration()} hour",
+                  style: const TextStyle(
+                    fontSize: 10,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,

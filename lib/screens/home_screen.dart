@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:developer';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -8,16 +10,20 @@ import 'package:vocabella/constants.dart';
 import 'package:vocabella/main.dart';
 import 'package:vocabella/managers/data_handle_manager.dart';
 import 'package:vocabella/managers/double_backup.dart';
+import 'package:vocabella/managers/recent_activity.dart';
 import 'package:vocabella/models/chapter_model.dart';
 import 'package:vocabella/models/removed_subject_model.dart';
+import 'package:vocabella/models/session_data_model.dart';
 import 'package:vocabella/models/wordpair_model.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:vocabella/screens/debug_screen.dart';
+import 'package:vocabella/screens/quiz_screen.dart';
 import 'package:vocabella/screens/subject_creation_screen.dart';
 import 'package:vocabella/widgets/recycle_bin_grid_tile_widget.dart';
 
 import '../arguments.dart';
+import '../managers/session_saver.dart';
 import '../models/subject_data_model.dart';
 import '../widgets/bottom_button_widget.dart';
 import '../widgets/subject_creating_dialog_widget.dart';
@@ -55,36 +61,54 @@ class _BodyState extends State<Body> {
 
   /// Load new subject by picking a file
   void loadNewData() async {
+    // Clear cache before picking
+    await FilePicker.platform.clearTemporaryFiles();
+
     // Pick a file
-    FilePickerResult? result = await DataPickerManager.pickFile();
+    Future<FilePickerResult?> result = DataPickerManager.pickFile();
 
-    if (result != null) {
-      // Get the path of the picked file
-      final String path = result.files.single.path!;
+    result.then((value) async {
+      if (value != null) {
+        // Get the path of the picked file
+        final String path = value.files.single.path!;
 
-      // Read data from the file with got path
-      String content = await DataReadWriteManager.readDataByPath(path);
+        // Read data from the file with got path
+        String content = await DataReadWriteManager.readDataByPath(path);
+        if (kDebugMode) {
+          print("==================================");
+          print("Path of picked content");
+          log(path);
+          print("Raw string");
+          log(content);
+        }
 
-      // Create a list of subject-objects by read data
-      List<SubjectDataModel> newSubjectList =
-          SubjectDataModel.listFromJson(content);
+        // Create a list of subject-objects by read data
+        List<SubjectDataModel> newSubjectList =
+            SubjectDataModel.listFromJson(content);
 
-      final existingIndex =
-          SubjectDataModel.getSubjectIndexByName(newSubjectList[0].title);
-      if (newSubjectList.length > 1 || existingIndex == -1) {
-        // Add them all to static list
-        SubjectDataModel.addAll(newSubjectList);
-      } else {
-        // Merge data
-        SubjectDataModel.merge(newSubjectList[0],
-            to: SubjectDataModel.subjectList[existingIndex]);
+        final existingIndex =
+            SubjectDataModel.getSubjectIndexByName(newSubjectList[0].title);
+        if (newSubjectList.length > 1 || existingIndex == -1) {
+          // Add them all to static list
+          SubjectDataModel.addAll(newSubjectList);
+        } else {
+          if (kDebugMode) {
+            print("==================================");
+            print(
+                "Printing pasting data before merging : ${newSubjectList[0].title}");
+            newSubjectList[0].printData();
+          }
+          // Merge data
+          SubjectDataModel.merge(newSubjectList[0],
+              to: SubjectDataModel.subjectList[existingIndex]);
+        }
+
+        // Save updated data to file
+        await DataReadWriteManager.writeData(
+            SubjectDataModel.listToJson(SubjectDataModel.subjectList));
       }
-
-      // Save updated data to file
-      DataReadWriteManager.writeData(
-          SubjectDataModel.listToJson(SubjectDataModel.subjectList));
-    }
-    setState(() {});
+      setState(() {});
+    });
   }
 
   /// Create a empty subject-data and open editor immediately
@@ -128,12 +152,15 @@ class _BodyState extends State<Body> {
           SubjectDataModel.listToJson(SubjectDataModel.subjectList));
     });
 
+    RecentActivity.latestOpenedSubject = focusedIndex;
     // Open subject-editor with created subject
     openEditor(newSubject);
   }
 
   /// Open editor with chosen data
   void openEditor(SubjectDataModel subject) {
+    RecentActivity.latestOpenedSubject =
+        SubjectDataModel.getSubjectIndexByName(subject.title);
     Navigator.pushNamed(
       context,
       EditorScreenParent.routeName,
@@ -160,7 +187,7 @@ class _BodyState extends State<Body> {
     openEditor(SubjectDataModel.subjectList[focusedIndex]);
   }
 
-  /// Unless there's no subject existing, push user to chapter selection
+  /// Unless there's no subject existing, push user to chapter selection of focused subject
   void onPressContinue() {
     if (SubjectDataModel.subjectList.isEmpty) {
       sendToastMessage(
@@ -171,10 +198,14 @@ class _BodyState extends State<Body> {
       return;
     }
 
+    onContinue(SubjectDataModel.subjectList[focusedIndex]);
+  }
+
+  /// Push user to chapter selection of given subject
+  void onContinue(SubjectDataModel subject) {
     // Check number of word of focusing subject
     int wordNum = 0;
-    for (Chapter chapter
-        in SubjectDataModel.subjectList[focusedIndex].wordlist) {
+    for (Chapter chapter in subject.wordlist) {
       for (WordPair word in chapter.words) {
         word.word1;
         wordNum++;
@@ -190,12 +221,14 @@ class _BodyState extends State<Body> {
       return;
     }
 
-    // If everything is ok, push user to chapter-selection
+    // If everything is ok, save index and push user to chapter-selection
+    RecentActivity.latestOpenedSubject =
+        SubjectDataModel.getSubjectIndexByName(subject.title);
     Navigator.pushNamed(
       context,
       ChapterSelectionScreenParent.routeName,
       arguments: ChapterSelectionScreenArguments(
-        SubjectDataModel.subjectList[focusedIndex],
+        subject,
       ),
     );
   }
@@ -349,7 +382,7 @@ class _BodyState extends State<Body> {
         "If you found any issue, please contact via email [ohmona.uhu@gmail.com].\n"
         "Once the app doesn't show correct data or anything,\n"
         "try restoring through [menu (left-top)] -> [restore (right-bottom)]\n";
-        "And also remind that this popup will appear every startup\n";
+    "And also remind that this popup will appear every startup\n";
 
     return showDialog<void>(
       context: context,
@@ -366,6 +399,50 @@ class _BodyState extends State<Body> {
                 foregroundColor: mintColor,
               ),
               child: const Text("ok"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> openSessionReStarter(
+      BuildContext context, SessionDataModel sessionData) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Session found"),
+          content: const Text(
+              "Unfinished session has been found, would you like to restart?"),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                SessionSaver.session = SessionDataModel(existSessionData: false);
+                Navigator.of(context).pop();
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: mintColor,
+              ),
+              child: const Text("no"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  QuizScreenParent.routeName,
+                  arguments: QuizScreenArguments(
+                    [],
+                    "",
+                    "",
+                    sessionData,
+                  ),
+                );
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: mintColor,
+              ),
+              child: const Text("yes"),
             ),
           ],
         );
@@ -405,7 +482,17 @@ class _BodyState extends State<Body> {
     });
 
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      openReminder(context);
+      //openReminder(context);
+
+      final startPoint = RecentActivity.latestOpenedSubject;
+      focusedIndex = startPoint;
+
+      SessionSaver.readSessionData().then((value) {
+        print("=====================");
+        print("fetched data");
+        sessionData = SessionDataModel.fromJson(jsonDecode(value!));
+        sessionDataFound = true;
+      });
     });
   }
 
@@ -419,15 +506,30 @@ class _BodyState extends State<Body> {
 
   bool startUp = true;
 
+  bool sessionDataFound = false;
+  bool sessionStarterShown = false;
+  late SessionDataModel sessionData;
+
   @override
   Widget build(BuildContext context) {
-
     return FutureBuilder(
       future: DataReadWriteManager.readData(),
       builder: (context, snapshot) {
         bool bLoaded = snapshot.hasData;
         RemovedSubjectModel.loadRecycleBinData();
         RemovedSubjectModel.autoRemove();
+
+        // In this section comes commands to run after the data has been loaded
+        if (bLoaded && startUp) {
+          Future.delayed(
+            const Duration(milliseconds: 100),
+            () {
+              // Scroll a bit on start up to refresh focus
+              scroller.jumpTo(scroller.offset + 0.1);
+              startUp = false;
+            },
+          );
+        }
 
         return Scaffold(
           appBar: buildAppBar(context, bLoaded),
@@ -445,7 +547,32 @@ class _BodyState extends State<Body> {
                   bLoaded: bLoaded,
                 ),
                 buildBottomButtons(context),
-                const SizedBox(height: 40),
+                const SizedBox(height: 39),
+                Builder(
+                  builder: (context) {
+                    if (sessionDataFound && !sessionStarterShown) {
+                      sessionStarterShown = true;
+                      if (sessionData.existSessionData) {
+                        if (kDebugMode) {
+                          print("[Session] Valid session data found!");
+                        }
+                        sessionData.printData();
+                        Future.delayed(
+                          const Duration(milliseconds: 100),
+                          () {
+                            openSessionReStarter(context, sessionData);
+                          },
+                        );
+                      } else {
+                        if (kDebugMode) {
+                          print("[Session] No valid session data found!");
+                          sessionData.printData();
+                        }
+                      }
+                    }
+                    return const SizedBox(height: 1, width: 1);
+                  },
+                ),
               ],
             ),
           ),
@@ -643,12 +770,11 @@ class _BodyState extends State<Body> {
               scrollPhysics: const BouncingScrollPhysics(),
               focusOnItemTap: true,
               selectedItemAnchor: SelectedItemAnchor.MIDDLE,
-              initialIndex: 0,
+              initialIndex: 1.0 * RecentActivity.latestOpenedSubject,
               scrollDirection: Axis.horizontal,
               itemCount: subjects.length + 1,
               itemSize: 250,
               dynamicItemSize: true,
-
               onItemFocus: (index) {
                 setState(() {
                   focusedIndex = index;
@@ -659,6 +785,7 @@ class _BodyState extends State<Body> {
                   return SubjectTile(
                     subject: subjects[index],
                     openEditor: openEditor,
+                    openSelection: onContinue,
                   );
                 } else {
                   return Container(

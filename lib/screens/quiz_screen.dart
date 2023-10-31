@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vocabella/arguments.dart';
+import 'package:vocabella/managers/session_saver.dart';
+import 'package:vocabella/models/session_data_model.dart';
 import 'package:vocabella/screens/result_screen.dart';
 import 'package:vocabella/widgets/input_checker_box_widget.dart';
 import 'package:vocabella/widgets/progress_bar_widget.dart';
@@ -27,9 +29,11 @@ class QuizScreenParent extends StatelessWidget {
         return false;
       },
       child: QuizScreen(
-          wordPack: args.wordPack,
-          language1: args.language1,
-          language2: args.language2),
+        wordPack: args.wordPack,
+        language1: args.language1,
+        language2: args.language2,
+        sessionData: args.sessionData,
+      ),
     );
   }
 }
@@ -40,6 +44,7 @@ class QuizScreen extends StatefulWidget {
     required this.wordPack,
     required this.language1,
     required this.language2,
+    required this.sessionData,
   }) : super(key: key);
 
   // The list of words for quiz
@@ -50,6 +55,8 @@ class QuizScreen extends StatefulWidget {
   final String language1;
   final String language2;
 
+  final SessionDataModel sessionData;
+
   @override
   State<QuizScreen> createState() => _QuizScreenState();
 }
@@ -57,6 +64,9 @@ class QuizScreen extends StatefulWidget {
 class _QuizScreenState extends State<QuizScreen> {
   // Variables about gameplay
   bool bDontTypeAnswer = true;
+
+  late String language1;
+  late String language2;
 
   // Variables about questions
   late int count;
@@ -82,6 +92,7 @@ class _QuizScreenState extends State<QuizScreen> {
   late WordCard questionCard2;
   late WordCard answerCard2;
   late Stack cardStack;
+  late ProgressBar progressBar;
 
   late InputCheckerBox inputCheckerBox;
 
@@ -100,12 +111,17 @@ class _QuizScreenState extends State<QuizScreen> {
   late bool hasRepetitionBegun;
   late int inFirstTry;
   late int inRepetitionFirstTry;
+  late int stageCount;
+
+  late SessionDataModel session;
 
   /// Once user has submitted the answer
   void onSummit(String text) {
-    print("================================");
-    print("Answer summited");
-    print("================================");
+    if (kDebugMode) {
+      print("================================");
+      print("Answer summited");
+      print("================================");
+    }
 
     // Make sure that the given answer was correct or wrong
     wasWrong = !isAnswerCorrect(text);
@@ -117,9 +133,11 @@ class _QuizScreenState extends State<QuizScreen> {
     showAnswer();
 
     // Print answer to check whether code works properly
-    print("correct one : ${listOfQuestions[count - 1].word2}");
-    print("given answer : $text");
-    print("Was Correct? : ${isAnswerCorrect(text)}");
+    if (kDebugMode) {
+      print("correct one : ${listOfQuestions[count - 1].word2}");
+      print("given answer : $text");
+      print("Was Correct? : ${isAnswerCorrect(text)}");
+    }
 
     // Check if answer was correctly given or not
     if (isAnswerCorrect(text) == true) {
@@ -134,6 +152,8 @@ class _QuizScreenState extends State<QuizScreen> {
         // InFirstTry but it's on revision
         inRepetitionFirstTry++;
       }
+      progressBar.updateProgress(
+          questionsNumber, inFirstTry + inRepetitionFirstTry);
     } else {
       // The given answer was wrong so the corresponding word will be
       // added into list and only if it's first time
@@ -225,16 +245,15 @@ class _QuizScreenState extends State<QuizScreen> {
     }
 
     // show checker
-    if(wasWrong) {
+    if (wasWrong) {
       inputCheckerBox.changeColor(Colors.redAccent);
-    }
-    else {
+    } else {
       inputCheckerBox.changeColor(Colors.green);
     }
-    if(!bDontTypeAnswer) inputCheckerBox.animTrigger(CheckerBoxState.appear);
+    if (!bDontTypeAnswer) inputCheckerBox.animTrigger(CheckerBoxState.appear);
   }
 
-  /// I don't know why make made this but I'll figure it out later
+  /// Show answer for Don't Type Answer mode
   void showAnswerOnly() {
     if (kDebugMode) {
       print("================================");
@@ -242,11 +261,14 @@ class _QuizScreenState extends State<QuizScreen> {
       print("================================");
     }
 
+    // Reset Input Checker Box
+    inputCheckerBox.changeText("");
+
     // Jump to showing process
     showAnswer();
   }
 
-  /// Once pressing "my answer was correct" button during "don't type answer" process
+  /// Once "my answer was correct" button pressed during "don't type answer" process
   /// It looks similar to onSummit method
   void onWasCorrect() {
     // Check if the current sequence is "Answer"
@@ -268,6 +290,9 @@ class _QuizScreenState extends State<QuizScreen> {
       inRepetitionFirstTry++;
     }
 
+    progressBar.updateProgress(
+        questionsNumber, inFirstTry + inRepetitionFirstTry);
+
     // Jump to next process
     _afterSummitingCorrectness();
   }
@@ -279,6 +304,9 @@ class _QuizScreenState extends State<QuizScreen> {
     // Unless, exit method to prevent from unexpected animation and sequencing
     if (checkIsNotSequence(Sequence.answer)) return;
 
+    // Make sure that answer was wrong
+    wasWrong = true;
+
     // The given answer was wrong so the corresponding word will be
     // added into list and only if it's first time
     // For that it'll be compared if current word doesn't exist in the list
@@ -286,8 +314,7 @@ class _QuizScreenState extends State<QuizScreen> {
       listOfWrongs.add(listOfQuestions[count - 1]);
     }
 
-    // Make sure that answer was wrong
-    wasWrong = true;
+    setState(() {});
 
     // Jump to next process
     _afterSummitingCorrectness();
@@ -416,6 +443,9 @@ class _QuizScreenState extends State<QuizScreen> {
       disposalTimer.cancel();
       transitionTimer.cancel();
 
+      // Reset session data
+      SessionSaver.session = SessionDataModel(existSessionData: false);
+
       // Display the result of the quiz by pushing user to ResultScreen screen.
       Navigator.pushNamed(
         context,
@@ -430,7 +460,9 @@ class _QuizScreenState extends State<QuizScreen> {
     onDisposalStarted();
 
     // Make input checker box disappear
-    if(!bDontTypeAnswer) inputCheckerBox.animTrigger(CheckerBoxState.disappear);
+    if (!bDontTypeAnswer) {
+      inputCheckerBox.animTrigger(CheckerBoxState.disappear);
+    }
 
     // Dispose and appear cards (depending on isOddTHCard)
     if (isOddTHCard) {
@@ -446,8 +478,8 @@ class _QuizScreenState extends State<QuizScreen> {
       // Move answer card
       onTransitionStarted();
 
-      // Play TTS
-      questionCard2.wordTTS.play();
+      // Play TTS : Deactivated
+      //questionCard2.wordTTS.play();
     } else {
       // Change sequence of Cards
       questionCard2.sequence = Sequence.disappear;
@@ -461,14 +493,17 @@ class _QuizScreenState extends State<QuizScreen> {
       // Move answer card
       onTransitionStarted();
 
-      // Play TTS
-      questionCard.wordTTS.play();
+      // Play TTS : Deactivated
+      //questionCard.wordTTS.play();
     }
 
     // Set values to current state for next step
     isOddTHCard = !isOddTHCard;
     isShowingAnswer = false;
     setState(() {});
+
+    // After all, save the current session
+    saveSession();
   }
 
   /// Make list for revision
@@ -500,6 +535,9 @@ class _QuizScreenState extends State<QuizScreen> {
 
     // Reset wrong answer list
     listOfWrongs = [];
+
+    // Add stage count
+    stageCount += 1;
   }
 
   /// Check if the answer was correctly given
@@ -520,7 +558,7 @@ class _QuizScreenState extends State<QuizScreen> {
     // optional
     const bIgnoreCase = true;
 
-    if(bIgnoreCase) {
+    if (bIgnoreCase) {
       given = given.toLowerCase();
       correct = correct.toLowerCase();
       if (kDebugMode) {
@@ -532,12 +570,13 @@ class _QuizScreenState extends State<QuizScreen> {
 
     late int minOpeningBracketIndex;
     late int maxClosingBracketIndex;
-    if(given.contains('[') && given.contains(']')) {
+    if (given.contains('[') && given.contains(']')) {
       minOpeningBracketIndex = given.indexOf('[');
       maxClosingBracketIndex = given.lastIndexOf(']');
 
-      if(minOpeningBracketIndex < maxClosingBracketIndex) {
-        given = given.replaceRange(minOpeningBracketIndex, maxClosingBracketIndex + 1, "");
+      if (minOpeningBracketIndex < maxClosingBracketIndex) {
+        given = given.replaceRange(
+            minOpeningBracketIndex, maxClosingBracketIndex + 1, "");
       }
 
       if (kDebugMode) {
@@ -547,12 +586,13 @@ class _QuizScreenState extends State<QuizScreen> {
       }
     }
 
-    if(correct.contains('[') && correct.contains(']')) {
+    if (correct.contains('[') && correct.contains(']')) {
       minOpeningBracketIndex = correct.indexOf('[');
       maxClosingBracketIndex = correct.lastIndexOf(']');
 
-      if(minOpeningBracketIndex < maxClosingBracketIndex) {
-        correct = correct.replaceRange(minOpeningBracketIndex, maxClosingBracketIndex + 1, "");
+      if (minOpeningBracketIndex < maxClosingBracketIndex) {
+        correct = correct.replaceRange(
+            minOpeningBracketIndex, maxClosingBracketIndex + 1, "");
       }
 
       if (kDebugMode) {
@@ -562,7 +602,7 @@ class _QuizScreenState extends State<QuizScreen> {
       }
     }
 
-    if(!given.contains('(') && !given.contains(')')) {
+    if (!given.contains('(') && !given.contains(')')) {
       if (kDebugMode) {
         print("======================================");
         print("Input doesn't have brackets");
@@ -576,8 +616,9 @@ class _QuizScreenState extends State<QuizScreen> {
         print("maxClosingBracketIndex : $maxClosingBracketIndex");
       }
 
-      if(minOpeningBracketIndex < maxClosingBracketIndex) {
-        correct = correct.replaceRange(minOpeningBracketIndex, maxClosingBracketIndex + 1, '');
+      if (minOpeningBracketIndex < maxClosingBracketIndex) {
+        correct = correct.replaceRange(
+            minOpeningBracketIndex, maxClosingBracketIndex + 1, '');
 
         if (kDebugMode) {
           print("======================================");
@@ -593,12 +634,12 @@ class _QuizScreenState extends State<QuizScreen> {
     }
 
     bool bContainSeparator = given.contains(';');
-    if(bContainSeparator) {
+    if (bContainSeparator) {
       given = given.replaceAll(";", "/");
     }
 
     bContainSeparator = correct.contains(';');
-    if(bContainSeparator) {
+    if (bContainSeparator) {
       correct = correct.replaceAll(";", "/");
     }
 
@@ -608,10 +649,10 @@ class _QuizScreenState extends State<QuizScreen> {
       print("Correct : $correct");
     }
 
-    if(given.startsWith(" ")) given = given.trimLeft();
-    if(given.endsWith(" ")) given = given.trimRight();
-    if(correct.startsWith(" ")) correct = correct.trimLeft();
-    if(correct.endsWith(" ")) correct = correct.trimRight();
+    if (given.startsWith(" ")) given = given.trimLeft();
+    if (given.endsWith(" ")) given = given.trimRight();
+    if (correct.startsWith(" ")) correct = correct.trimLeft();
+    if (correct.endsWith(" ")) correct = correct.trimRight();
 
     if (kDebugMode) {
       print("======================================");
@@ -696,8 +737,8 @@ class _QuizScreenState extends State<QuizScreen> {
       print("Was just correct : ${!wasWrong}");
     }
 
-    // Check whether answer was correct and current stage is over
-    if (!wasWrong && count >= listOfQuestions.length) {
+    // Check whether current stage is over
+    if (count >= listOfQuestions.length) {
       // If current session is done, check whether revision should take place or not
       // For revision, new list will be generated according to listOfWrongs
       // Unless, isDone will be set to true to finish the session
@@ -707,9 +748,8 @@ class _QuizScreenState extends State<QuizScreen> {
         isDone = true;
       }
     }
-
-    // Depending on correctness, next step will be executed
-    wasWrong ? repeatWord() : makeNextWord();
+    // Whatever the answer was, execute the next step
+    makeNextWord();
 
     // Since showing next step should take place immediately after (not by "continue" button)
     // getting the correctness, a bit delay will be given
@@ -742,11 +782,34 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
-  // TODO Add comments
+  void saveSession() {
+    session = SessionDataModel(
+      existSessionData: true,
+      language1: language1,
+      absoluteProgress: absoluteProgress,
+      absoluteRepetitionProgress: absoluteRepetitionProgress,
+      count: count,
+      hasRepetitionBegun: hasRepetitionBegun,
+      inFirstTry: inFirstTry,
+      inRepetitionFirstTry: inRepetitionFirstTry,
+      isOddTHCard: isOddTHCard,
+      language2: language2,
+      listOfQuestions: listOfQuestions,
+      listOfWrongs: listOfWrongs,
+      originalProgress: originalProgress,
+      questionsNumber: questionsNumber,
+      repetitionProgress: repetitionProgress,
+      stageCount: stageCount,
+      wrongAnswers: wrongAnswers,
+    );
+    SessionSaver.session = session;
+  }
+
   @override
   void initState() {
     super.initState();
 
+    // Initialise every variables
     absoluteProgress = 1;
     originalProgress = 1;
     wrongAnswers = 0;
@@ -755,14 +818,50 @@ class _QuizScreenState extends State<QuizScreen> {
     hasRepetitionBegun = false;
     inFirstTry = 0;
     inRepetitionFirstTry = 0;
+    stageCount = 1;
 
     count = 1;
     listOfWrongs = [];
-
     listOfQuestions = widget.wordPack;
-    listOfQuestions.shuffle();
     questionsNumber = listOfQuestions.length;
 
+    // Create language variable to handle
+    language1 = widget.language1;
+    language2 = widget.language2;
+
+    // Initialise some logic states and run first animation
+    isOddTHCard = true;
+    isShowingAnswer = false;
+
+    session = widget.sessionData;
+    if (session.existSessionData) {
+      if (kDebugMode) {
+        print("=============================");
+        print("Restarting session...");
+        session.printData();
+      }
+      listOfQuestions = session.listOfQuestions!;
+      listOfWrongs = session.listOfWrongs!;
+      count = session.count!;
+      questionsNumber = session.questionsNumber!;
+      language1 = session.language1!;
+      language2 = session.language2!;
+      isOddTHCard = session.isOddTHCard!;
+      absoluteProgress = session.absoluteProgress!;
+      originalProgress = session.originalProgress!;
+      wrongAnswers = session.wrongAnswers!;
+      absoluteRepetitionProgress = session.absoluteRepetitionProgress!;
+      repetitionProgress = session.repetitionProgress!;
+      hasRepetitionBegun = session.hasRepetitionBegun!;
+      inFirstTry = session.inFirstTry!;
+      inRepetitionFirstTry = session.inRepetitionFirstTry!;
+      stageCount = session.stageCount!;
+    } else {
+      // Shuffle questions and update length of questions
+      listOfQuestions.shuffle();
+    }
+
+    // Print subject information
     if (kDebugMode) {
       print("listOfQuestions : ${listOfQuestions.length}");
       for (WordPair str in listOfQuestions) {
@@ -770,41 +869,44 @@ class _QuizScreenState extends State<QuizScreen> {
       }
 
       print("languages : ");
-      print(widget.language1);
-      print(widget.language2);
+      print(language1);
+      print(language2);
     }
+
+    int count4first = isOddTHCard ? count - 1 : count;
+    int count4second = isOddTHCard ? count : count - 1;
 
     // Initialise 4 cards for test
     questionCard = WordCard(
       isQuestion: true,
-      isOddTHCard: true,
-      word: listOfQuestions[0].word1,
-      example: listOfQuestions[0].example1 ?? "",
-      language: widget.language1,
+      isOddTHCard: isOddTHCard,
+      word: listOfQuestions[count4first].word1,
+      example: listOfQuestions[count4first].example1 ?? "",
+      language: language1,
     );
 
     answerCard = WordCard(
       isQuestion: false,
-      isOddTHCard: true,
-      word: listOfQuestions[0].word2,
-      example: listOfQuestions[0].example2 ?? "",
-      language: widget.language2,
+      isOddTHCard: isOddTHCard,
+      word: listOfQuestions[count4first].word2,
+      example: listOfQuestions[count4first].example2 ?? "",
+      language: language2,
     );
 
     questionCard2 = WordCard(
       isQuestion: true,
-      isOddTHCard: false,
-      word: listOfQuestions[1].word1,
-      example: listOfQuestions[1].example1 ?? "",
-      language: widget.language1,
+      isOddTHCard: !isOddTHCard,
+      word: listOfQuestions[count4second].word1,
+      example: listOfQuestions[count4second].example1 ?? "",
+      language: language1,
     );
 
     answerCard2 = WordCard(
       isQuestion: false,
-      isOddTHCard: false,
-      word: listOfQuestions[1].word2,
-      example: listOfQuestions[1].example2 ?? "",
-      language: widget.language2,
+      isOddTHCard: !isOddTHCard,
+      word: listOfQuestions[count4second].word2,
+      example: listOfQuestions[count4second].example2 ?? "",
+      language: language2,
     );
 
     answerCard.sequence = Sequence.hidden;
@@ -829,9 +931,9 @@ class _QuizScreenState extends State<QuizScreen> {
       ],
     );
 
-    // Initialise some logic states and run first animation
-    isOddTHCard = true;
-    isShowingAnswer = false;
+    progressBar = ProgressBar(
+        total: questionsNumber, progress: inFirstTry + inRepetitionFirstTry);
+
     onTransitionStarted();
   }
 
@@ -856,9 +958,10 @@ class _QuizScreenState extends State<QuizScreen> {
       body: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          ProgressBar(
+          /*ProgressBar(
               progress: inFirstTry + inRepetitionFirstTry,
-              total: questionsNumber),
+              total: questionsNumber),*/
+          progressBar,
           const SizedBox(
             height: 20,
           ),

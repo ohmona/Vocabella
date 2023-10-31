@@ -1,6 +1,8 @@
 
 String language = "en";
 
+bool checkExamplesWhileMerging = true;
+
 // Theme...
 // - Appbar
 

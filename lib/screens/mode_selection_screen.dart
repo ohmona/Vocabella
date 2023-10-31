@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vocabella/arguments.dart';
 import 'package:vocabella/constants.dart';
+import 'package:vocabella/models/session_data_model.dart';
 import 'package:vocabella/models/subject_data_model.dart';
 import 'package:vocabella/screens/quiz_screen.dart';
 
@@ -45,14 +46,17 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
   QuestionMode mode = QuestionMode.normal;
 
   void onPressContinue(BuildContext context) {
+    final emptySession = SessionDataModel(existSessionData: false);
+
     if (mode == QuestionMode.normal) {
       Navigator.pushNamed(
         context,
         QuizScreenParent.routeName,
         arguments: QuizScreenArguments(
           widget.wordPack,
-          widget.subjectData.languages![0],
-          widget.subjectData.languages![1],
+          widget.subjectData.languages[0],
+          widget.subjectData.languages[1],
+          emptySession,
         ),
       );
     } else if (mode == QuestionMode.reverse) {
@@ -72,13 +76,13 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
         QuizScreenParent.routeName,
         arguments: QuizScreenArguments(
           newList,
-          widget.subjectData.languages![1],
-          widget.subjectData.languages![0],
+          widget.subjectData.languages[1],
+          widget.subjectData.languages[0],
+          emptySession,
         ),
       );
     } else if (mode == QuestionMode.both) {
-      if (widget.subjectData.languages![0] ==
-          widget.subjectData.languages![1]) {
+      if (widget.subjectData.languages[0] == widget.subjectData.languages[1]) {
         List<WordPair> newList = [];
         newList.addAll(widget.wordPack);
         for (WordPair wordPair in widget.wordPack) {
@@ -96,8 +100,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
           QuizScreenParent.routeName,
           arguments: QuizScreenArguments(
             newList,
-            widget.subjectData.languages![0],
-            widget.subjectData.languages![1],
+            widget.subjectData.languages[0],
+            widget.subjectData.languages[1],
+            emptySession,
           ),
         );
       } else {
@@ -124,6 +129,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Confirm your exercise'),
+        elevation: 0,
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -240,7 +246,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              widget.subjectData.title!,
+              widget.subjectData.title,
               style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w600,
@@ -349,12 +355,12 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
         ),
         InfoButton(
           icon: Icons.question_mark,
-          text: widget.subjectData.subjects![0],
+          text: widget.subjectData.subjects[0],
           onTap: () {},
         ),
         InfoButton(
           icon: Icons.question_answer_outlined,
-          text: widget.subjectData.subjects![1],
+          text: widget.subjectData.subjects[1],
           onTap: () {},
         ),
       ];
@@ -367,12 +373,12 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
         ),
         InfoButton(
           icon: Icons.question_answer_outlined,
-          text: widget.subjectData.subjects![0],
+          text: widget.subjectData.subjects[0],
           onTap: () {},
         ),
         InfoButton(
           icon: Icons.question_mark,
-          text: widget.subjectData.subjects![1],
+          text: widget.subjectData.subjects[1],
           onTap: () {},
         ),
       ];
@@ -385,12 +391,12 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
         ),
         InfoButton(
           icon: Icons.question_answer,
-          text: widget.subjectData.subjects![0],
+          text: widget.subjectData.subjects[0],
           onTap: () {},
         ),
         InfoButton(
           icon: Icons.question_answer,
-          text: widget.subjectData.subjects![1],
+          text: widget.subjectData.subjects[1],
           onTap: () {},
         ),
       ];

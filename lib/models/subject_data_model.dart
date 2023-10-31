@@ -52,6 +52,9 @@ class SubjectDataModel {
   String? id;
   int chapterCount = -1;
 
+  // Added after 1.3.7
+  int? lastOpenedChapterIndex = 0;
+
   SubjectDataModel({
     required this.title,
     required this.thumb,
@@ -60,6 +63,7 @@ class SubjectDataModel {
     required this.languages,
     this.version,
     this.id,
+    this.lastOpenedChapterIndex,
   });
 
   /// Create list of data from not decoded json data
@@ -122,6 +126,12 @@ class SubjectDataModel {
         // Get the length of current chapters
         sub.chapterCount = sub.wordlist.length;
 
+        // Get the index of last opened Chapter
+        sub.lastOpenedChapterIndex = inst['lastOpenedChapterIndex'];
+        if(inst['lastOpenedChapterIndex'] == null) {
+          sub.lastOpenedChapterIndex = 0;
+        }
+
         // Update version
         sub.version = appVersion;
 
@@ -130,8 +140,10 @@ class SubjectDataModel {
       }
       return subjects;
     } catch (e) {
-      print("An error was threw while creating new subject instance");
-      print(e);
+      if (kDebugMode) {
+        print("An error was threw while creating new subject instance");
+        print(e);
+      }
       return [];
     }
   }
@@ -151,6 +163,7 @@ class SubjectDataModel {
       'wordlist': wordlist.map((chapter) => chapter.toJson()).toList(),
       'version': version,
       'id': id,
+      'lastOpenedChapterIndex': lastOpenedChapterIndex,
     };
   }
 
@@ -191,6 +204,7 @@ class SubjectDataModel {
 
   // Debug
   // Example data for test
+  @Deprecated("Don't use this anymore")
   static SubjectDataModel createExampleData() {
     return SubjectDataModel(
       title: "Green Line 5",
@@ -303,36 +317,69 @@ class SubjectDataModel {
       return;
     }
 
-    var temp = to;
-    final id = to.id;
+    var pasting = to;
+    if (kDebugMode) {
+      print("==================================");
+      print("Printing pasting data : ${pasting.title}");
+      pasting.printData();
+    }
 
     for(Chapter copyingChapter in subject.wordlist) {
-      if(temp.existChapterNameAlready(copyingChapter.name)) {
-        for(int i = 0; i < temp.wordlist.length; i++) {
-          if(temp.wordlist[i].name == copyingChapter.name) {
+      if (kDebugMode) {
+        print("==================================");
+        print("Currently copying chapter : ${copyingChapter.name}");
+      }
+      if(pasting.existChapterNameAlready(copyingChapter.name)) {
+        if (kDebugMode) {
+          print("==================================");
+          print("The chapter is already included in the list");
+        }
+        for(int i = 0; i < pasting.wordlist.length; i++) {
+          if(pasting.wordlist[i].name == copyingChapter.name) {
+            if (kDebugMode) {
+              print("==================================");
+              print("The chapter from pasting data found : $i");
+              print("The length : ${copyingChapter.words.length}");
+            }
             // Copy every words
             for (var element in copyingChapter.words) {
+              if (kDebugMode) {
+                print("==================================");
+                print("Now looking for the word : ${element.word1} / ${element.word2} / ${element.example1} / ${element.example2}");
+              }
 
               // If they aren't same, add it to list
-              if(!temp.wordlist[i].existWordAlready(element)) {
-                print("adding non existing word!!!!!!!");
-                temp.wordlist[i].words.add(element);
+              if(!pasting.wordlist[i].existWordAlready(element)) {
+                if (kDebugMode) {
+                  print("adding non existing word!!!!!!!");
+                }
+                pasting.wordlist[i].words.add(element);
+              }
+              else {
+                if (kDebugMode) {
+                  print("==================================");
+                  print("The word already exist!");
+                }
               }
             }
-            temp.wordlist[i].updateAllId();
+            pasting.wordlist[i].updateAllId();
           }
         }
       }
       else {
-        copyingChapter.id = temp.wordlist.length + 1;
-        temp.wordlist.add(copyingChapter);
-        temp.chapterCount = temp.wordlist.length;
+        if (kDebugMode) {
+          print("==================================");
+          print("The chapter does not exist, so it'll be added");
+        }
+        copyingChapter.id = pasting.wordlist.length + 1;
+        pasting.wordlist.add(copyingChapter);
+        pasting.chapterCount = pasting.wordlist.length;
       }
     }
 
     for(int i = 0; i < subjectList.length; i++) {
-      if(subjectList[i].id == id) {
-        subjectList[i] = temp;
+      if(subjectList[i].title == to.title) {
+        subjectList[i] = pasting;
         if (kDebugMode) {
           print("data successfully merged");
         }

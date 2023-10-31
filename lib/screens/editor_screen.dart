@@ -63,6 +63,7 @@ class _EditorScreenState extends State<EditorScreen> {
   late Chapter currentChapter;
 
   late bool bShowingWords;
+  late bool bReadOnly;
 
   bool bDeleteMode = false;
 
@@ -227,12 +228,26 @@ class _EditorScreenState extends State<EditorScreen> {
     });
   }
 
+  void toggleReadOnly() {
+    setState(() {
+      bReadOnly = !bReadOnly;
+      if (!bReadOnly) {
+        Future.delayed(
+          const Duration(milliseconds: 450),
+              () {
+            changeFocus(focusedIndex!, force: true);
+          },
+        );
+      }
+    });
+  }
+
   /// Change selected chapter
   void changeChapter(String newName) {
     // Reset to initial state
     bShowingWords = true;
     bDeleteMode = false;
-    focusedIndex = 0;
+    bottomBarFocusNode.unfocus();
 
     if (currentChapter.name == newName) return;
 
@@ -243,11 +258,29 @@ class _EditorScreenState extends State<EditorScreen> {
     // Check if the new chapter is found
     if (newChapterIndex != -1) {
       setState(() {
+        // Save latest focused index
+        currentChapter.lastIndex = focusedIndex;
+
         // Save changes of the current chapter into subject data
         subjectData.wordlist[getCurrentChapterIndex()] = currentChapter;
 
         // Load the desired chapter from subject data
         currentChapter = subjectData.wordlist[newChapterIndex];
+        focusedIndex = currentChapter.lastIndex;
+
+        // Save this chapter as latest opened
+        subjectData.lastOpenedChapterIndex = newChapterIndex;
+        saveData();
+
+        Future.delayed(const Duration(milliseconds: 50), () {
+          if(!bReadOnly) {
+            // Focus on last focused index
+            changeFocus(focusedIndex!, requestFocus: true, force: true);
+          }
+          else {
+            scrollToFocus();
+          }
+        });
       });
     }
 
@@ -305,6 +338,8 @@ class _EditorScreenState extends State<EditorScreen> {
     if (focusedIndex == null) return;
 
     if (ableToSave()) {
+      currentChapter.lastIndex = focusedIndex;
+
       for (int i = 0; i < SubjectDataModel.subjectList.length; i++) {
         // Find the correct data
         if (SubjectDataModel.subjectList[i].id == subjectData.id) {
@@ -348,10 +383,16 @@ class _EditorScreenState extends State<EditorScreen> {
     wordAdditionBuffer = WordPair(word1: "", word2: "");
   }
 
-  void changeFocus(int newIndex) {
+  void changeFocus(
+    int newIndex, {
+    bool requestFocus = true,
+    bool force = false,
+  }) {
     // Make sure that user doesn't make silly issue
     if (newIndex >= getWordsCount() + 2) return;
     if (!isValidIndex(newIndex) && !bShowingWords) return;
+
+    if (bReadOnly) return;
 
     if (focusedIndex != null) {
       if (getTextOf(focusedIndex!).isEmpty && bShowingWords) {
@@ -371,19 +412,27 @@ class _EditorScreenState extends State<EditorScreen> {
 
     setState(() {
       focusedIndex = newIndex;
+      currentChapter.lastIndex = newIndex;
+
       textEditingController.text = getTextOf(newIndex);
-      Future.delayed(
-        const Duration(milliseconds: 1),
-        () {
-          bottomBarFocusNode.requestFocus();
-        },
-      );
-      if(!bottomBarFocusNode.hasFocus) {
-        Future.delayed(const Duration(milliseconds: 450), () {
-          scrollToFocus();
-        });
+      if (requestFocus) {
+        Future.delayed(
+          const Duration(milliseconds: 1),
+          () {
+            bottomBarFocusNode.requestFocus();
+          },
+        );
       }
-      else {
+      if (!bottomBarFocusNode.hasFocus) {
+        const delay = 450;
+        Future.delayed(const Duration(milliseconds: delay), () {
+          if (force) {
+            forceScrollUntil(focusedIndex!, true);
+          } else {
+            scrollToFocus();
+          }
+        });
+      } else {
         Future.delayed(const Duration(milliseconds: 1), () {
           scrollToFocus();
         });
@@ -397,8 +446,28 @@ class _EditorScreenState extends State<EditorScreen> {
     });
   }
 
-  void scrollToFocus() {
-    var targetIndex = (focusedIndex! ~/ 2);
+  static const scrollCurve = Curves.easeOutQuint;
+
+  void scrollToFocus({Duration delay = const Duration(milliseconds: 1)}) {
+    Future.delayed(delay, () {
+      var targetIndex = (focusedIndex! ~/ 2);
+      var cellHeight = 50.0;
+      var itemsOnScreen =
+          (_screenHeight - 160 - _viewInsetsBottom) ~/ cellHeight;
+
+      if (targetIndex >= itemsOnScreen - 1 &&
+          targetIndex < (getWordsCount() ~/ 2) + 1) {
+        scrollController.animateTo(
+          ((targetIndex - itemsOnScreen + 2) * cellHeight),
+          duration: const Duration(milliseconds: 200),
+          curve: scrollCurve,
+        );
+      }
+    });
+  }
+
+  void scrollToIndex(int index, {required Duration duration}) {
+    var targetIndex = (index ~/ 2);
     var cellHeight = 50.0;
     var itemsOnScreen = (_screenHeight - 160 - _viewInsetsBottom) ~/ cellHeight;
 
@@ -406,10 +475,68 @@ class _EditorScreenState extends State<EditorScreen> {
         targetIndex < (getWordsCount() ~/ 2) + 1) {
       scrollController.animateTo(
         ((targetIndex - itemsOnScreen + 2) * cellHeight),
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
+        duration: duration,
+        curve: scrollCurve,
+      );
+    } else if (targetIndex < itemsOnScreen - 1 &&
+        targetIndex < (getWordsCount() ~/ 2) + 1) {
+      scrollController.animateTo(
+        0,
+        duration: duration,
+        curve: scrollCurve,
       );
     }
+  }
+
+  void jumpToIndex(int index) {
+    var targetIndex = (index ~/ 2);
+    var cellHeight = 50.0;
+    var itemsOnScreen = (_screenHeight - 160 - _viewInsetsBottom) ~/ cellHeight;
+
+    if (targetIndex >= itemsOnScreen - 1 &&
+        targetIndex < (getWordsCount() ~/ 2) + 1) {
+      scrollController.jumpTo(((targetIndex - itemsOnScreen + 2) * cellHeight));
+    } else if (targetIndex < itemsOnScreen - 1 &&
+        targetIndex < (getWordsCount() ~/ 2) + 1) {
+      scrollController.jumpTo(0);
+    }
+  }
+
+  void forceScrollUntil(int index, bool immediately) {
+    print("FOCUS");
+
+    Timer? scrollTimer;
+
+    scrollTimer = Timer.periodic(
+      const Duration(milliseconds: 100),
+      (timer) {
+        print("FOCUS!");
+        var targetIndex = (index ~/ 2);
+        var cellHeight = 50.0;
+        var itemsOnScreen =
+            (_screenHeight - 160 - _viewInsetsBottom) ~/ cellHeight;
+        var targetPos = (targetIndex - itemsOnScreen + 2) * cellHeight;
+
+        if (targetPos < 0) targetPos = 0;
+
+        print(scrollController.position.pixels);
+        print(targetPos);
+
+        if (scrollController.position.pixels == targetPos) {
+          print("It's blue!");
+          scrollTimer!.cancel();
+        } else {
+          if (immediately) {
+            Future.delayed(
+              const Duration(milliseconds: 1),
+              () => jumpToIndex(index),
+            );
+          } else {
+            scrollToIndex(index, duration: const Duration(milliseconds: 10));
+          }
+        }
+      },
+    );
   }
 
   void changeThumbnail(String path) {
@@ -458,6 +585,10 @@ class _EditorScreenState extends State<EditorScreen> {
       }
       final item = subjectData.wordlist.removeAt(oldIndex);
       subjectData.wordlist.insert(newIndex, item);
+
+      // Save new index as latest opened
+      subjectData.lastOpenedChapterIndex = newIndex;
+      saveData();
     });
   }
 
@@ -468,6 +599,15 @@ class _EditorScreenState extends State<EditorScreen> {
       }
     }
     return false;
+  }
+
+  bool isDeFocused() {
+    var targetIndex = (focusedIndex! ~/ 2);
+    var cellHeight = 50.0;
+    var itemsOnScreen = (_screenHeight - 160 - _viewInsetsBottom) ~/ cellHeight;
+    var targetPos = (targetIndex - itemsOnScreen + 2) * cellHeight;
+
+    return scrollController.offset != targetPos;
   }
 
   @override
@@ -486,13 +626,29 @@ class _EditorScreenState extends State<EditorScreen> {
     // initialize some values
     currentChapter = subjectData.wordlist[0];
     bShowingWords = true;
+    bReadOnly = false;
     focusedIndex = 0;
 
     textBeforeEdit = getTextOf(focusedIndex!);
 
+    // Apply last opened chapter and grid
+    final int startUpChapter = subjectData.lastOpenedChapterIndex!;
+    currentChapter = subjectData.wordlist[startUpChapter];
+    focusedIndex = currentChapter.lastIndex!;
+
     // activate auto-save
     autoSaveTimer = Timer.periodic(const Duration(seconds: 60), (timer) {
       saveData();
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      if (currentChapter.lastIndex! <= (currentChapter.words.length - 1) * 2) {
+        changeFocus(currentChapter.lastIndex!,
+            requestFocus: false, force: true);
+      } else {
+        changeFocus((currentChapter.words.length - 1) * 2,
+            requestFocus: false, force: true);
+      }
     });
   }
 
@@ -551,6 +707,8 @@ class _EditorScreenState extends State<EditorScreen> {
                           onReorder: (oldIndex, newIndex) {
                             final maxIndex = getWordsCount() ~/ 2;
                             final currentIndexNormalized = focusedIndex! ~/ 2;
+
+                            currentChapter.lastIndex = newIndex;
 
                             if (oldIndex >= maxIndex || newIndex > maxIndex) {
                               return;
@@ -653,143 +811,165 @@ class _EditorScreenState extends State<EditorScreen> {
                     bDeleteMode: bDeleteMode,
                     toggleDeleteMode: toggleDeleteMode,
                     changeChapterName: changeChapterName,
+                    wordCount: currentChapter.words.length,
+                    bReadOnly: bReadOnly,
+                    toggleReadOnly: toggleReadOnly,
                   ),
                 ],
               ),
             ),
-            Padding(
-              padding: MediaQuery.of(context).viewInsets,
-              child: Container(
-                // Input Box Container
-                decoration: BoxDecoration(
-                  color: Colors.grey,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.5),
-                      blurRadius: 10,
-                      blurStyle: BlurStyle.normal,
-                    ),
-                  ],
-                ),
-                height: 60,
-                child: Padding(
-                  padding: const EdgeInsets.all(60 * 0.1),
+            Builder(
+              builder: (context) {
+                if (bReadOnly) {
+                  return const SizedBox(
+                    height: 0,
+                  );
+                }
+
+                return Padding(
+                  padding: MediaQuery.of(context).viewInsets,
                   child: Container(
-                    // Input Box
-                    alignment: Alignment.center,
+                    // Input Box Container
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(5),
-                      boxShadow: const [
+                      color: Colors.grey,
+                      boxShadow: [
                         BoxShadow(
-                          color: Colors.white,
-                          blurRadius: 15,
+                          color: Colors.grey.withOpacity(0.5),
+                          blurRadius: 10,
+                          blurStyle: BlurStyle.normal,
                         ),
                       ],
                     ),
-                    child: Transform.translate(
-                      offset: (MediaQuery.of(context).size.height < 600)
-                          ? const Offset(0, -6)
-                          : const Offset(0, 3),
-                      child: TextField(
-                        focusNode: bottomBarFocusNode,
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          disabledBorder: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          errorBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          focusedErrorBorder: InputBorder.none,
-                          floatingLabelAlignment: FloatingLabelAlignment.start,
-                          hoverColor: Colors.transparent,
-                          focusColor: Colors.transparent,
-                          suffixIcon: Transform.translate(
-                            offset: (MediaQuery.of(context).size.height < 600)
-                                ? const Offset(0, 3)
-                                : const Offset(0, 0),
-                            child: IconButton(
-                              icon: const Icon(Icons.edit),
-                              color: Colors.grey.withOpacity(0.5),
-                              onPressed: () {},
+                    height: 60,
+                    child: Padding(
+                      padding: const EdgeInsets.all(60 * 0.1),
+                      child: Container(
+                        // Input Box
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(5),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.white,
+                              blurRadius: 15,
                             ),
-                          ),
-                          prefixIcon: Transform.translate(
-                            offset: (MediaQuery.of(context).size.height < 600)
-                                ? const Offset(0, 3)
-                                : const Offset(0, 0),
-                            child: Icon(
-                              Icons.keyboard_alt_outlined,
-                              color: Colors.grey.withOpacity(0.5),
+                          ],
+                        ),
+                        child: Transform.translate(
+                          offset: (MediaQuery.of(context).size.height < 600)
+                              ? const Offset(0, -6)
+                              : const Offset(0, 3),
+                          child: TextField(
+                            focusNode: bottomBarFocusNode,
+                            decoration: InputDecoration(
+                              border: InputBorder.none,
+                              disabledBorder: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              focusedErrorBorder: InputBorder.none,
+                              floatingLabelAlignment:
+                                  FloatingLabelAlignment.start,
+                              hoverColor: Colors.transparent,
+                              focusColor: Colors.transparent,
+                              suffixIcon: Transform.translate(
+                                offset:
+                                    (MediaQuery.of(context).size.height < 600)
+                                        ? const Offset(0, 3)
+                                        : const Offset(0, 0),
+                                child: IconButton(
+                                  icon: const Icon(Icons.edit),
+                                  color: Colors.grey.withOpacity(0.5),
+                                  onPressed: () {},
+                                ),
+                              ),
+                              prefixIcon: Transform.translate(
+                                offset:
+                                    (MediaQuery.of(context).size.height < 600)
+                                        ? const Offset(0, 3)
+                                        : const Offset(0, 0),
+                                child: Icon(
+                                  Icons.keyboard_alt_outlined,
+                                  color: Colors.grey.withOpacity(0.5),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        style: TextStyle(
-                          fontSize: (MediaQuery.of(context).size.height < 600)
-                              ? 12
-                              : 16,
-                          fontWeight: FontWeight.w400,
-                        ),
-                        controller: textEditingController,
-                        cursorColor: Colors.grey.withOpacity(0.5),
-                        textAlign: TextAlign.center,
-                        onChanged: (value) {
-                          if (focusedIndex != null) {
-                            setState(() {
-                              updateWord(value, focusedIndex!);
-                            });
-                          }
-                        },
-                        onSubmitted: (value) {
-                          if (focusedIndex != null) {
-                            bottomBarFocusNode.requestFocus();
-                            if (!bAddingNewWord) {
-                              setState(() {
-                                updateWord(value, focusedIndex!);
-                                textEditingController.text = "";
-                                changeFocus(focusedIndex! + 1);
-                              });
-                            } else {
-                              setState(() {
-                                updateWord(value, focusedIndex!);
-                                textEditingController.text = "";
-
-                                if (wordAdditionBuffer.word1.isNotEmpty &&
-                                    wordAdditionBuffer.word2.isNotEmpty) {
-                                  terminateWordAddition();
-                                  changeFocus(focusedIndex! + 1);
-                                  return;
-                                }
-
-                                if (isTargetingQuestion(focusedIndex!)) {
-                                  if (wordAdditionBuffer.word2.isEmpty ||
-                                      wordAdditionBuffer.word1.isNotEmpty) {
+                            style: TextStyle(
+                              fontSize:
+                                  (MediaQuery.of(context).size.height < 600)
+                                      ? 12
+                                      : 16,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            controller: textEditingController,
+                            cursorColor: Colors.grey.withOpacity(0.5),
+                            textAlign: TextAlign.center,
+                            onChanged: (value) {
+                              if (focusedIndex != null) {
+                                setState(() {
+                                  updateWord(value, focusedIndex!);
+                                });
+                              }
+                            },
+                            onSubmitted: (value) {
+                              if (focusedIndex != null) {
+                                bottomBarFocusNode.requestFocus();
+                                if (!bAddingNewWord) {
+                                  setState(() {
+                                    updateWord(value, focusedIndex!);
+                                    textEditingController.text = "";
                                     changeFocus(focusedIndex! + 1);
-                                  } else {
-                                    changeFocus(focusedIndex!);
-                                  }
+                                  });
                                 } else {
-                                  if (wordAdditionBuffer.word1.isEmpty ||
-                                      wordAdditionBuffer.word2.isNotEmpty) {
-                                    changeFocus(focusedIndex! - 1);
-                                  } else {
-                                    changeFocus(focusedIndex!);
-                                  }
+                                  setState(() {
+                                    updateWord(value, focusedIndex!);
+                                    textEditingController.text = "";
+
+                                    if (wordAdditionBuffer.word1.isNotEmpty &&
+                                        wordAdditionBuffer.word2.isNotEmpty) {
+                                      terminateWordAddition();
+                                      changeFocus(focusedIndex! + 1);
+                                      return;
+                                    }
+
+                                    if (isTargetingQuestion(focusedIndex!)) {
+                                      if (wordAdditionBuffer.word2.isEmpty ||
+                                          wordAdditionBuffer.word1.isNotEmpty) {
+                                        changeFocus(focusedIndex! + 1);
+                                      } else {
+                                        changeFocus(focusedIndex!);
+                                      }
+                                    } else {
+                                      if (wordAdditionBuffer.word1.isEmpty ||
+                                          wordAdditionBuffer.word2.isNotEmpty) {
+                                        changeFocus(focusedIndex! - 1);
+                                      } else {
+                                        changeFocus(focusedIndex!);
+                                      }
+                                    }
+                                  });
                                 }
-                              });
-                            }
-                          }
-                        },
-                        onTap: () {
-                          scrollToFocused();
-                          if (focusedIndex == null) {
-                            bottomBarFocusNode.unfocus();
-                          }
-                        },
+                              }
+                            },
+                            onTap: () {
+                              Future.delayed(
+                                const Duration(milliseconds: 450),
+                                () {
+                                  forceScrollUntil(focusedIndex!, false);
+                                },
+                              );
+                              if (focusedIndex == null) {
+                                bottomBarFocusNode.unfocus();
+                              }
+                            },
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             )
           ],
         ),

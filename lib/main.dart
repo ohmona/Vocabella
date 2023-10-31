@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vocabella/managers/double_backup.dart';
+import 'package:vocabella/managers/recent_activity.dart';
+import 'package:vocabella/managers/session_saver.dart';
 import 'package:vocabella/screens/chapter_selection_screen.dart';
 import 'package:vocabella/screens/editor_screen.dart';
 import 'package:vocabella/screens/home_screen.dart';
@@ -14,7 +16,7 @@ import 'package:vocabella/screens/word_selection_screen.dart';
 
 import 'constants.dart';
 
-const appVersion = "1.3.3";
+const appVersion = "1.4";
 const appInfo = 'ver. $appVersion by ohmona';
 
 void main() async {
@@ -25,6 +27,8 @@ void main() async {
   ]);
 
   DoubleBackup.initDoubleBackup();
+  RecentActivity.initRecentActivity();
+  SessionSaver.initSessionSaver();
 
   runApp(const MyApp());
 }

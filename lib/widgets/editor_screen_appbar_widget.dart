@@ -10,14 +10,21 @@ class EditorScreenAppbar extends StatefulWidget {
     required this.bShowingWords,
     required this.toggleWords,
     required this.bDeleteMode,
-    required this.toggleDeleteMode, required this.changeChapterName,
+    required this.toggleDeleteMode,
+    required this.changeChapterName,
+    required this.wordCount,
+    required this.bReadOnly,
+    required this.toggleReadOnly,
   }) : super(key: key);
 
   final Chapter currentChapter;
   final bool bShowingWords;
   final bool bDeleteMode;
+  final bool bReadOnly;
+  final int wordCount;
   final void Function() toggleWords;
   final void Function() toggleDeleteMode;
+  final void Function() toggleReadOnly;
   final void Function(String) changeChapterName;
 
   @override
@@ -51,7 +58,6 @@ class _EditorScreenAppbarState extends State<EditorScreenAppbar> {
               onPressed: () {
                 if (controller.text.isNotEmpty) {
                   widget.changeChapterName(controller.text);
-
 
                   controller.text = "";
                   Navigator.of(context).pop();
@@ -120,7 +126,7 @@ class _EditorScreenAppbarState extends State<EditorScreenAppbar> {
                     splashFactory: NoSplash.splashFactory,
                   ),
                   child: Text(
-                    widget.currentChapter.name,
+                    "${widget.currentChapter.name} (${widget.wordCount})",
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
@@ -134,7 +140,17 @@ class _EditorScreenAppbarState extends State<EditorScreenAppbar> {
             ),
             IconButton(
               icon: Icon(
-                widget.bDeleteMode ? Icons.add_circle : Icons.delete,
+                widget.bReadOnly ? Icons.menu_book_rounded : Icons.edit_note,
+                color: Colors.white,
+              ),
+              tooltip: widget.bReadOnly ? "Continue editing" : "Read only",
+              onPressed: () {
+                widget.toggleReadOnly();
+              },
+            ),
+            IconButton(
+              icon: Icon(
+                widget.bDeleteMode ? Icons.delete : Icons.add_circle,
                 color: Colors.white,
               ),
               tooltip: widget.bDeleteMode ? "Continue editing" : "Remove words",

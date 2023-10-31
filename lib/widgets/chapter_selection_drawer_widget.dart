@@ -375,13 +375,19 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                     color: Colors.white,
                   ),
                 ),
-                IconButton(
-                  onPressed: () {
-                    openDoubleChecker(context);
+                GestureDetector(
+                  onLongPress: () {
+                    widget.saveData();
+                    Navigator.popUntil(context, ModalRoute.withName('/'));
                   },
-                  icon: const Icon(
-                    Icons.exit_to_app,
-                    color: Colors.white,
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.exit_to_app,
+                      color: Colors.white,
+                    ),
+                    onPressed: () {
+                      openDoubleChecker(context);
+                    },
                   ),
                 ),
               ],

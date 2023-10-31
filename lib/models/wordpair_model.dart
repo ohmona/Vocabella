@@ -2,6 +2,7 @@
 * This class has the data of words and corresponding
 * examples and every wordpair class has an id
  */
+import 'package:vocabella/configuration.dart';
 import 'package:vocabella/constants.dart';
 
 class WordPair {
@@ -68,10 +69,17 @@ class WordPair {
   }
 
   bool isSameWord({required WordPair as}) {
+    var comparing = as;
 
-    if (word1 == as.word1 && word2 == as.word2) {
-      // TODO currently examples aren't checked
-      return true;
+    if (word1 == comparing.word1 && word2 == comparing.word2) {
+      if(checkExamplesWhileMerging) {
+        if (example1 == comparing.example1 && example2 == comparing.example2) {
+          return true;
+        }
+      }
+      else {
+        return true;
+      }
     }
     return false;
   }

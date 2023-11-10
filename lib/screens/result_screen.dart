@@ -10,8 +10,14 @@ class ResultScreen extends StatelessWidget {
   static const routeName = '/result';
 
   String makeCheeringText(double inFirstTry) {
-    if(inFirstTry > 0.9) {
+    if(inFirstTry == 1) {
+      return "Glorious!!!";
+    }
+    else if(inFirstTry > 0.9) {
       return "Excellent!!";
+    }
+    else if(inFirstTry > 0.8) {
+      return "Great job!!";
     }
     else if(inFirstTry > 0.75) {
       return "Well done!";
@@ -20,10 +26,10 @@ class ResultScreen extends StatelessWidget {
       return "Keep going!";
     }
     else if(inFirstTry > 0.3) {
-      return "Practise more";
+      return "Practise more :)";
     }
     else {
-      return "Exercise finished";
+      return "Training finished";
     }
   }
 

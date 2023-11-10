@@ -16,7 +16,7 @@ import 'package:vocabella/screens/word_selection_screen.dart';
 
 import 'constants.dart';
 
-const appVersion = "1.4";
+const appVersion = "1.4.1d";
 const appInfo = 'ver. $appVersion by ohmona';
 
 void main() async {

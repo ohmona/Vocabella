@@ -428,6 +428,15 @@ class _BodyState extends State<Body> {
             ),
             TextButton(
               onPressed: () {
+                Navigator.of(context).pop();
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: mintColor,
+              ),
+              child: const Text("wait"),
+            ),
+            TextButton(
+              onPressed: () {
                 Navigator.pushNamed(
                   context,
                   QuizScreenParent.routeName,
@@ -488,8 +497,10 @@ class _BodyState extends State<Body> {
       focusedIndex = startPoint;
 
       SessionSaver.readSessionData().then((value) {
-        print("=====================");
-        print("fetched data");
+        if (kDebugMode) {
+          print("=====================");
+          print("fetched data");
+        }
         sessionData = SessionDataModel.fromJson(jsonDecode(value!));
         sessionDataFound = true;
       });
@@ -766,7 +777,7 @@ class _BodyState extends State<Body> {
           child: GestureDetector(
             child: ScrollSnapList(
               listController: scroller,
-              dynamicItemOpacity: 0.95,
+              dynamicItemOpacity: 0.5,
               scrollPhysics: const BouncingScrollPhysics(),
               focusOnItemTap: true,
               selectedItemAnchor: SelectedItemAnchor.MIDDLE,

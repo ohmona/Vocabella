@@ -25,7 +25,10 @@ class EditorScreenParent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final args =
-        ModalRoute.of(context)!.settings.arguments as EditorScreenArguments;
+    ModalRoute
+        .of(context)!
+        .settings
+        .arguments as EditorScreenArguments;
 
     return WillPopScope(
       onWillPop: () async {
@@ -273,11 +276,16 @@ class _EditorScreenState extends State<EditorScreen> {
         saveData();
 
         Future.delayed(const Duration(milliseconds: 50), () {
-          if(!bReadOnly) {
+          if (!bReadOnly) {
             // Focus on last focused index
-            changeFocus(focusedIndex!, requestFocus: true, force: true);
-          }
-          else {
+            if (currentChapter.lastIndex! < (currentChapter.words.length) * 2) {
+              changeFocus(currentChapter.lastIndex!,
+                  requestFocus: true, force: true);
+            } else {
+              focusedIndex = (currentChapter.words.length * 2) - 1;
+              changeFocus(focusedIndex!, requestFocus: true, force: true);
+            }
+          } else {
             scrollToFocus();
           }
         });
@@ -383,8 +391,7 @@ class _EditorScreenState extends State<EditorScreen> {
     wordAdditionBuffer = WordPair(word1: "", word2: "");
   }
 
-  void changeFocus(
-    int newIndex, {
+  void changeFocus(int newIndex, {
     bool requestFocus = true,
     bool force = false,
   }) {
@@ -418,7 +425,7 @@ class _EditorScreenState extends State<EditorScreen> {
       if (requestFocus) {
         Future.delayed(
           const Duration(milliseconds: 1),
-          () {
+              () {
             bottomBarFocusNode.requestFocus();
           },
         );
@@ -470,11 +477,12 @@ class _EditorScreenState extends State<EditorScreen> {
     var targetIndex = (index ~/ 2);
     var cellHeight = 50.0;
     var itemsOnScreen = (_screenHeight - 160 - _viewInsetsBottom) ~/ cellHeight;
+    var targetPos = (targetIndex - itemsOnScreen + 2) * cellHeight;
 
     if (targetIndex >= itemsOnScreen - 1 &&
         targetIndex < (getWordsCount() ~/ 2) + 1) {
       scrollController.animateTo(
-        ((targetIndex - itemsOnScreen + 2) * cellHeight),
+        targetPos,
         duration: duration,
         curve: scrollCurve,
       );
@@ -492,10 +500,11 @@ class _EditorScreenState extends State<EditorScreen> {
     var targetIndex = (index ~/ 2);
     var cellHeight = 50.0;
     var itemsOnScreen = (_screenHeight - 160 - _viewInsetsBottom) ~/ cellHeight;
+    var targetPos = (targetIndex - itemsOnScreen + 2) * cellHeight;
 
     if (targetIndex >= itemsOnScreen - 1 &&
         targetIndex < (getWordsCount() ~/ 2) + 1) {
-      scrollController.jumpTo(((targetIndex - itemsOnScreen + 2) * cellHeight));
+      scrollController.jumpTo(targetPos);
     } else if (targetIndex < itemsOnScreen - 1 &&
         targetIndex < (getWordsCount() ~/ 2) + 1) {
       scrollController.jumpTo(0);
@@ -503,14 +512,12 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   void forceScrollUntil(int index, bool immediately) {
-    print("FOCUS");
-
     Timer? scrollTimer;
 
     scrollTimer = Timer.periodic(
       const Duration(milliseconds: 100),
-      (timer) {
-        print("FOCUS!");
+          (timer) {
+        var newIndex = index;
         var targetIndex = (index ~/ 2);
         var cellHeight = 50.0;
         var itemsOnScreen =
@@ -519,24 +526,33 @@ class _EditorScreenState extends State<EditorScreen> {
 
         if (targetPos < 0) targetPos = 0;
 
-        print(scrollController.position.pixels);
-        print(targetPos);
-
         if (scrollController.position.pixels == targetPos) {
-          print("It's blue!");
+          scrollTimer!.cancel();
+        } else if (targetPos >= ((getWordsCount() / 2) - 3) * cellHeight &&
+            scrollController.position.pixels + 50 >
+                ((getWordsCount() / 2) - 3) * cellHeight) {
           scrollTimer!.cancel();
         } else {
           if (immediately) {
             Future.delayed(
               const Duration(milliseconds: 1),
-              () => jumpToIndex(index),
+                  () => jumpToIndex(newIndex),
             );
           } else {
-            scrollToIndex(index, duration: const Duration(milliseconds: 10));
+            scrollToIndex(newIndex, duration: const Duration(milliseconds: 10));
           }
         }
       },
     );
+  }
+
+  bool inRange(double value, double target, double interval) {
+    if (value < target + interval) {
+      if (value > target - interval) {
+        return true;
+      }
+    }
+    return false;
   }
 
   void changeThumbnail(String path) {
@@ -610,6 +626,39 @@ class _EditorScreenState extends State<EditorScreen> {
     return scrollController.offset != targetPos;
   }
 
+  Future<void> openDoubleChecker(BuildContext context) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Attention!"),
+          content: const Text("Are you sure you want to save and exit?"),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: mintColor,
+              ),
+              child: const Text("No"),
+            ),
+            TextButton(
+              onPressed: () {
+                saveData();
+                Navigator.popUntil(context, ModalRoute.withName('/'));
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: mintColor,
+              ),
+              child: const Text("Yes"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     bottomBarFocusNode.dispose();
@@ -632,9 +681,9 @@ class _EditorScreenState extends State<EditorScreen> {
     textBeforeEdit = getTextOf(focusedIndex!);
 
     // Apply last opened chapter and grid
-    final int startUpChapter = subjectData.lastOpenedChapterIndex!;
+    var startUpChapter = subjectData.lastOpenedChapterIndex ?? 0;
     currentChapter = subjectData.wordlist[startUpChapter];
-    focusedIndex = currentChapter.lastIndex!;
+    focusedIndex = currentChapter.lastIndex ?? 0;
 
     // activate auto-save
     autoSaveTimer = Timer.periodic(const Duration(seconds: 60), (timer) {
@@ -642,12 +691,12 @@ class _EditorScreenState extends State<EditorScreen> {
     });
 
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      if (currentChapter.lastIndex! <= (currentChapter.words.length - 1) * 2) {
+      if (currentChapter.lastIndex! < (currentChapter.words.length) * 2) {
         changeFocus(currentChapter.lastIndex!,
             requestFocus: false, force: true);
       } else {
-        changeFocus((currentChapter.words.length - 1) * 2,
-            requestFocus: false, force: true);
+        focusedIndex = (currentChapter.words.length * 2) - 1;
+        changeFocus(focusedIndex!, requestFocus: false, force: true);
       }
     });
   }
@@ -657,8 +706,14 @@ class _EditorScreenState extends State<EditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    _screenHeight = MediaQuery.of(context).size.height;
-    _viewInsetsBottom = MediaQuery.of(context).viewInsets.bottom;
+    _screenHeight = MediaQuery
+        .of(context)
+        .size
+        .height;
+    _viewInsetsBottom = MediaQuery
+        .of(context)
+        .viewInsets
+        .bottom;
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -682,11 +737,14 @@ class _EditorScreenState extends State<EditorScreen> {
         changeSubjectName: changeSubjectName,
         reorderChapter: reorderChapter,
         existChapterNameAlready: existChapterNameAlready,
+        openDoubleChecker: openDoubleChecker,
       ),
       body: WillPopScope(
         onWillPop: () async {
           widget.refresh();
-          return true;
+          saveData();
+          Navigator.popUntil(context, ModalRoute.withName('/'));
+          return false;
         },
         child: Column(
           children: [
@@ -719,15 +777,15 @@ class _EditorScreenState extends State<EditorScreen> {
                                 newIndex -= 1;
                               }
                               final item =
-                                  currentChapter.words.removeAt(oldIndex);
+                              currentChapter.words.removeAt(oldIndex);
                               currentChapter.words.insert(newIndex, item);
                               currentChapter.updateAllId();
 
                               if (oldIndex == currentIndexNormalized) {
                                 focusedIndex =
-                                    isTargetingQuestion(focusedIndex!)
-                                        ? newIndex * 2
-                                        : newIndex * 2 + 1;
+                                isTargetingQuestion(focusedIndex!)
+                                    ? newIndex * 2
+                                    : newIndex * 2 + 1;
                               } else if (currentIndexNormalized < oldIndex) {
                                 if (currentIndexNormalized >= newIndex) {
                                   focusedIndex = focusedIndex! + 2;
@@ -742,9 +800,9 @@ class _EditorScreenState extends State<EditorScreen> {
                           itemBuilder: ((context, index) {
                             bool bValid = index < getWordsCount() ~/ 2 + 1;
                             final displayingText1 =
-                                bValid ? getTextOf(2 * index) : "";
+                            bValid ? getTextOf(2 * index) : "";
                             final displayingText2 =
-                                bValid ? getTextOf(2 * index + 1) : "";
+                            bValid ? getTextOf(2 * index + 1) : "";
 
                             return Row(
                               key: Key("$index"),
@@ -827,7 +885,9 @@ class _EditorScreenState extends State<EditorScreen> {
                 }
 
                 return Padding(
-                  padding: MediaQuery.of(context).viewInsets,
+                  padding: MediaQuery
+                      .of(context)
+                      .viewInsets,
                   child: Container(
                     // Input Box Container
                     decoration: BoxDecoration(
@@ -857,7 +917,10 @@ class _EditorScreenState extends State<EditorScreen> {
                           ],
                         ),
                         child: Transform.translate(
-                          offset: (MediaQuery.of(context).size.height < 600)
+                          offset: (MediaQuery
+                              .of(context)
+                              .size
+                              .height < 600)
                               ? const Offset(0, -6)
                               : const Offset(0, 3),
                           child: TextField(
@@ -870,14 +933,17 @@ class _EditorScreenState extends State<EditorScreen> {
                               focusedBorder: InputBorder.none,
                               focusedErrorBorder: InputBorder.none,
                               floatingLabelAlignment:
-                                  FloatingLabelAlignment.start,
+                              FloatingLabelAlignment.start,
                               hoverColor: Colors.transparent,
                               focusColor: Colors.transparent,
                               suffixIcon: Transform.translate(
                                 offset:
-                                    (MediaQuery.of(context).size.height < 600)
-                                        ? const Offset(0, 3)
-                                        : const Offset(0, 0),
+                                (MediaQuery
+                                    .of(context)
+                                    .size
+                                    .height < 600)
+                                    ? const Offset(0, 3)
+                                    : const Offset(0, 0),
                                 child: IconButton(
                                   icon: const Icon(Icons.edit),
                                   color: Colors.grey.withOpacity(0.5),
@@ -886,9 +952,12 @@ class _EditorScreenState extends State<EditorScreen> {
                               ),
                               prefixIcon: Transform.translate(
                                 offset:
-                                    (MediaQuery.of(context).size.height < 600)
-                                        ? const Offset(0, 3)
-                                        : const Offset(0, 0),
+                                (MediaQuery
+                                    .of(context)
+                                    .size
+                                    .height < 600)
+                                    ? const Offset(0, 3)
+                                    : const Offset(0, 0),
                                 child: Icon(
                                   Icons.keyboard_alt_outlined,
                                   color: Colors.grey.withOpacity(0.5),
@@ -897,9 +966,12 @@ class _EditorScreenState extends State<EditorScreen> {
                             ),
                             style: TextStyle(
                               fontSize:
-                                  (MediaQuery.of(context).size.height < 600)
-                                      ? 12
-                                      : 16,
+                              (MediaQuery
+                                  .of(context)
+                                  .size
+                                  .height < 600)
+                                  ? 12
+                                  : 16,
                               fontWeight: FontWeight.w400,
                             ),
                             controller: textEditingController,
@@ -953,12 +1025,7 @@ class _EditorScreenState extends State<EditorScreen> {
                               }
                             },
                             onTap: () {
-                              Future.delayed(
-                                const Duration(milliseconds: 450),
-                                () {
-                                  forceScrollUntil(focusedIndex!, false);
-                                },
-                              );
+                              jumpToIndex(focusedIndex!);
                               if (focusedIndex == null) {
                                 bottomBarFocusNode.unfocus();
                               }
@@ -978,5 +1045,8 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   double calcRatio(BuildContext context) =>
-      (MediaQuery.of(context).size.width / 2) / 50;
+      (MediaQuery
+          .of(context)
+          .size
+          .width / 2) / 50;
 }

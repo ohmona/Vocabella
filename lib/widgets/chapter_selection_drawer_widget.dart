@@ -20,6 +20,7 @@ class ChapterSelectionDrawer extends StatefulWidget {
     required this.changeSubjectName,
     required this.reorderChapter,
     required this.existChapterNameAlready,
+    required this.openDoubleChecker,
   }) : super(key: key);
 
   final SubjectDataModel subjectData;
@@ -31,6 +32,7 @@ class ChapterSelectionDrawer extends StatefulWidget {
   final void Function(String) changeThumbnail;
   final void Function(String) changeSubjectName;
   final void Function(int, int) reorderChapter;
+  final void Function(BuildContext) openDoubleChecker;
   final bool Function(String) existChapterNameAlready;
 
   static TextEditingController controller = TextEditingController();
@@ -75,39 +77,6 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                 foregroundColor: mintColor,
               ),
               child: const Text("confirm"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> openDoubleChecker(BuildContext context) {
-    return showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Attention!"),
-          content: const Text("Are you sure you want to save and exit?"),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: mintColor,
-              ),
-              child: const Text("No"),
-            ),
-            TextButton(
-              onPressed: () {
-                widget.saveData();
-                Navigator.popUntil(context, ModalRoute.withName('/'));
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: mintColor,
-              ),
-              child: const Text("Yes"),
             ),
           ],
         );
@@ -203,10 +172,10 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
   void shareSubject() async {
     String path = await DataReadWriteManager.getLocalPath();
     File file = File("$path/${widget.subjectData.title}.json");
-    await file.writeAsString(
-        SubjectDataModel.listToJson([widget.subjectData])).then((value) async {
-      XFile toShare =
-      XFile("$path/${widget.subjectData.title}.json");
+    await file
+        .writeAsString(SubjectDataModel.listToJson([widget.subjectData]))
+        .then((value) async {
+      XFile toShare = XFile("$path/${widget.subjectData.title}.json");
       await Share.shareXFiles([toShare]);
     });
   }
@@ -386,7 +355,8 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                       color: Colors.white,
                     ),
                     onPressed: () {
-                      openDoubleChecker(context);
+                      widget.saveData();
+                      Navigator.popUntil(context, ModalRoute.withName('/'));
                     },
                   ),
                 ),

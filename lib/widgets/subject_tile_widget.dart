@@ -19,7 +19,7 @@ class SubjectTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       //onDoubleTap: () => openSelection(subject),
-      onLongPress: () => openSelection(subject),
+      onLongPress: () => openEditor(subject),
       child: Container(
         width: 250,
         alignment: Alignment.center,

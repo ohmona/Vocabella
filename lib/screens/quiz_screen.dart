@@ -415,6 +415,9 @@ class _QuizScreenState extends State<QuizScreen> {
     // Check if the current sequence is Answer
     if (checkIsNotSequence(Sequence.answer)) return;
 
+    // Animate cards of disappear
+    onDisposalStarted();
+
     // Before executing "NextShowing" process, consider if it's unnecessary to
     // execute when the session is done.
     if (isDone) {
@@ -455,9 +458,6 @@ class _QuizScreenState extends State<QuizScreen> {
       );
       return; // In this line, the quiz is finished
     }
-
-    // Animate cards of disappear
-    onDisposalStarted();
 
     // Make input checker box disappear
     if (!bDontTypeAnswer) {
@@ -873,8 +873,13 @@ class _QuizScreenState extends State<QuizScreen> {
       print(language2);
     }
 
-    int count4first = isOddTHCard ? count - 1 : count;
-    int count4second = isOddTHCard ? count : count - 1;
+    var count4first = isOddTHCard ? count - 1 : count;
+    var count4second = isOddTHCard ? count : count - 1;
+
+    if(count == listOfQuestions.length) {
+      count4first = count - 1;
+      count4second = count - 1;
+    }
 
     // Initialise 4 cards for test
     questionCard = WordCard(

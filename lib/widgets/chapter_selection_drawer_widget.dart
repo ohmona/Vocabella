@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:vocabella/configuration.dart';
 import 'package:vocabella/constants.dart';
 import 'package:vocabella/managers/data_handle_manager.dart';
 import 'package:vocabella/models/subject_data_model.dart';
@@ -21,6 +22,7 @@ class ChapterSelectionDrawer extends StatefulWidget {
     required this.reorderChapter,
     required this.existChapterNameAlready,
     required this.openDoubleChecker,
+    required this.duplicateChapter,
   }) : super(key: key);
 
   final SubjectDataModel subjectData;
@@ -34,6 +36,7 @@ class ChapterSelectionDrawer extends StatefulWidget {
   final void Function(int, int) reorderChapter;
   final void Function(BuildContext) openDoubleChecker;
   final bool Function(String) existChapterNameAlready;
+  final void Function() duplicateChapter;
 
   static TextEditingController controller = TextEditingController();
   static String newTitle = "";
@@ -259,8 +262,10 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                 icon: const Icon(Icons.add),
                 splashRadius: 0.1,
               ),
-              const SizedBox(
-                width: 20,
+              if(AppConfig.bDebugMode) IconButton(
+                onPressed: widget.duplicateChapter,
+                icon: const Icon(Icons.control_point_duplicate),
+                splashRadius: 0.1,
               ),
             ],
           ),
@@ -278,30 +283,33 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                       Navigator.of(context).pop();
                     },
                     child: Container(
-                      decoration: const BoxDecoration(
-                        border: Border(
+                      decoration: BoxDecoration(
+                        border: (widget.currentChapterIndex == index) ?
+                            Border.all(
+                              color: Colors.green,
+                              width: 2,
+                            )
+                            : const Border(
                           bottom: BorderSide(
                             color: Colors.black,
                             width: 0.5,
                           ),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Container(
-                            margin: const EdgeInsets.all(15),
-                            child: Text(
-                              widget.subjectData.wordlist[index].name,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w500,
-                              ),
+                      child: Container(
+                        margin: const EdgeInsets.all(15),
+                        height: 20,
+                        child: FittedBox(
+                          fit: BoxFit.fitHeight,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            widget.subjectData.wordlist[index].name,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          (widget.currentChapterIndex == index)
-                              ? const Icon(Icons.arrow_left)
-                              : Container(),
-                        ],
+                        ),
                       ),
                     ),
                   ),

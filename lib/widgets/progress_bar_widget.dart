@@ -56,6 +56,12 @@ class ProgressBarState extends State<ProgressBar> with TickerProviderStateMixin 
   }
 
   @override
+  void dispose() {
+    super.dispose();
+    controller.dispose();
+  }
+
+  @override
   void initState() {
     super.initState();
     widget.updateProgress = update;

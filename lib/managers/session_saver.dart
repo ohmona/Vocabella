@@ -1,4 +1,4 @@
-
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -6,15 +6,21 @@ import '../models/session_data_model.dart';
 import 'data_handle_manager.dart';
 
 class SessionSaver {
+  static bool isSessionBeingSaved = false;
 
   static SessionDataModel _session = SessionDataModel(existSessionData: false);
+
   static SessionDataModel get session {
     applySessionData();
     return _session;
   }
+
   static set session(SessionDataModel value) {
     _session = value;
-    saveSessionData();
+    if (!isSessionBeingSaved) {
+      isSessionBeingSaved = true;
+      saveSessionData();
+    }
   }
 
   static String sessionFile = "sessionData.json";
@@ -27,15 +33,14 @@ class SessionSaver {
     final path = await DataReadWriteManager.getLocalPath();
     final data = await readSessionData();
 
-    if(data!.isEmpty) {
+    if (data!.isEmpty) {
       _session = SessionDataModel(existSessionData: false);
       await DataReadWriteManager.writeDataToPath(
           path: "$path/$sessionFile", data: makeJson());
       if (kDebugMode) {
         print("[Session] Initializing Session succeeded");
       }
-    }
-    else {
+    } else {
       if (kDebugMode) {
         print("[Session] Session has already been initialized");
       }
@@ -50,18 +55,19 @@ class SessionSaver {
     final path = await DataReadWriteManager.getLocalPath();
 
     try {
-      final data = await DataReadWriteManager.readDataByPath("$path/$sessionFile");
+      final data =
+          await DataReadWriteManager.readDataByPath("$path/$sessionFile");
       if (kDebugMode) {
         print("[Session] Data reading succeeded");
-        print("===================================");
-        print(data);
-        print("===================================");
+        //print("===================================");
+        //print(data);
+        //print("===================================");
       }
       return data;
-    }
-    catch(e) {
+    } catch (e) {
       if (kDebugMode) {
         print("[Session] An error has been thrown while reading data");
+        print(e);
       }
       return "";
     }
@@ -70,11 +76,10 @@ class SessionSaver {
   static String makeJson() => session.toJson();
 
   static void applyJson(dynamic json) {
-    if(json != null && (json as String).isEmpty) {
+    if (json != null && (json as String).isEmpty) {
       final object = jsonDecode(json);
       _session = SessionDataModel.fromJson(object);
-    }
-    else {
+    } else {
       _session = SessionDataModel(existSessionData: false);
     }
   }
@@ -88,16 +93,39 @@ class SessionSaver {
 
     final path = await DataReadWriteManager.getLocalPath();
 
+    _session.printData();
+
     try {
-      await DataReadWriteManager.writeDataToPath(data: makeJson(), path: "$path/$sessionFile");
+      await DataReadWriteManager.writeDataToPath(
+          data: makeJson(), path: "$path/$sessionFile");
+      isSessionBeingSaved = false;
       if (kDebugMode) {
         print("[Session] Saving data succeeded");
       }
-    }
-    catch(e) {
+    } catch (e) {
       if (kDebugMode) {
         print("[Session] An error has been thrown while saving data");
+        print(e);
       }
     }
   }
+/*
+  // Force removing session data
+  static void resetSessionData() {
+
+    _session = SessionDataModel(existSessionData: false);
+    if (!isSessionBeingSaved) {
+      print("resetting session data immediately");
+      saveSessionData();
+    } else {
+      print("resetting session data immediately");
+      late Timer forceSaver;
+      forceSaver = Timer.periodic(const Duration(milliseconds: 10), (timer) {
+        if(!isSessionBeingSaved) {
+          saveSessionData();
+          forceSaver.cancel();
+        }
+      });
+    }
+  }*/
 }

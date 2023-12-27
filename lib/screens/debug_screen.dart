@@ -15,7 +15,7 @@ class _DebugScreenState extends State<DebugScreen> {
 
   String dataInfo = "";
   String binInfo = "";
-  String backup1 = "";
+  int backup1 = -1;
   String backup2 = "";
   String backup3 = "";
 
@@ -61,15 +61,15 @@ class _DebugScreenState extends State<DebugScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            Container(width: double.infinity, child: Text(dataInfo)),
+            Container(width: double.infinity, child: Text(dataInfo.length.toString())),
             Divider(),
-            Container(width: double.infinity, child: Text(binInfo)),
+            Container(width: double.infinity, child: Text(binInfo.length.toString())),
             Divider(),
-            Container(width: double.infinity, child: Text(backup1)),
+            Container(width: double.infinity, child: Text(backup1.toString())),
             Divider(),
-            Container(width: double.infinity, child: Text(backup2)),
+            Container(width: double.infinity, child: Text(backup2.length.toString())),
             Divider(),
-            Container(width: double.infinity, child: Text(backup3)),
+            Container(width: double.infinity, child: Text(backup3.length.toString())),
           ],
         ),
       ),

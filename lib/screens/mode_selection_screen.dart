@@ -57,6 +57,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
           widget.subjectData.languages[0],
           widget.subjectData.languages[1],
           emptySession,
+          widget.subjectData.id!,
         ),
       );
     } else if (mode == QuestionMode.reverse) {
@@ -67,6 +68,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
           word2: wordPair.word1,
           example1: wordPair.example2,
           example2: wordPair.example1,
+          created: wordPair.created,
+          lastEdit: wordPair.lastEdit,
         );
         newList.add(reversed);
       }
@@ -79,6 +82,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
           widget.subjectData.languages[1],
           widget.subjectData.languages[0],
           emptySession,
+          widget.subjectData.id!,
         ),
       );
     } else if (mode == QuestionMode.both) {
@@ -91,6 +95,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
             word2: wordPair.word1,
             example1: wordPair.example2,
             example2: wordPair.example1,
+            created: wordPair.created,
+            lastEdit: wordPair.lastEdit,
           );
           newList.add(reversed);
         }
@@ -103,6 +109,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
             widget.subjectData.languages[0],
             widget.subjectData.languages[1],
             emptySession,
+            widget.subjectData.id!,
           ),
         );
       } else {

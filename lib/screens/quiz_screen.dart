@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vocabella/arguments.dart';
+import 'package:vocabella/configuration.dart';
 import 'package:vocabella/managers/session_saver.dart';
 import 'package:vocabella/models/session_data_model.dart';
 import 'package:vocabella/screens/result_screen.dart';
@@ -12,6 +14,7 @@ import 'package:vocabella/widgets/progress_bar_widget.dart';
 import 'package:vocabella/widgets/word_card_widget.dart';
 import 'package:vocabella/widgets/bottom_bar_widget.dart';
 
+import '../managers/subject_data_manipulator.dart';
 import '../models/wordpair_model.dart';
 
 class QuizScreenParent extends StatelessWidget {
@@ -33,6 +36,7 @@ class QuizScreenParent extends StatelessWidget {
         language1: args.language1,
         language2: args.language2,
         sessionData: args.sessionData,
+        id: args.id,
       ),
     );
   }
@@ -45,6 +49,7 @@ class QuizScreen extends StatefulWidget {
     required this.language1,
     required this.language2,
     required this.sessionData,
+    required this.id,
   }) : super(key: key);
 
   // The list of words for quiz
@@ -56,6 +61,8 @@ class QuizScreen extends StatefulWidget {
   final String language2;
 
   final SessionDataModel sessionData;
+
+  final String id;
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -111,12 +118,20 @@ class _QuizScreenState extends State<QuizScreen> {
   late bool hasRepetitionBegun;
   late int inFirstTry;
   late int inRepetitionFirstTry;
-  late int stageCount;
+  late int stageCount; // begins at 1
 
   late SessionDataModel session;
 
+  FocusNode bottomBarFocusNode = FocusNode();
+
+  List<OperationStructure> operations = [];
+  late String subjectId;
+
   /// Once user has submitted the answer
   void onSummit(String text) {
+    if (!bAllowedToContinue) return;
+    bAllowedToContinue = false;
+
     if (kDebugMode) {
       print("================================");
       print("Answer summited");
@@ -147,6 +162,14 @@ class _QuizScreenState extends State<QuizScreen> {
           !hasRepetitionBegun) {
         // Pure InFirstTry count
         inFirstTry++;
+
+        if(AppConfig.bUseSmartWordOrder) {
+          var id = WordPairIdentifier.fromWordPair(listOfQuestions[count - 1]);
+          var op = Operation.ERRORSTACK;
+          var value = 0;
+          operations.add(OperationStructure(word: id, operation: op, intData: value));
+        }
+
       } else if (!listOfWrongs.contains(listOfQuestions[count - 1]) &&
           hasRepetitionBegun) {
         // InFirstTry but it's on revision
@@ -154,6 +177,18 @@ class _QuizScreenState extends State<QuizScreen> {
       }
       progressBar.updateProgress(
           questionsNumber, inFirstTry + inRepetitionFirstTry);
+
+      if(AppConfig.bUseSmartWordOrder) {
+        var id = WordPairIdentifier.fromWordPair(listOfQuestions[count - 1]);
+        var op = Operation.LASTLEARNED;
+        var data = DateTime.now();
+
+        var op2 = Operation.TOTALLEARNED;
+        var data2 = listOfQuestions[count - 1].totalLearned! + 1;
+
+        operations.add(OperationStructure.forTime(word: id, operation: op, timeData: data));
+        operations.add(OperationStructure(word: id, operation: op2, intData: data2));
+      }
     } else {
       // The given answer was wrong so the corresponding word will be
       // added into list and only if it's first time
@@ -207,7 +242,30 @@ class _QuizScreenState extends State<QuizScreen> {
   void showAnswer() {
     // Check if the current sequence is "Question"
     // Unless, exit method to prevent from unexpected animation and sequencing
-    if (checkIsNotSequence(Sequence.question)) return;
+    if (checkIsNotSequence(Sequence.question)) {
+      Future.delayed(
+        const Duration(milliseconds: 1),
+        () {
+          bool firstAppearing = questionCard.sequence == Sequence.hidden &&
+              questionCard2.sequence == Sequence.disappear;
+          bool secondAppearing = questionCard2.sequence == Sequence.hidden &&
+              questionCard.sequence == Sequence.disappear;
+          if (firstAppearing) {
+            questionCard.breakAnimAppear();
+            questionCard2.breakAnimDisappear();
+            answerCard2.breakAnimDisappear();
+            showAnswer();
+          } else if (secondAppearing) {
+            questionCard2.breakAnimAppear();
+            questionCard.breakAnimDisappear();
+            answerCard.breakAnimDisappear();
+            showAnswer();
+          }
+        },
+      );
+
+      return;
+    }
 
     // Remove focus from the keyboard
     if (FocusManager.instance.primaryFocus != null) {
@@ -215,6 +273,7 @@ class _QuizScreenState extends State<QuizScreen> {
     }
     // Reset input
     fieldText.clear();
+    bottomBarFocusNode.unfocus();
 
     // Answer is being shown now
     isShowingAnswer = true;
@@ -273,7 +332,25 @@ class _QuizScreenState extends State<QuizScreen> {
   void onWasCorrect() {
     // Check if the current sequence is "Answer"
     // Unless, exit method to prevent from unexpected animation and sequencing
-    if (checkIsNotSequence(Sequence.answer)) return;
+    if (checkIsNotSequence(Sequence.answer)) {
+      if (questionCard.sequence == Sequence.showing ||
+          questionCard2.sequence == Sequence.showing) {
+        Future.delayed(
+          const Duration(milliseconds: 1),
+          () {
+            questionCard.breakAnimSmall();
+            answerCard.breakAnimMedium();
+            questionCard2.breakAnimSmall();
+            answerCard2.breakAnimMedium();
+            onWasCorrect();
+          },
+        );
+      }
+      return;
+    }
+
+    if (!bAllowedToContinue) return;
+    bAllowedToContinue = false;
 
     // Answer was correct
     wasWrong = false;
@@ -284,6 +361,12 @@ class _QuizScreenState extends State<QuizScreen> {
         !hasRepetitionBegun) {
       // Pure InFirstTry count
       inFirstTry++;
+      if(AppConfig.bUseSmartWordOrder) {
+        var id = WordPairIdentifier.fromWordPair(listOfQuestions[count - 1]);
+        var op = Operation.ERRORSTACK;
+        var value = 0;
+        operations.add(OperationStructure(word: id, operation: op, intData: value));
+      }
     } else if (!listOfWrongs.contains(listOfQuestions[count - 1]) &&
         hasRepetitionBegun) {
       // InFirstTry but it's on revision
@@ -292,6 +375,18 @@ class _QuizScreenState extends State<QuizScreen> {
 
     progressBar.updateProgress(
         questionsNumber, inFirstTry + inRepetitionFirstTry);
+
+    if(AppConfig.bUseSmartWordOrder) {
+      var id = WordPairIdentifier.fromWordPair(listOfQuestions[count - 1]);
+      var op = Operation.LASTLEARNED;
+      var data = DateTime.now();
+
+      var op2 = Operation.TOTALLEARNED;
+      var data2 = listOfQuestions[count - 1].totalLearned! + 1;
+
+      operations.add(OperationStructure.forTime(word: id, operation: op, timeData: data));
+      operations.add(OperationStructure(word: id, operation: op2, intData: data2));
+    }
 
     // Jump to next process
     _afterSummitingCorrectness();
@@ -302,7 +397,25 @@ class _QuizScreenState extends State<QuizScreen> {
   void onWasWrong() {
     // Check if the current sequence is "Answer"
     // Unless, exit method to prevent from unexpected animation and sequencing
-    if (checkIsNotSequence(Sequence.answer)) return;
+    if (checkIsNotSequence(Sequence.answer)) {
+      if (questionCard.sequence == Sequence.showing ||
+          questionCard2.sequence == Sequence.showing) {
+        Future.delayed(
+          const Duration(milliseconds: 1),
+          () {
+            questionCard.breakAnimSmall();
+            answerCard.breakAnimMedium();
+            questionCard2.breakAnimSmall();
+            answerCard2.breakAnimMedium();
+            onWasWrong();
+          },
+        );
+      }
+      return;
+    }
+
+    if (!bAllowedToContinue) return;
+    bAllowedToContinue = false;
 
     // Make sure that answer was wrong
     wasWrong = true;
@@ -408,12 +521,30 @@ class _QuizScreenState extends State<QuizScreen> {
     setState(() {});
   }
 
+  bool bAllowedToContinue = true;
+
   /// Show next cards by disposing (making invisible)
   /// previous cards and making next card appeared and
   /// play tts immediately if it exists
   void showNext() {
     // Check if the current sequence is Answer
-    if (checkIsNotSequence(Sequence.answer)) return;
+    if (checkIsNotSequence(Sequence.answer)) {
+      if (questionCard.sequence == Sequence.showing ||
+          questionCard2.sequence == Sequence.showing) {
+        Future.delayed(
+          const Duration(milliseconds: 1),
+          () {
+            questionCard.breakAnimSmall();
+            answerCard.breakAnimMedium();
+            questionCard2.breakAnimSmall();
+            answerCard2.breakAnimMedium();
+            inputCheckerBox.breakAnimAppear();
+            showNext();
+          },
+        );
+      }
+      return;
+    }
 
     // Animate cards of disappear
     onDisposalStarted();
@@ -438,72 +569,90 @@ class _QuizScreenState extends State<QuizScreen> {
         print(">> In first try : $inFirstTry");
       }
 
-      // Reset every lists of session to prevent unexpected cases of next session.
-      listOfQuestions = [];
-      listOfWrongs = [];
+      Future.delayed(
+        Duration(milliseconds: AppConfig.quizTimeInterval),
+        () {
+          // Reset every lists of session to prevent unexpected cases of next session.
+          listOfQuestions = [];
+          listOfWrongs = [];
 
-      // Reset all timers
-      disposalTimer.cancel();
-      transitionTimer.cancel();
+          // Reset all timers
+          disposalTimer.cancel();
+          transitionTimer.cancel();
+          autoSaver.cancel();
 
-      // Reset session data
-      SessionSaver.session = SessionDataModel(existSessionData: false);
+          // Reset session data
+          SessionSaver.session = SessionDataModel(existSessionData: false);
+          //SessionSaver.resetSessionData();
 
-      // Display the result of the quiz by pushing user to ResultScreen screen.
-      Navigator.pushNamed(
-        context,
-        ResultScreen.routeName,
-        arguments: ResultScreenArguments(
-            questionsNumber, inFirstTry / questionsNumber),
+          // Display the result of the quiz by pushing user to ResultScreen screen.
+          Navigator.pushNamed(
+            context,
+            ResultScreen.routeName,
+            arguments: ResultScreenArguments(
+              questionsNumber,
+              inFirstTry / questionsNumber,
+              operations,
+            ),
+          );
+          return; // In this line, the quiz is finished
+        },
       );
-      return; // In this line, the quiz is finished
     }
 
-    // Make input checker box disappear
-    if (!bDontTypeAnswer) {
-      inputCheckerBox.animTrigger(CheckerBoxState.disappear);
-    }
+    Future.delayed(
+      Duration(milliseconds: AppConfig.quizTimeInterval),
+      () {
+        // Make input checker box disappear
+        if (!bDontTypeAnswer) {
+          inputCheckerBox.animTrigger(CheckerBoxState.disappear);
+        }
 
-    // Dispose and appear cards (depending on isOddTHCard)
-    if (isOddTHCard) {
-      // Change sequence of Cards
-      questionCard.sequence = Sequence.disappear;
-      answerCard.sequence = Sequence.disappear;
+        // Dispose and appear cards (depending on isOddTHCard)
+        if (isOddTHCard) {
+          answerCard.wordTTS.stop();
+          // Change sequence of Cards
+          questionCard.sequence = Sequence.disappear;
+          answerCard.sequence = Sequence.disappear;
 
-      // Animate cards
-      questionCard.animDisappear();
-      answerCard.animDisappear();
-      questionCard2.animAppear();
+          // Animate cards
+          questionCard.animDisappear();
+          answerCard.animDisappear();
+          questionCard2.animAppear();
 
-      // Move answer card
-      onTransitionStarted();
+          // Move answer card
+          onTransitionStarted();
 
-      // Play TTS : Deactivated
-      //questionCard2.wordTTS.play();
-    } else {
-      // Change sequence of Cards
-      questionCard2.sequence = Sequence.disappear;
-      answerCard2.sequence = Sequence.disappear;
+          // Play TTS : Deactivated
+          //questionCard2.wordTTS.play();
+        } else {
+          answerCard2.wordTTS.stop();
+          // Change sequence of Cards
+          questionCard2.sequence = Sequence.disappear;
+          answerCard2.sequence = Sequence.disappear;
 
-      // Animate cards
-      questionCard2.animDisappear();
-      answerCard2.animDisappear();
-      questionCard.animAppear();
+          // Animate cards
+          questionCard2.animDisappear();
+          answerCard2.animDisappear();
+          questionCard.animAppear();
 
-      // Move answer card
-      onTransitionStarted();
+          // Move answer card
+          onTransitionStarted();
 
-      // Play TTS : Deactivated
-      //questionCard.wordTTS.play();
-    }
+          // Play TTS : Deactivated
+          //questionCard.wordTTS.play();
+        }
 
-    // Set values to current state for next step
-    isOddTHCard = !isOddTHCard;
-    isShowingAnswer = false;
-    setState(() {});
+        // Set values to current state for next step
+        isOddTHCard = !isOddTHCard;
+        isShowingAnswer = false;
+        setState(() {});
 
-    // After all, save the current session
-    saveSession();
+        // After all, save the current session
+        saveSession();
+        bAllowedToContinue = true;
+      },
+    );
   }
 
   /// Make list for revision
@@ -517,6 +666,15 @@ class _QuizScreenState extends State<QuizScreen> {
     hasRepetitionBegun = true;
     if (repetitionProgress == 0) repetitionProgress = 1;
     if (absoluteRepetitionProgress == 0) absoluteRepetitionProgress = 1;
+
+    if(AppConfig.bUseSmartWordOrder) {
+      for (var wordPair in listOfWrongs) {
+        var id = WordPairIdentifier.fromWordPair(wordPair);
+        var op = Operation.ERRORSTACK;
+        var value = stageCount; // 1 means the answer was wrong once
+        operations.add(OperationStructure(word: id, operation: op, intData: value));
+      }
+    }
 
     // Initially, shuffle list of words to revise
     listOfWrongs.shuffle();
@@ -753,7 +911,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
     // Since showing next step should take place immediately after (not by "continue" button)
     // getting the correctness, a bit delay will be given
-    Future.delayed(const Duration(milliseconds: 100), () => showNext());
+    Future.delayed(const Duration(milliseconds: 1), () => showNext());
   }
 
   // Disposal : Resetting previous cards into initial state
@@ -783,6 +941,8 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   void saveSession() {
+    if (listOfQuestions.isEmpty) return;
+
     session = SessionDataModel(
       existSessionData: true,
       language1: language1,
@@ -801,13 +961,121 @@ class _QuizScreenState extends State<QuizScreen> {
       repetitionProgress: repetitionProgress,
       stageCount: stageCount,
       wrongAnswers: wrongAnswers,
+      id: subjectId,
+      operations: operations,
     );
     SessionSaver.session = session;
   }
 
+  void orderInitialWords() {
+    Map<int, WordPair> wordMap = {};
+    for (int i = 0; i < listOfQuestions.length; i++) {
+      wordMap[i] = listOfQuestions[i];
+    }
+
+    Map<double, List<int>> priorityMap = {};
+    for (int i = 0; i < wordMap.length; i++) {
+      double? priority;
+
+      // Error Stack
+      int? errorStack = wordMap[i]?.errorStack;
+      errorStack ??= 1;
+      num e = pow(2.7, errorStack);
+
+      // Last Learned
+      DateTime? lastLearned = wordMap[i]?.lastLearned;
+      num d;
+      if (lastLearned != null) {
+        double lastLearnedInDay = lastLearned.day * 1.0;
+        lastLearnedInDay += lastLearned.month * 30 * 1.0;
+        lastLearnedInDay += lastLearned.year * 365 * 1.0;
+        lastLearnedInDay += lastLearned.hour / 24;
+        lastLearnedInDay += lastLearned.minute / (60 * 24);
+
+        DateTime now = DateTime.now();
+        double nowInDay = now.day * 1.0;
+        nowInDay += now.month * 30 * 1.0;
+        nowInDay += now.year * 365 * 1.0;
+        nowInDay += now.hour / 24;
+        nowInDay += now.minute / (60 * 24);
+
+        double dayInterval = nowInDay - lastLearnedInDay;
+        if (lastLearned == DateTime(1, 1, 1, 0, 0)) {
+          dayInterval = 10000;
+        }
+        d = sqrt(dayInterval);
+      } else {
+        d = 100;
+      }
+
+      // Last Priority Factor
+      double? lastPriorityFactor = wordMap[i]?.lastPriorityFactor;
+      lastPriorityFactor ??= 2;
+      num p = lastPriorityFactor + 1;
+
+      // Favourite
+      bool? bFavourite = wordMap[i]?.favourite;
+      bFavourite ??= false;
+      int iFavourite = bFavourite ? 2 : 1;
+      num f = iFavourite;
+
+      // Total Learned
+      int? totalLearned = wordMap[i]?.totalLearned;
+      totalLearned ??= 0;
+      num t = 1 / (totalLearned + 1);
+
+      priority = (e * d * p * f * t).toDouble();
+
+      if (priorityMap[priority] == null) {
+        priorityMap[priority] = [];
+      }
+
+      priorityMap[priority]!.add(i);
+    }
+
+    List<double> priorityList = [];
+    priorityMap.forEach((priority, key) {
+      priorityList.add(priority);
+      priorityMap[priority]?.shuffle();
+    });
+
+    priorityList.sort();
+    var lowest = priorityList[0];
+    var highest = priorityList[priorityList.length - 1];
+
+    List<WordPair> temp = [];
+    for (var priority in priorityList) {
+      if (kDebugMode) {
+        print("priority : $priority");
+      }
+      for (var key in priorityMap[priority]!) {
+        var wordPair = wordMap[key]!;
+        temp.add(wordMap[key]!);
+
+        var w = WordPairIdentifier.fromWordPair(wordPair);
+        var o = Operation.LASTPRIORITYFACTOR;
+        double data;
+        if(highest != lowest) {
+          data = (priority - lowest) / (highest - lowest);
+        }
+        else {
+          data = 0;
+        }
+        operations.add(OperationStructure(word: w, operation: o, doubleData: data));
+      }
+    }
+
+    listOfQuestions = temp.reversed.toList();
+  }
+
+  late Timer autoSaver;
+
   @override
   void initState() {
     super.initState();
+
+    AppConfig.load();
+    subjectId = widget.id;
 
     // Initialise every variables
     absoluteProgress = 1;
@@ -833,6 +1101,8 @@ class _QuizScreenState extends State<QuizScreen> {
     isOddTHCard = true;
     isShowingAnswer = false;
 
+    operations = [];
+
     session = widget.sessionData;
     if (session.existSessionData) {
       if (kDebugMode) {
@@ -856,10 +1126,18 @@ class _QuizScreenState extends State<QuizScreen> {
       inFirstTry = session.inFirstTry!;
       inRepetitionFirstTry = session.inRepetitionFirstTry!;
       stageCount = session.stageCount!;
+      subjectId = session.id!;
+      operations = session.operations!;
     } else {
-      // Shuffle questions and update length of questions
-      listOfQuestions.shuffle();
+      if(AppConfig.bUseSmartWordOrder) {
+        orderInitialWords();
+      }
+      else {
+        listOfQuestions.shuffle();
+      }
     }
+
+    SubjectManipulator.accessSubject(id: subjectId);
 
     // Print subject information
     if (kDebugMode) {
@@ -876,7 +1154,7 @@ class _QuizScreenState extends State<QuizScreen> {
     var count4first = isOddTHCard ? count - 1 : count;
     var count4second = isOddTHCard ? count : count - 1;
 
-    if(count == listOfQuestions.length) {
+    if (count == listOfQuestions.length) {
       count4first = count - 1;
       count4second = count - 1;
     }
@@ -940,6 +1218,10 @@ class _QuizScreenState extends State<QuizScreen> {
         total: questionsNumber, progress: inFirstTry + inRepetitionFirstTry);
 
     onTransitionStarted();
+
+    autoSaver = Timer.periodic(const Duration(seconds: 5), (timer) {
+      saveSession();
+    });
   }
 
   @override
@@ -981,8 +1263,13 @@ class _QuizScreenState extends State<QuizScreen> {
                       opacity: 0.8,
                       child: FloatingActionButton(
                         onPressed: () {
-                          bDontTypeAnswer = !bDontTypeAnswer;
-                          setState(() {});
+                          setState(() {
+                            bDontTypeAnswer = !bDontTypeAnswer;
+                            if (!bDontTypeAnswer) {
+                              inputCheckerBox.changeText("");
+                              fieldText.text = "";
+                            }
+                          });
                         },
                         backgroundColor: Theme.of(context).cardColor,
                         child: Icon(
@@ -1017,6 +1304,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     onSummitByButton: onSummitByButton,
                     updateInputValue: updateInputValue,
                     showHint: listOfWrongs.contains(listOfQuestions[count - 1]),
+                    focusNode: bottomBarFocusNode,
                   );
                 }
               } else {

@@ -1,38 +1,28 @@
+import 'package:flutter/foundation.dart';
 import 'package:vocabella/models/wordpair_model.dart';
 
 class Chapter {
   late String name;
   late List<WordPair> words;
 
-  int? id;
-  static int globalCount = 1;
   int? wordCount;
   int? lastIndex;
 
   Chapter({
     required this.name,
     required this.words,
-    this.id,
+    //this.id,
     this.lastIndex,
   });
 
   Chapter.fromJson(dynamic json) {
     name = json["name"];
 
-    id = json['id'];
-    if (json['id'] == null) {
-      // Set id
-      id = globalCount;
-      globalCount += 1;
-    }
-
-    WordPair.globalCount = 1;
     List<WordPair> temp = [];
     for (dynamic word in json['words'] as List<dynamic>) {
       temp.add(
         WordPair.fromJson(
           word,
-          name: name,
         ),
       );
     }
@@ -52,16 +42,14 @@ class Chapter {
     return {
       'name': name,
       'words': words.map((wordPair) => wordPair.toJson()).toList(),
-      'id': id,
+      //'id': id,
       'lastIndex': lastIndex,
     };
   }
 
-  void updateAllId() {
-    for (int i = 0; i < words.length; i++) {
-      words[i].updateId(i);
-      words[i].updateGlobalId(name);
-    }
+  static Chapter duplicate(Chapter object) {
+    var newChapter = Chapter(name: object.name, words: object.words);
+    return newChapter;
   }
 
   bool existWordAlready(WordPair wordPair) {
@@ -70,9 +58,23 @@ class Chapter {
         return true;
       }
     }
-    print("printing false");
+    if (kDebugMode) {
+      print("printing false");
+    }
     return false;
   }
+
+  int findAlreadyExistingWord(WordPair wordPair) {
+    if(existWordAlready(wordPair)) {
+      for(int i = 0; i < words.length; i++) {
+        if(words[i].isSameWord(as: wordPair)) {
+          return i;
+        }
+      }
+    }
+    return -1;
+  }
+
 }
 
 class EditedChapter extends Chapter {

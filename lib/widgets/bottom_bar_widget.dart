@@ -11,6 +11,7 @@ class InputBox extends StatelessWidget {
     required this.onSummitByButton,
     required this.updateInputValue,
     required this.showHint,
+    required this.focusNode,
   }) : super(key: key);
 
   final String answer;
@@ -21,6 +22,8 @@ class InputBox extends StatelessWidget {
 
   static const double defaultTextSize = 16;
   static const double smallTextSize = 12;
+
+  final FocusNode focusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +80,7 @@ class InputBox extends StatelessWidget {
             fontWeight: FontWeight.w400,
           ),
           controller: fieldText,
+          focusNode: focusNode,
           cursorColor: Colors.black.withOpacity(0.1),
           textAlign: TextAlign.center,
           onChanged: updateInputValue,

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../constants.dart';
@@ -15,17 +16,26 @@ class EditorScreenAppbar extends StatefulWidget {
     required this.wordCount,
     required this.bReadOnly,
     required this.toggleReadOnly,
+    required this.chapterName,
+    required this.bFavourite,
+    required this.changeFavourite,
+    required this.getFavourite, required this.favouriteCount,
   }) : super(key: key);
 
   final Chapter currentChapter;
   final bool bShowingWords;
   final bool bDeleteMode;
+  final bool bFavourite;
   final bool bReadOnly;
   final int wordCount;
+  final int favouriteCount;
+  final String chapterName;
   final void Function() toggleWords;
   final void Function() toggleDeleteMode;
   final void Function() toggleReadOnly;
+  final void Function() changeFavourite;
   final void Function(String) changeChapterName;
+  final bool Function() getFavourite;
 
   @override
   State<EditorScreenAppbar> createState() => _EditorScreenAppbarState();
@@ -34,7 +44,11 @@ class EditorScreenAppbar extends StatefulWidget {
 class _EditorScreenAppbarState extends State<EditorScreenAppbar> {
   TextEditingController controller = TextEditingController();
 
+  bool favourite = false;
+
   Future<void> openChapterNameEditor(BuildContext context) {
+    controller.text = widget.chapterName;
+
     return showDialog<void>(
       context: context,
       builder: (context) {
@@ -78,6 +92,8 @@ class _EditorScreenAppbarState extends State<EditorScreenAppbar> {
   void initState() {
     super.initState();
   }
+
+  final FocusNode _buttonFocusNode = FocusNode(debugLabel: 'Menu Button');
 
   @override
   Widget build(BuildContext context) {
@@ -126,7 +142,7 @@ class _EditorScreenAppbarState extends State<EditorScreenAppbar> {
                     splashFactory: NoSplash.splashFactory,
                   ),
                   child: Text(
-                    "${widget.currentChapter.name} (${widget.wordCount})",
+                    "${widget.currentChapter.name} (${widget.wordCount}/${widget.favouriteCount})",
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
@@ -139,36 +155,91 @@ class _EditorScreenAppbarState extends State<EditorScreenAppbar> {
               width: 10,
             ),
             IconButton(
-              icon: Icon(
-                widget.bReadOnly ? Icons.menu_book_rounded : Icons.edit_note,
-                color: Colors.white,
-              ),
-              tooltip: widget.bReadOnly ? "Continue editing" : "Read only",
               onPressed: () {
-                widget.toggleReadOnly();
-              },
-            ),
-            IconButton(
-              icon: Icon(
-                widget.bDeleteMode ? Icons.delete : Icons.add_circle,
-                color: Colors.white,
-              ),
-              tooltip: widget.bDeleteMode ? "Continue editing" : "Remove words",
-              onPressed: () {
-                if (widget.bShowingWords) {
-                  widget.toggleDeleteMode();
+                if (kDebugMode) {
+                  print("change favourite");
+                  print("Favourite : $favourite");
                 }
+                setState(() {
+                  widget.changeFavourite();
+                });
               },
-            ),
-            IconButton(
               icon: Icon(
-                widget.bShowingWords ? Icons.edit : Icons.book,
+                widget.getFavourite() ? Icons.star : Icons.star_border_outlined,
                 color: Colors.white,
               ),
-              tooltip: widget.bShowingWords
-                  ? "Edit examples"
-                  : "Edit questions & answers",
-              onPressed: widget.toggleWords,
+            ),
+            MenuAnchor(
+              childFocusNode: _buttonFocusNode,
+              menuChildren: <Widget>[
+                MenuItemButton(
+                  onPressed: () {
+                    widget.toggleWords();
+                  },
+                  child: Text(
+                    widget.bShowingWords ? "Showing words" : "Showing examples",
+                    style: const TextStyle(
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                MenuItemButton(
+                  onPressed: () {
+                    if (widget.bShowingWords) {
+                      widget.toggleDeleteMode();
+                    }
+                  },
+                  child: Text(
+                    widget.bDeleteMode
+                        ? "Delete mode (on)"
+                        : "Delete mode (off)",
+                    style: TextStyle(
+                      color:
+                          widget.bDeleteMode ? Colors.redAccent : Colors.white,
+                    ),
+                  ),
+                ),
+                MenuItemButton(
+                  onPressed: () {
+                    widget.toggleReadOnly();
+                  },
+                  child: Text(
+                    widget.bReadOnly ? "Read only (on)" : "Read only (off)",
+                    style: TextStyle(
+                      color: widget.bReadOnly ? Colors.green : Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+              builder: (BuildContext context, MenuController controller,
+                  Widget? child) {
+                return TextButton(
+                  focusNode: _buttonFocusNode,
+                  onPressed: () {
+                    if (controller.isOpen) {
+                      controller.close();
+                    } else {
+                      controller.open();
+                    }
+                  },
+                  style: ButtonStyle(
+                    minimumSize: MaterialStateProperty.resolveWith<Size?>(
+                      (states) {
+                        return const Size(20, 20);
+                      },
+                    ),
+                    overlayColor: MaterialStateProperty.resolveWith<Color?>(
+                      (states) {
+                        return Colors.white.withOpacity(0.3);
+                      },
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.add_circle,
+                    color: Colors.white,
+                  ),
+                );
+              },
             ),
           ],
         ),

@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 enum CheckerBoxState {
@@ -16,6 +17,8 @@ class InputCheckerBox extends StatefulWidget {
   late void Function(CheckerBoxState) animTrigger;
   late void Function(Color) changeColor;
   late void Function(String) changeText;
+  late void Function() breakAnimAppear;
+  late void Function() breakAnimDisappear;
 
   @override
   State<InputCheckerBox> createState() => _InputCheckerBoxState();
@@ -30,10 +33,9 @@ class _InputCheckerBoxState extends State<InputCheckerBox>
   late double opacity;
   late AnimationController animationController;
 
-  static const Offset defaultOffset = Offset(0, finalPosition);
+  static Offset defaultOffset = const Offset(0, 500);
   static const double defaultOpacity = 0;
   //static const double initialPosition = 1000;
-  static const double finalPosition = 600;
 
   void animTrigger(CheckerBoxState state) {
     if (state == CheckerBoxState.appear) {
@@ -83,6 +85,15 @@ class _InputCheckerBoxState extends State<InputCheckerBox>
     animationController.forward();
   }
 
+  void breakAnimAppear() {
+    setState(() {
+      animationController.stop();
+      animationController.reset();
+      transform = defaultOffset;
+      opacity = 1;
+    });
+  }
+
   void animDisappear() {
     late Animation<double> animation;
 
@@ -109,6 +120,15 @@ class _InputCheckerBoxState extends State<InputCheckerBox>
     animationController.forward();
   }
 
+  void breakAnimDisappear() {
+    setState(() {
+      animationController.stop();
+      animationController.reset();
+      transform = defaultOffset;
+      opacity = 0;
+    });
+  }
+
   @override
   void initState() {
     animationController = AnimationController(vsync: this);
@@ -119,6 +139,8 @@ class _InputCheckerBoxState extends State<InputCheckerBox>
     widget.animTrigger = animTrigger;
     widget.changeColor = changeColor;
     widget.changeText = changeText;
+    widget.breakAnimDisappear = breakAnimDisappear;
+    widget.breakAnimAppear = breakAnimAppear;
 
     opacity = defaultOpacity;
     transform = defaultOffset;
@@ -135,6 +157,8 @@ class _InputCheckerBoxState extends State<InputCheckerBox>
 
   @override
   Widget build(BuildContext context) {
+    defaultOffset = Offset(0, MediaQuery.of(context).size.height - 270);
+
     return Opacity(
       opacity: opacity,
       child: Transform.translate(

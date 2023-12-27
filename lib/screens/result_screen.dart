@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:vocabella/arguments.dart';
 import 'package:vocabella/constants.dart';
+import 'package:vocabella/managers/subject_data_manipulator.dart';
 import 'package:vocabella/widgets/bottom_bar_widget.dart';
+
+import '../managers/data_handle_manager.dart';
+import '../managers/double_backup.dart';
+import '../models/subject_data_model.dart';
 
 class ResultScreen extends StatelessWidget {
   const ResultScreen({Key? key}) : super(key: key);
@@ -10,36 +15,35 @@ class ResultScreen extends StatelessWidget {
   static const routeName = '/result';
 
   String makeCheeringText(double inFirstTry) {
-    if(inFirstTry == 1) {
+    if (inFirstTry == 1) {
       return "Glorious!!!";
-    }
-    else if(inFirstTry > 0.9) {
+    } else if (inFirstTry > 0.9) {
       return "Excellent!!";
-    }
-    else if(inFirstTry > 0.8) {
+    } else if (inFirstTry > 0.8) {
       return "Great job!!";
-    }
-    else if(inFirstTry > 0.75) {
+    } else if (inFirstTry > 0.75) {
       return "Well done!";
-    }
-    else if(inFirstTry > 0.50) {
+    } else if (inFirstTry > 0.50) {
       return "Keep going!";
-    }
-    else if(inFirstTry > 0.3) {
+    } else if (inFirstTry > 0.3) {
       return "Practise more :)";
-    }
-    else {
+    } else {
       return "Training finished";
     }
+  }
+
+  Future<void> saveData() async {
+    await DataReadWriteManager.writeData(
+        SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+    await DoubleBackup.toggleDBCount();
+    await DoubleBackup.saveDoubleBackup(
+        SubjectDataModel.listToJson(SubjectDataModel.subjectList));
   }
 
   @override
   Widget build(BuildContext context) {
     final args =
-    ModalRoute
-        .of(context)!
-        .settings
-        .arguments as ResultScreenArguments;
+        ModalRoute.of(context)!.settings.arguments as ResultScreenArguments;
 
     return WillPopScope(
       onWillPop: () async {
@@ -149,7 +153,16 @@ class ResultScreen extends StatelessWidget {
               ),
               GestureDetector(
                 onTap: () {
-                  Navigator.popUntil(context, ModalRoute.withName('/'));
+                  Future.delayed(const Duration(milliseconds: 10), () {
+                    // Conduct operations
+                    for (var operation in args.operations) {
+                      SubjectManipulator.operate(str: operation);
+                    }
+                    // Return to home
+                    saveData();
+                    SubjectManipulator.disposeAccess();
+                    Navigator.popUntil(context, ModalRoute.withName('/'));
+                  });
                 },
                 child: const ContinueButton(
                   correctState: CorrectState.correct,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vocabella/configuration.dart';
 
 import '../models/chapter_model.dart';
 import '../models/wordpair_model.dart';
@@ -17,10 +18,12 @@ class WordGridTile extends StatefulWidget {
     required this.changeFocus,
     required this.bFocused,
     required this.wordAdditionBuffer,
+    required this.wordPair,
   }) : super(key: key);
 
   final String text;
   final int index;
+  final WordPair wordPair;
 
   final void Function(String newText, int index) saveText;
   final void Function(WordPair wordPair) addWord;
@@ -92,9 +95,20 @@ class _WordGridTileState extends State<WordGridTile> {
   }
 
   Widget _buildContent() {
+    final favourite = widget.wordPair.favourite!;
+
     // Define the desired font weight
     const FontWeight fontWeight =
         FontWeight.normal; // Replace with your desired font weight
+
+    Color textCol;
+    if (favourite) {
+      textCol = Colors.black;
+    } else if (widget.bShowingWords) {
+      textCol = Colors.black;
+    } else {
+      textCol = Colors.grey;
+    }
 
     // Use a FittedBox to scale the text to fit within the available space
     return FittedBox(
@@ -107,9 +121,44 @@ class _WordGridTileState extends State<WordGridTile> {
           style: TextStyle(
             fontSize: 20,
             fontWeight: fontWeight,
-            color: widget.bShowingWords ? Colors.black : Colors.grey,
+            color: textCol,
+            shadows: favourite
+                ? [
+                    const Shadow(
+                      color: Colors.yellowAccent,
+                      blurRadius: 10,
+                    ),
+                  ]
+                : [],
           ),
         ),
+      ),
+    );
+  }
+
+  BoxDecoration _buildBox() {
+    final favourite = widget.wordPair.favourite!;
+    final focused = widget.bFocused;
+
+    Color borderColor;
+    double borderSize;
+    if (focused) {
+      borderColor = Colors.redAccent;
+      borderSize = 3;
+    } else if (favourite) {
+      borderColor = Colors.black;
+      borderSize = 0.5;
+    } else {
+      borderColor = Colors.black;
+      borderSize = 0.5;
+    }
+
+    return BoxDecoration(
+      color: favourite ? Colors.white : Colors.white,
+      border: Border.all(
+        color: borderColor,
+        width: borderSize,
+        style: BorderStyle.solid,
       ),
     );
   }
@@ -123,18 +172,28 @@ class _WordGridTileState extends State<WordGridTile> {
     // Use a ConstrainedBox to limit the cell size
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: cellWidth, maxHeight: cellHeight),
-      child: Container(
-        alignment: Alignment.bottomLeft,
-        padding: const EdgeInsets.all(5),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(
-            color: widget.bFocused ? Colors.redAccent : Colors.black,
-            width: widget.bFocused ? 3 : 0.5,
-            style: BorderStyle.solid,
+      child: Stack(
+        children: [
+          Container(
+            alignment: Alignment.bottomLeft,
+            padding: const EdgeInsets.all(5),
+            decoration: _buildBox(),
+            child: _buildContent(),
           ),
-        ),
-        child: _buildContent(),
+          if (AppConfig.bDebugMode)
+            Text(
+              "C:${widget.wordPair.created},E:${widget.wordPair.lastEdit},I:${widget.index},"
+                  "F:${widget.wordPair.favourite},LL:${widget.wordPair.lastLearned},ER:${widget.wordPair.errorStack},"
+                  "LPF:${widget.wordPair.lastPriorityFactor},TL:${widget.wordPair.totalLearned},W:${widget.wordPair.word1}",
+              style:
+                  const TextStyle(fontSize: 7, color: Colors.black, shadows: [
+                Shadow(
+                  color: Colors.black,
+                  blurRadius: 10,
+                ),
+              ]),
+            ),
+        ],
       ),
     );
   }
@@ -144,10 +203,20 @@ class _WordGridTileState extends State<WordGridTile> {
     return GridTile(
       child: GestureDetector(
         onTap: () {
+          print("=================================");
+          print("on tap");
           if (!widget.bDeleteMode) {
+            print("=================================");
+            print("not delete mode");
             if (widget.currentChapter.words.length * 2 + 2 > widget.index) {
-              widget.changeFocus(widget.index, requestFocus: true, force: false);
+              print("=================================");
+              print("Focus requested");
+              print("index : ${widget.index}");
+              widget.changeFocus(widget.index,
+                  requestFocus: true, force: false);
             } else if (widget.bShowingWords) {
+              print("=================================");
+              print("Focus request failed");
               //widget.openWordAdder(context);
             }
           } else {

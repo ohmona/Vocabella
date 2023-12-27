@@ -1,3 +1,4 @@
+import 'managers/subject_data_manipulator.dart';
 import 'models/chapter_model.dart';
 import 'models/session_data_model.dart';
 import 'models/subject_data_model.dart';
@@ -31,17 +32,19 @@ class QuizScreenArguments {
   final List<WordPair> wordPack;
   final String language1;
   final String language2;
+  final String id;
   final SessionDataModel sessionData;
 
   QuizScreenArguments(
-      this.wordPack, this.language1, this.language2, this.sessionData);
+      this.wordPack, this.language1, this.language2, this.sessionData, this.id);
 }
 
 class ResultScreenArguments {
   final int total;
   final double inFirstTry;
+  final List<OperationStructure> operations;
 
-  ResultScreenArguments(this.total, this.inFirstTry);
+  ResultScreenArguments(this.total, this.inFirstTry, this.operations);
 }
 
 class EditorScreenArguments {

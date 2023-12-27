@@ -1,11 +1,31 @@
-const shortLanguage = {
-  "jdn.": "jemanden",
-  "jdm.": "jemandem",
-  "etw.": "etwas",
-  "jmd.": "jemand",
-  "qn": "quelqu'un",
-  "qc": "quelque chose",
-  "qn/qc": "quelqu'un. quelque chose",
-  "sb.": "somebody",
-  "sth.": "something",
-};
+const shortForm = [
+  // Deutschland
+  ["etw", "etwas"],
+  ["etw.", "etwas"],
+  ["jdn/etwas", "jemanden etwas"],
+  ["jdn./etwas", "jemanden etwas"],
+  ["jdn", "jemanden"],
+  ["jdn.", "jemanden"],
+  ["jdm/etwas", "jemandem etwas"],
+  ["jdm./etwas", "jemandem etwas"],
+  ["jdm", "jemandem"],
+  ["jdm.", "jemandem"],
+  ["jmd/etwas", "jemand etwas"],
+  ["jmd./etwas", "jemand etwas"],
+  ["jmd", "jemand"],
+  ["jmd.", "jemand"],
+  // La France
+  ["qn/qc", "quelqu'un quelque chose"],
+  ["qn./qc.", "quelqu'un quelque chose"],
+  ["qn", "quelqu'un"],
+  ["qn.", "quelqu'un"],
+  ["qc", "quelque chose"],
+  ["qc.", "quelque chose"],
+  // FREEDOM
+  ["sb/sth", "somebody something"],
+  ["sb./sth.", "somebody something"],
+  ["sb", "somebody"],
+  ["sb.", "somebody"],
+  ["sth", "something"],
+  ["sth.", "something"],
+];

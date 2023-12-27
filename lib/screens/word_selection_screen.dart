@@ -120,6 +120,8 @@ class _WordSelectionScreenState extends State<WordSelectionScreen> {
                 },
                 child: Container(
                   height: 40,
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: bSelected
                         ? Color.lerp(
@@ -133,24 +135,22 @@ class _WordSelectionScreenState extends State<WordSelectionScreen> {
                             index / widget.chapter.words.length,
                           ),
                   ),
-                  child: Row(
-                    children: [
-                      const SizedBox(width: 10),
-                      Text(
-                        widget.chapter.words[index].word1,
-                        style: bSelected ?
-                        const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w400,
-                          fontSize: 16,
-                        ) :
-                        TextStyle(
-                          color: Colors.black.withOpacity(0.5),
-                          fontWeight: FontWeight.w400,
-                          fontSize: 16,
-                        ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints.tight(const Size(double.infinity, 100)),
+                    child: Text(
+                      widget.chapter.words[index].word1,
+                      style: bSelected ?
+                      const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w400,
+                        fontSize: 16,
+                      ) :
+                      TextStyle(
+                        color: Colors.black.withOpacity(0.5),
+                        fontWeight: FontWeight.w400,
+                        fontSize: 16,
                       ),
-                    ],
+                    ),
                   ),
                 ),
               );

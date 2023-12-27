@@ -12,6 +12,7 @@ class TTSButton extends StatefulWidget {
 
   late void Function() play;
   late void Function() stop;
+  late bool Function() isPlaying;
 
   @override
   State<TTSButton> createState() => _TTSButtonState();
@@ -56,6 +57,9 @@ class _TTSButtonState extends State<TTSButton> {
       await flutterTts.speak(widget.textToRead);
       isPlayingSound = true;
     }
+    flutterTts.awaitSpeakCompletion(true).whenComplete(() {
+      isPlayingSound = false;
+    });
     setState(() {});
   }
 
@@ -65,12 +69,18 @@ class _TTSButtonState extends State<TTSButton> {
     setState(() {});
   }
 
+  bool _isPlaying() {
+    setState(() {});
+    return isPlayingSound;
+  }
+
   @override
   void initState() {
     super.initState();
 
     widget.play = _speak;
     widget.stop = _stop;
+    widget.isPlaying = _isPlaying;
 
     _init();
   }

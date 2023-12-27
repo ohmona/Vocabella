@@ -1,3 +1,4 @@
+import 'package:basic_utils/basic_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:vocabella/managers/tts_manager.dart';
 import 'package:vocabella/animations.dart';
@@ -32,9 +33,13 @@ class WordCard extends StatefulWidget {
   final bool isQuestion, isOddTHCard;
 
   late void Function() animAppear;
+  late void Function() breakAnimAppear;
   late void Function() animDisappear;
+  late void Function() breakAnimDisappear;
   late void Function() animSmall;
+  late void Function() breakAnimSmall;
   late void Function() animMedium;
+  late void Function() breakAnimMedium;
   late void Function() reset;
   late void Function() resetCenter;
 
@@ -102,9 +107,19 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
     var ttsWord = displayWord;
     var ttsExample = displayExample;
 
-    for (var str in shortLanguage.keys) {
-      if (ttsWord.contains(str)) {
-        // TODO figure out how to replace short form to long form
+    for (var short in shortForm) {
+      final case1 = "${short[0]} ";
+      final case2 = " ${short[0]}";
+
+      if (ttsWord.contains(case1)) {
+        var repIndex = ttsWord.indexOf(case1);
+        ttsWord = ttsWord.replaceAll(case1, short[1]);
+        ttsWord = StringUtils.addCharAtPosition(ttsWord, " ", repIndex + short[1].length);
+      }
+      else if(ttsWord.contains(case2)) {
+        var repIndex = ttsWord.indexOf(case2);
+        ttsWord = ttsWord.replaceAll(case2, short[1]);
+        ttsWord = StringUtils.addCharAtPosition(ttsWord, " ", repIndex);
       }
     }
 
@@ -151,9 +166,13 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
     initSize();
 
     widget.animDisappear = animDisappear;
+    widget.breakAnimDisappear = breakAnimDisappear;
     widget.animAppear = animAppear;
+    widget.breakAnimAppear = breakAnimAppear;
     widget.animSmall = animSmall;
+    widget.breakAnimSmall = breakAnimSmall;
     widget.animMedium = animMedium;
+    widget.breakAnimMedium = breakAnimMedium;
     widget.reset = reset;
     widget.resetCenter = resetCenter;
 
@@ -168,6 +187,8 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
       textToRead: widget.example,
       language: widget.language,
     );
+
+    updateTTS();
   }
 
   void updateAnimValue() {
@@ -243,6 +264,20 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
     controller1.forward();
   }
 
+  void breakAnimAppear() {
+    if(widget.sequence != Sequence.hidden) return;
+    if(!controller1.isAnimating) return;
+
+    setState(() {
+      controller1.stop();
+      controller1.reset();
+
+      transformOffset = Offset(0, mainOffset.dy);
+
+      widget.sequence = Sequence.question;
+    });
+  }
+
   // Animation for question-card
   void animSmall() {
     if (widget.sequence != Sequence.showing) return;
@@ -289,6 +324,21 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
     });
 
     controller2.forward();
+  }
+
+  void breakAnimSmall() {
+    if(widget.sequence != Sequence.showing) return;
+    if(!controller2.isAnimating) return;
+
+    setState(() {
+      controller2.stop();
+      controller2.reset();
+      width = smallWidth;
+      height = smallHeight;
+      scaleFactor = smallScale;
+      transformOffset = Offset(smallOffset.dx, smallOffset.dy);
+      widget.sequence = Sequence.answer;
+    });
   }
 
   // Animation for answer-card
@@ -340,6 +390,21 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
     controller3.forward();
   }
 
+  void breakAnimMedium() {
+    if(widget.sequence != Sequence.showing) return;
+    if(!controller3.isAnimating) return;
+
+    setState(() {
+      controller3.stop();
+      controller3.reset();
+      width = mediumWidth;
+      height = mediumHeight;
+      scaleFactor = mediumScale;
+      transformOffset = Offset(mediumOffset.dx, mediumOffset.dy);
+      widget.sequence = Sequence.answer;
+    });
+  }
+
   // Animation for disposal
   void animDisappear() {
     if (widget.sequence != Sequence.disappear) return;
@@ -367,6 +432,18 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
     });
 
     controller4.forward();
+  }
+
+  void breakAnimDisappear() {
+    if(widget.sequence != Sequence.disappear) return;
+    if(!controller4.isAnimating) return;
+
+    setState(() {
+      controller4.stop();
+      controller4.reset();
+      opacity = zeroOpacity;
+      widget.sequence = Sequence.hidden;
+    });
   }
 
   // Set state into default value, so that it places under main widget

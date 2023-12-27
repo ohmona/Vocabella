@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:vocabella/managers/subject_data_manipulator.dart';
 import 'package:vocabella/models/wordpair_model.dart';
 import 'dart:convert';
 
@@ -22,6 +23,9 @@ class SessionDataModel {
   int? inRepetitionFirstTry;
   int? stageCount;
 
+  String? id;
+  List<OperationStructure>? operations;
+
   SessionDataModel({
     required this.existSessionData,
     this.listOfQuestions,
@@ -40,10 +44,15 @@ class SessionDataModel {
     this.inFirstTry,
     this.inRepetitionFirstTry,
     this.stageCount,
+    this.id,
+    this.operations,
   });
 
   SessionDataModel.fromJson(dynamic json) {
     try {
+      print("====================================");
+      print("Session Data Model from Json");
+
       existSessionData = json['existSessionData'];
       count = json['count'];
       questionsNumber = json['questionsNumber'];
@@ -59,28 +68,42 @@ class SessionDataModel {
       inFirstTry = json['inFirstTry'];
       inRepetitionFirstTry = json['inRepetitionFirstTry'];
       stageCount = json['stageCount'];
+      id = json['id'];
 
       List<WordPair> loq = [];
-      for (dynamic word in json['listOfQuestions'] as List<dynamic>) {
-        loq.add(
-          WordPair.fromJson(
-            word,
-            name: 'N/A',
-          ),
-        );
+      if(json['listOfQuestions'] != null) {
+        for (dynamic word in json['listOfQuestions'] as List<dynamic>) {
+          loq.add(
+            WordPair.fromJson(
+              word,
+            ),
+          );
+        }
       }
       listOfQuestions = loq;
 
       List<WordPair> low = [];
-      for (dynamic word in json['listOfWrongs'] as List<dynamic>) {
-        low.add(
-          WordPair.fromJson(
-            word,
-            name: 'N/A',
-          ),
-        );
+      if(json['listOfWrongs'] != null) {
+        for (dynamic word in json['listOfWrongs'] as List<dynamic>) {
+          low.add(
+            WordPair.fromJson(
+              word,
+            ),
+          );
+        }
       }
       listOfWrongs = low;
+
+      List<OperationStructure> os = [];
+      if(json['operations'] != null) {
+        for (dynamic op in json['operations'] as List<dynamic>) {
+          os.add(OperationStructure.fromJson(op));
+        }
+        operations = os;
+      }
+      else {
+        operations = [];
+      }
     }
     catch(e) {
       if (kDebugMode) {
@@ -90,6 +113,8 @@ class SessionDataModel {
   }
 
   String toJson() {
+    print("------------------------------");
+    print("Session data model toJson");
     Map<String, Object?> map;
     if(existSessionData) {
       map = {
@@ -112,6 +137,9 @@ class SessionDataModel {
         "inFirstTry": inFirstTry,
         "inRepetitionFirstTry": inRepetitionFirstTry,
         "stageCount": stageCount,
+        "id": id,
+        "operations": operations?.map((op) => op.toJson())
+            .toList(),
       };
     }
     else {
@@ -126,10 +154,15 @@ class SessionDataModel {
     if (kDebugMode) {
       print("Printing session data");
       print(existSessionData);
-      print(listOfQuestions);
-      print(listOfWrongs);
-      print(count);
-      print(isOddTHCard);
+      //print(listOfQuestions);
+      //print(listOfWrongs);
+      //print(count);
+      //print(isOddTHCard);
+      //print(id);
+      /*for(var op in operations) {
+        print("ERRROR??");
+        print(op.toJson());
+      }*/
     }
   }
 }

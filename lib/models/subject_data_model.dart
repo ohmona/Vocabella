@@ -70,8 +70,10 @@ class SubjectDataModel {
   /// Since json data has only type of a list, fromJson constructor isn't necessary
   /// So use this function instead
   static List<SubjectDataModel> listFromJson(dynamic json) {
-    print("========================================");
-    print("make list");
+    if (kDebugMode) {
+      print("========================================");
+      print("make list");
+    }
     try {
       // Declare list to return
       List<SubjectDataModel> subjects = [];
@@ -117,7 +119,7 @@ class SubjectDataModel {
           sub.id = makeSubjectId(date: date, name: sub.title);
         }
 
-        Chapter.globalCount = 1;
+
         // Copy word data
         for (int i = 0; i < (inst['wordlist'] as List<dynamic>).length; i++) {
           sub.wordlist.add(Chapter.fromJson(inst['wordlist'][i]));
@@ -204,7 +206,7 @@ class SubjectDataModel {
 
   // Debug
   // Example data for test
-  @Deprecated("Don't use this anymore")
+  /*@Deprecated("Don't use this anymore")
   static SubjectDataModel createExampleData() {
     return SubjectDataModel(
       title: "Green Line 5",
@@ -259,7 +261,7 @@ class SubjectDataModel {
         ),
       ],
     );
-  }
+  }*/
 
   printData() {
     if (kDebugMode) {
@@ -273,14 +275,14 @@ class SubjectDataModel {
       print("id : $id");
       for (Chapter chap in wordlist) {
         print("Chapter name : '${chap.name}'");
-        print("Chapter id : '${chap.id}'");
+        //print("Chapter id : '${chap.id}'");
         for (WordPair word in chap.words) {
           print("First word : '${word.word1}'");
           print("Second word : '${word.word2}'");
           print("Fist example : '${word.example1}'");
           print("Second example : '${word.example2}'");
-          print("id : '${word.id}'");
-          print("global id : '${word.globalId}'");
+          //print("id : '${word.id}'");
+          //print("global id : '${word.globalId}'");
         }
       }
     }
@@ -351,18 +353,51 @@ class SubjectDataModel {
               // If they aren't same, add it to list
               if(!pasting.wordlist[i].existWordAlready(element)) {
                 if (kDebugMode) {
-                  print("adding non existing word!!!!!!!");
+                  print("Adding new word");
                 }
                 pasting.wordlist[i].words.add(element);
               }
               else {
                 if (kDebugMode) {
                   print("==================================");
-                  print("The word already exist!");
+                  print("Overriding data");
+                }
+                var index = pasting.wordlist[i].findAlreadyExistingWord(element);
+                if(index != -1) {
+                  var original = pasting.wordlist[i].words[index];
+
+                  if (original.lastEdit!.isBefore(element.lastEdit!)) {
+                    // Apply lastEdit
+                    original.lastEdit = element.lastEdit;
+                    original.word1 = element.word1;
+                    original.word2 = element.word2;
+                    original.example1 = element.example1;
+                    original.example2 = element.example2;
+                    original.favourite = element.favourite;
+                  }
+                  else if (original.lastLearned != null ||
+                      element.lastLearned != null) {
+                    if (original.lastLearned != null &&
+                        element.lastLearned != null) {
+                      if (original.lastLearned!.isBefore(
+                          element.lastLearned!)) {
+                        original.lastLearned = element.lastLearned;
+                        original.errorStack = element.errorStack;
+                        original.lastPriorityFactor = element.lastPriorityFactor;
+                        original.totalLearned = element.totalLearned;
+                      }
+                    }
+                    else if (element.lastLearned != null) {
+                      original.lastLearned = element.lastLearned;
+                      original.errorStack = element.errorStack;
+                      original.lastPriorityFactor = element.lastPriorityFactor;
+                      original.totalLearned = element.totalLearned;
+                    }
+                  }
+                  pasting.wordlist[i].words[index] = original;
                 }
               }
             }
-            pasting.wordlist[i].updateAllId();
           }
         }
       }
@@ -371,7 +406,7 @@ class SubjectDataModel {
           print("==================================");
           print("The chapter does not exist, so it'll be added");
         }
-        copyingChapter.id = pasting.wordlist.length + 1;
+        //copyingChapter.id = pasting.wordlist.length + 1;
         pasting.wordlist.add(copyingChapter);
         pasting.chapterCount = pasting.wordlist.length;
       }
@@ -404,4 +439,5 @@ class SubjectDataModel {
     }
     return false;
   }
+
 }

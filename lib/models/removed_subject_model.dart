@@ -85,7 +85,12 @@ class RemovedSubjectModel extends SubjectDataModel {
     final String content = await DataReadWriteManager.readDataFrom(name: name);
 
     if (content.isNotEmpty) {
-      recycleBin = listFromJson(content);
+      try {
+        recycleBin = listFromJson(content);
+      }
+      catch(e) {
+        recycleBin = [];
+      }
     }
   }
 

@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:vocabella/managers/config_file.dart' as cf;
 import 'package:vocabella/managers/double_backup.dart';
 import 'package:vocabella/managers/recent_activity.dart';
 import 'package:vocabella/managers/session_saver.dart';
 import 'package:vocabella/screens/chapter_selection_screen.dart';
+import 'package:vocabella/screens/config_screen.dart';
 import 'package:vocabella/screens/editor_screen.dart';
 import 'package:vocabella/screens/home_screen.dart';
 
@@ -14,9 +16,10 @@ import 'package:vocabella/screens/result_screen.dart';
 import 'package:vocabella/screens/subject_creation_screen.dart';
 import 'package:vocabella/screens/word_selection_screen.dart';
 
+import 'configuration.dart';
 import 'constants.dart';
 
-const appVersion = "1.4.1d";
+const appVersion = "1.5.2";
 const appInfo = 'ver. $appVersion by ohmona';
 
 void main() async {
@@ -29,6 +32,8 @@ void main() async {
   DoubleBackup.initDoubleBackup();
   RecentActivity.initRecentActivity();
   SessionSaver.initSessionSaver();
+  AppConfig.init();
+  cf.ConfigFile.initConfigFile();
 
   runApp(const MyApp());
 }
@@ -92,6 +97,7 @@ class MyApp extends StatelessWidget {
         QuizScreenParent.routeName: (context) => const QuizScreenParent(),
         ResultScreen.routeName: (context) => const ResultScreen(),
         SubjectCreationScreenParent.routeName: (context) => const SubjectCreationScreenParent(),
+        ConfigScreen.routeName: (context) => const ConfigScreen(),
       },
     );
   }

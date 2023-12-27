@@ -17,6 +17,7 @@ import 'package:vocabella/models/session_data_model.dart';
 import 'package:vocabella/models/wordpair_model.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:vocabella/screens/config_screen.dart';
 import 'package:vocabella/screens/debug_screen.dart';
 import 'package:vocabella/screens/quiz_screen.dart';
 import 'package:vocabella/screens/subject_creation_screen.dart';
@@ -86,21 +87,20 @@ class _BodyState extends State<Body> {
         List<SubjectDataModel> newSubjectList =
             SubjectDataModel.listFromJson(content);
 
-        final existingIndex =
-            SubjectDataModel.getSubjectIndexByName(newSubjectList[0].title);
-        if (newSubjectList.length > 1 || existingIndex == -1) {
-          // Add them all to static list
-          SubjectDataModel.addAll(newSubjectList);
-        } else {
-          if (kDebugMode) {
-            print("==================================");
-            print(
-                "Printing pasting data before merging : ${newSubjectList[0].title}");
-            newSubjectList[0].printData();
+        for (var newSub in newSubjectList) {
+          bool oldOneFound = false;
+          for (var oldSub in SubjectDataModel.subjectList) {
+            if (oldSub.id == newSub.id) {
+              oldOneFound = true;
+              int index = SubjectDataModel.subjectList.indexOf(oldSub);
+              SubjectDataModel.merge(newSub,
+                  to: SubjectDataModel.subjectList[index]);
+            }
           }
-          // Merge data
-          SubjectDataModel.merge(newSubjectList[0],
-              to: SubjectDataModel.subjectList[existingIndex]);
+
+          if (!oldOneFound) {
+            SubjectDataModel.subjectList.add(newSub);
+          }
         }
 
         // Save updated data to file
@@ -124,13 +124,15 @@ class _BodyState extends State<Body> {
     WordPair dummyWord = WordPair(
       word1: "type your word",
       word2: "type your word",
+      created: DateTime.now(),
+      lastEdit: DateTime.now(),
     );
     Chapter firstChapter = Chapter(
       name: newChapter,
       words: [dummyWord],
-      id: 1,
+      //id: 1,
     );
-    firstChapter.updateAllId();
+    //firstChapter.updateAllId();
 
     // Create dummy subject-data by just created dummy-data
     SubjectDataModel newSubject = SubjectDataModel(
@@ -418,7 +420,8 @@ class _BodyState extends State<Body> {
           actions: <Widget>[
             TextButton(
               onPressed: () {
-                SessionSaver.session = SessionDataModel(existSessionData: false);
+                SessionSaver.session =
+                    SessionDataModel(existSessionData: false);
                 Navigator.of(context).pop();
               },
               style: TextButton.styleFrom(
@@ -445,6 +448,7 @@ class _BodyState extends State<Body> {
                     "",
                     "",
                     sessionData,
+                    '',
                   ),
                 );
               },
@@ -622,8 +626,15 @@ class _BodyState extends State<Body> {
 
   Drawer buildDrawer(BuildContext context) {
     bool bBuildRecycleBin = RemovedSubjectModel.recycleBin.isNotEmpty;
-    List<Widget> recycleBinWidget = buildRecycleBin();
-    List<Widget> emptyRecycleBinWidget = [buildEmptyRecycleBin()];
+    late List<Widget> emptyRecycleBinWidget;
+    emptyRecycleBinWidget = [buildEmptyRecycleBin()];
+
+    late List<Widget> recycleBinWidget;
+    if(bBuildRecycleBin) {
+      recycleBinWidget = bBuildRecycleBin
+          ? buildRecycleBin()
+          : emptyRecycleBinWidget;
+    }
 
     return Drawer(
       child: Column(
@@ -693,6 +704,20 @@ class _BodyState extends State<Body> {
                         color: Colors.white,
                       ),
                     ),
+                    IconButton(
+                      onPressed: () async {
+                        Navigator.pushNamed(
+                          context,
+                          ConfigScreen.routeName,
+                        ).then((value) {
+                          setState(() {});
+                        });
+                      },
+                      icon: const Icon(
+                        Icons.settings,
+                        color: Colors.white,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -750,6 +775,7 @@ class _BodyState extends State<Body> {
           scrollDirection: Axis.vertical,
           itemCount: RemovedSubjectModel.recycleBin.length,
           itemBuilder: (context, index) {
+
             return RecycleBinGridTile(
               data: RemovedSubjectModel.recycleBin[index],
               index: index,
@@ -777,7 +803,6 @@ class _BodyState extends State<Body> {
           child: GestureDetector(
             child: ScrollSnapList(
               listController: scroller,
-              dynamicItemOpacity: 0.5,
               scrollPhysics: const BouncingScrollPhysics(),
               focusOnItemTap: true,
               selectedItemAnchor: SelectedItemAnchor.MIDDLE,

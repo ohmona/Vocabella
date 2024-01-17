@@ -3,12 +3,13 @@
 * examples and every wordpair class has an id
  */
 import 'package:flutter/foundation.dart';
-import 'package:vocabella/configuration.dart';
+import 'package:vocabella/utils/configuration.dart';
+import 'package:vocabella/utils/random.dart';
 
 class WordPair {
   // Word data
   late String word1, word2; // question, answer
-  late String? example1, example2;
+  late String example1, example2;
 
   // Priority stuffs
   late bool? favourite;
@@ -21,11 +22,14 @@ class WordPair {
   late DateTime? lastEdit;
   late DateTime? lastLearned;
 
+  // Key
+  late String? salt;
+
   WordPair({
     required this.word1,
     required this.word2,
-    this.example1,
-    this.example2,
+    this.example1 = "",
+    this.example2 = "",
     required this.created,
     required this.lastEdit,
     this.favourite = false,
@@ -33,13 +37,14 @@ class WordPair {
     this.errorStack,
     this.lastPriorityFactor,
     this.totalLearned,
+    required this.salt,
   });
 
   WordPair.fromJson(dynamic json) {
     word1 = json['word1'];
     word2 = json['word2'];
-    example1 = json['example1'];
-    example2 = json['example2'];
+    example1 = json['example1'] ?? "";
+    example2 = json['example2'] ?? "";
 
     // Creation time
     if (json['created'] != null) {
@@ -89,14 +94,16 @@ class WordPair {
     } else {
       totalLearned = 0;
     }
+    
+    salt = json['salt'];
   }
 
   Map<String, dynamic> toJson() {
     return {
       'word1': word1,
       'word2': word2,
-      'example1': example1 ?? "",
-      'example2': example2 ?? "",
+      'example1': example1,
+      'example2': example2,
       'created': created.toString(),
       'lastEdit': lastEdit.toString(),
       'favourite': favourite,
@@ -104,6 +111,7 @@ class WordPair {
       'errorStack': errorStack,
       'lastPriorityFactor': lastPriorityFactor,
       'totalLearned': totalLearned,
+      'salt': salt,
     };
   }
 
@@ -120,13 +128,19 @@ class WordPair {
       print("errorStack : $errorStack");
       print("lastPriorityFactor : $lastPriorityFactor");
       print("totalLearned : $totalLearned");
+      print("salt : $salt");
     }
   }
 
   bool isSameWord({required WordPair as}) {
     var comparing = as;
 
-    // 1. All words are same
+    // creation date & random key is equal
+    if((salt ?? "null") == (comparing.salt ?? "null") && created == comparing.created) {
+      return true;
+    }
+    return false;
+    /*// 1. All words are same
     if (word1 == comparing.word1 && word2 == comparing.word2) {
       if(!AppConfig.checkCreationDateWhileMerging) {
         if (AppConfig.checkExamplesWhileMerging) {
@@ -161,7 +175,7 @@ class WordPair {
       }
     }
 
-    return false;
+    return false;*/
   }
 
   static WordPair nullWordPair() {
@@ -177,6 +191,7 @@ class WordPair {
       lastLearned: DateTime(1, 1, 1, 0, 0),
       lastPriorityFactor: -1,
       totalLearned: -1,
+      salt: "",
     );
   }
 

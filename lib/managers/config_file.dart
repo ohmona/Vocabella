@@ -3,7 +3,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:vocabella/configuration.dart';
+import 'package:vocabella/utils/configuration.dart';
 import 'data_handle_manager.dart';
 
 class ConfigFile {

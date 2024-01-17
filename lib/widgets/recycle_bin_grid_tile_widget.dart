@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vocabella/constants.dart';
+import 'package:vocabella/utils/constants.dart';
 import 'package:vocabella/models/removed_subject_model.dart';
 
 class RecycleBinGridTile extends StatelessWidget {

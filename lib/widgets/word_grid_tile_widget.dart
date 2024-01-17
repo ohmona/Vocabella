@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vocabella/configuration.dart';
+import 'package:vocabella/utils/configuration.dart';
 
 import '../models/chapter_model.dart';
 import '../models/wordpair_model.dart';
@@ -183,8 +183,8 @@ class _WordGridTileState extends State<WordGridTile> {
           if (AppConfig.bDebugMode)
             Text(
               "C:${widget.wordPair.created},E:${widget.wordPair.lastEdit},I:${widget.index},"
-                  "F:${widget.wordPair.favourite},LL:${widget.wordPair.lastLearned},ER:${widget.wordPair.errorStack},"
-                  "LPF:${widget.wordPair.lastPriorityFactor},TL:${widget.wordPair.totalLearned},W:${widget.wordPair.word1}",
+              "F:${widget.wordPair.favourite},LL:${widget.wordPair.lastLearned},ER:${widget.wordPair.errorStack},"
+              "LPF:${widget.wordPair.lastPriorityFactor},TL:${widget.wordPair.totalLearned},W:${widget.wordPair.word1},K:${widget.wordPair.salt}",
               style:
                   const TextStyle(fontSize: 7, color: Colors.black, shadows: [
                 Shadow(

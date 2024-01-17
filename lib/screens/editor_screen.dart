@@ -1,17 +1,21 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:googleapis/apigeeregistry/v1.dart';
 import 'package:keyboard_utils/keyboard_aware/keyboard_aware.dart';
 import 'package:keyboard_utils/keyboard_utils.dart';
 import 'package:keyboard_utils/keyboard_listener.dart' as keyboard_listener;
-import 'package:vocabella/arguments.dart';
-import 'package:vocabella/configuration.dart';
-import 'package:vocabella/constants.dart';
+import 'package:vocabella/overlays/loading_scene_overlay.dart';
+import 'package:vocabella/utils/arguments.dart';
+import 'package:vocabella/utils/configuration.dart';
+import 'package:vocabella/utils/constants.dart';
 import 'package:vocabella/managers/double_backup.dart';
 import 'package:vocabella/models/subject_data_model.dart';
+import 'package:vocabella/utils/random.dart';
 import 'package:vocabella/widgets/chapter_selection_drawer_widget.dart';
 import 'package:vocabella/widgets/editor_screen_appbar_widget.dart';
 import 'package:vocabella/widgets/language_bar_widget.dart';
@@ -112,6 +116,7 @@ class _EditorScreenState extends State<EditorScreen> {
     word2: "",
     created: DateTime.now(),
     lastEdit: DateTime.now(),
+    salt: "",
   );
 
   late String textBeforeEdit;
@@ -281,10 +286,14 @@ class _EditorScreenState extends State<EditorScreen> {
 
         // Save this chapter as latest opened
         subjectData.lastOpenedChapterIndex = newChapterIndex;
-        saveData();
+        //saveData();
 
         Future.delayed(const Duration(milliseconds: 50), () {
-          if (!bReadOnly) {
+          if(currentChapter.lastIndex == null) {
+            changeFocus(0,
+                requestFocus: true, force: true);
+          }
+          else if (!bReadOnly) {
             // Focus on last focused index
             if (currentChapter.lastIndex! < (currentChapter.words.length) * 2) {
               changeFocus(currentChapter.lastIndex!,
@@ -322,6 +331,7 @@ class _EditorScreenState extends State<EditorScreen> {
           word2: "Type your word",
           created: DateTime.now(),
           lastEdit: DateTime.now(),
+          salt: generateRandomString(8),
         )
       ];
       Chapter newChapter = Chapter(
@@ -355,8 +365,8 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   /// Save all data to local storage
-  void saveData() async {
-    if (focusedIndex == null) return;
+  Future<File?> saveData() async {
+    if (focusedIndex == null) return null;
 
     if (ableToSave()) {
       currentChapter.lastIndex = focusedIndex;
@@ -369,17 +379,22 @@ class _EditorScreenState extends State<EditorScreen> {
           SubjectDataModel.subjectList[i] = subjectData;
         }
 
+        print("Writing data...");
         // Finally we have to save data to the local no matter it should be
         await DataReadWriteManager.writeData(
-            SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+            SubjectDataModel.listToJson(SubjectDataModel.subjectList)); // FUTURE
 
+        print("toggle db count...");
         // After that we need to create another backup for fatal case like loosing data
         // Firstly, we toggle the count
-        await DoubleBackup.toggleDBCount();
+        await DoubleBackup.toggleDBCount(); // FUTURE
 
+        print("save double backup...");
         // Then save the backup data
-        await DoubleBackup.saveDoubleBackup(
-            SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+        var future = DoubleBackup.saveDoubleBackup(
+            SubjectDataModel.listToJson(SubjectDataModel.subjectList)); // FUTURE
+
+        return future;
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -392,7 +407,9 @@ class _EditorScreenState extends State<EditorScreen> {
           elevation: 10,
         ),
       );
+      return null;
     }
+    return null;
   }
 
   void terminateWordAddition() {
@@ -401,6 +418,7 @@ class _EditorScreenState extends State<EditorScreen> {
         wordAdditionBuffer.word2.isNotEmpty) {
       wordAdditionBuffer.created = DateTime.now();
       wordAdditionBuffer.lastEdit = DateTime.now();
+      wordAdditionBuffer.salt = generateRandomString(8);
       addWord(wordAdditionBuffer);
       saveData();
     }
@@ -410,6 +428,7 @@ class _EditorScreenState extends State<EditorScreen> {
       word2: "",
       created: DateTime.now(),
       lastEdit: DateTime.now(),
+      salt: "",
     );
   }
 
@@ -438,6 +457,7 @@ class _EditorScreenState extends State<EditorScreen> {
         word2: "",
         created: DateTime.now(),
         lastEdit: DateTime.now(),
+        salt: "",
       );
     }
 
@@ -793,6 +813,10 @@ class _EditorScreenState extends State<EditorScreen> {
     return num;
   }
 
+  void showLoadingScreen(BuildContext context) {
+    Navigator.of(context).push(LoadingOverlay());
+  }
+
   @override
   void dispose() {
     bottomBarFocusNode.dispose();
@@ -828,7 +852,7 @@ class _EditorScreenState extends State<EditorScreen> {
     focusedIndex = currentChapter.lastIndex ?? 0;
 
     // activate auto-save
-    autoSaveTimer = Timer.periodic(const Duration(seconds: 60), (timer) {
+    autoSaveTimer = Timer.periodic(const Duration(seconds: 120), (timer) {
       saveData();
     });
 
@@ -898,6 +922,7 @@ class _EditorScreenState extends State<EditorScreen> {
         existChapterNameAlready: existChapterNameAlready,
         openDoubleChecker: openDoubleChecker,
         duplicateChapter: duplicateChapter,
+        showLoadingScreen: showLoadingScreen,
       ),
       body: WillPopScope(
         onWillPop: () async {
@@ -1105,6 +1130,11 @@ class _EditorScreenState extends State<EditorScreen> {
                       },
                       favouriteCount: countFavourite(),
                     ),
+                    /*FloatingActionButton(onPressed: () {
+                      Navigator.of(context).push(DataSaveOverlay(
+                        saveData: saveData,
+                      ));
+                    }),*/
                   ],
                 ),
               ),

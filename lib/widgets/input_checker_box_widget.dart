@@ -34,6 +34,7 @@ class _InputCheckerBoxState extends State<InputCheckerBox>
   late AnimationController animationController;
 
   static Offset defaultOffset = const Offset(0, 500);
+  static Offset hiddenOffset = const Offset(0, -1000);
   static const double defaultOpacity = 0;
   //static const double initialPosition = 1000;
 
@@ -60,6 +61,8 @@ class _InputCheckerBoxState extends State<InputCheckerBox>
   }
 
   void animAppear() {
+    transform = defaultOffset;
+
     late Animation<double> animation;
 
     animationController = AnimationController(
@@ -78,7 +81,6 @@ class _InputCheckerBoxState extends State<InputCheckerBox>
 
     animation.addStatusListener((status) {
       if(animation.isCompleted) {
-        transform = defaultOffset;
       }
     });
 
@@ -113,7 +115,7 @@ class _InputCheckerBoxState extends State<InputCheckerBox>
 
     animation.addStatusListener((status) {
       if(animation.isCompleted) {
-        transform = defaultOffset;
+        transform = hiddenOffset;
       }
     });
 
@@ -124,7 +126,7 @@ class _InputCheckerBoxState extends State<InputCheckerBox>
     setState(() {
       animationController.stop();
       animationController.reset();
-      transform = defaultOffset;
+      transform = hiddenOffset;
       opacity = 0;
     });
   }
@@ -143,7 +145,7 @@ class _InputCheckerBoxState extends State<InputCheckerBox>
     widget.breakAnimAppear = breakAnimAppear;
 
     opacity = defaultOpacity;
-    transform = defaultOffset;
+    transform = hiddenOffset;
 
     super.initState();
   }

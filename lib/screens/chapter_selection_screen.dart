@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:vocabella/arguments.dart';
-import 'package:vocabella/constants.dart';
+import 'package:vocabella/utils/arguments.dart';
+import 'package:vocabella/utils/constants.dart';
 import 'package:vocabella/models/subject_data_model.dart';
 import 'package:vocabella/screens/mode_selection_screen.dart';
 import 'package:vocabella/screens/word_selection_screen.dart';

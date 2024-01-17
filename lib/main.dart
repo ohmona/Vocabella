@@ -16,10 +16,11 @@ import 'package:vocabella/screens/result_screen.dart';
 import 'package:vocabella/screens/subject_creation_screen.dart';
 import 'package:vocabella/screens/word_selection_screen.dart';
 
-import 'configuration.dart';
-import 'constants.dart';
+import 'utils/configuration.dart';
+import 'utils/constants.dart';
+import 'package:flutter/rendering.dart';
 
-const appVersion = "1.5.2";
+const appVersion = "1.5.6";
 const appInfo = 'ver. $appVersion by ohmona';
 
 void main() async {
@@ -34,6 +35,9 @@ void main() async {
   SessionSaver.initSessionSaver();
   AppConfig.init();
   cf.ConfigFile.initConfigFile();
+
+  //debugPaintPointersEnabled = true;
+  //debugPaintSizeEnabled  = true;
 
   runApp(const MyApp());
 }

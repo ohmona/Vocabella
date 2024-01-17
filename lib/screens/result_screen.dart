@@ -1,13 +1,17 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
-import 'package:vocabella/arguments.dart';
-import 'package:vocabella/constants.dart';
+import 'package:vocabella/overlays/loading_scene_overlay.dart';
+import 'package:vocabella/utils/arguments.dart';
+import 'package:vocabella/utils/constants.dart';
 import 'package:vocabella/managers/subject_data_manipulator.dart';
 import 'package:vocabella/widgets/bottom_bar_widget.dart';
 
 import '../managers/data_handle_manager.dart';
 import '../managers/double_backup.dart';
 import '../models/subject_data_model.dart';
+import '../utils/chrono.dart';
 
 class ResultScreen extends StatelessWidget {
   const ResultScreen({Key? key}) : super(key: key);
@@ -32,12 +36,13 @@ class ResultScreen extends StatelessWidget {
     }
   }
 
-  Future<void> saveData() async {
+  Future<File?> saveData() async {
     await DataReadWriteManager.writeData(
         SubjectDataModel.listToJson(SubjectDataModel.subjectList));
     await DoubleBackup.toggleDBCount();
-    await DoubleBackup.saveDoubleBackup(
+    var future = DoubleBackup.saveDoubleBackup(
         SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+    return future;
   }
 
   @override
@@ -148,18 +153,35 @@ class ResultScreen extends StatelessWidget {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 25),
+                    Text(
+                      "time lasted: ${formatLastedTime(calcLastedTime(args.startTime, DateTime.now()))}",
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        shadows: [
+                          Shadow(
+                            color: Colors.white,
+                            blurRadius: 15,
+                          )
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
               GestureDetector(
-                onTap: () {
+                onTap: () async {
+                  Navigator.of(context).push(LoadingOverlay());
+                  // Conduct operations
+                  for (var operation in args.operations) {
+                    SubjectManipulator.operate(str: operation);
+                  }
+                  // Return to home
+                  await saveData();
                   Future.delayed(const Duration(milliseconds: 10), () {
-                    // Conduct operations
-                    for (var operation in args.operations) {
-                      SubjectManipulator.operate(str: operation);
-                    }
-                    // Return to home
-                    saveData();
                     SubjectManipulator.disposeAccess();
                     Navigator.popUntil(context, ModalRoute.withName('/'));
                   });

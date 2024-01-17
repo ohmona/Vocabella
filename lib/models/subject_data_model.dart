@@ -3,39 +3,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:vocabella/main.dart';
 import 'package:vocabella/models/wordpair_model.dart';
+import 'package:vocabella/utils/random.dart';
 
-import '../constants.dart';
+import '../utils/constants.dart';
 import 'chapter_model.dart';
-
-// Word list.json will look like this
-/*"words": [
-    "chapter": {
-      "pairID": {
-        "word1",
-        "word2",
-        "example1",
-        "example2",
-      },
-    },
-  ];
-  ... but
-  this should converted into this
-  List<Chapter> [
-      Chapter(
-        name: "poo",
-        words: [
-          WordPair(
-            word1: "bar",
-            word2: "sans",
-            example1: "...it's not necessary at all",
-          ),
-          WordPair(...),
-        ],
-      ),
-      Chapter(...),
-    ],
-  ]
-*/
 
 class SubjectDataModel {
   static List<SubjectDataModel> subjectList = [];
@@ -204,65 +175,6 @@ class SubjectDataModel {
     return count;
   }
 
-  // Debug
-  // Example data for test
-  /*@Deprecated("Don't use this anymore")
-  static SubjectDataModel createExampleData() {
-    return SubjectDataModel(
-      title: "Green Line 5",
-      thumb: "",
-      subjects: ["English", "German"],
-      languages: ["en-US", "de-DE"],
-      wordlist: [
-        Chapter(
-          name: "Across cultures 1",
-          words: [
-            WordPair(
-              word1: "segregation",
-              word2: "Segregation; Trennung; Rassentrennung",
-              example1: "Apartheid meant racial segregation.",
-            ),
-            WordPair(
-              word1: "apartheid",
-              word2: "Apartheid",
-              example1: "The South African apartheid system ended in 1994.",
-            ),
-            WordPair(
-              word1: "racism",
-              word2: "Rassismus",
-              example1: "Apartheid was based on racism.",
-            ),
-          ],
-        ),
-        Chapter(
-          name: "Unit 1/Check-in",
-          words: [
-            WordPair(
-              word1: "G'day!",
-              word2: "Guten Tag.; Hallo.; Hi. (Begrüßung in Australien)",
-            ),
-            WordPair(
-              word1: "coral reef",
-              word2: "Korallenriff",
-              example1: "The Great Barrier Reef is a huge coral reef.",
-            ),
-            WordPair(
-              word1: "purpose",
-              word2: "Ziel; Absicht; Zweck",
-              example1:
-                  "If you have a purpose, you have a reason to do something.",
-            ),
-            WordPair(
-              word1: "word",
-              word2: "Wort",
-              example1: "If you don't learn words, you won't ever get better.",
-            ),
-          ],
-        ),
-      ],
-    );
-  }*/
-
   printData() {
     if (kDebugMode) {
       print("====================================");
@@ -366,8 +278,9 @@ class SubjectDataModel {
                 if(index != -1) {
                   var original = pasting.wordlist[i].words[index];
 
+                  // check whether current data is older one
                   if (original.lastEdit!.isBefore(element.lastEdit!)) {
-                    // Apply lastEdit
+                    // Apply lastEdit, data
                     original.lastEdit = element.lastEdit;
                     original.word1 = element.word1;
                     original.word2 = element.word2;
@@ -377,6 +290,7 @@ class SubjectDataModel {
                   }
                   else if (original.lastLearned != null ||
                       element.lastLearned != null) {
+
                     if (original.lastLearned != null &&
                         element.lastLearned != null) {
                       if (original.lastLearned!.isBefore(
@@ -440,4 +354,30 @@ class SubjectDataModel {
     return false;
   }
 
+  static void fixInvalid() {
+    if (kDebugMode) {
+      print("Checking invalid data");
+    }
+    for(int i = 0; i < subjectList.length; i++) {
+      if (kDebugMode) {
+        print("Subject : $i");
+      }
+      for(int j = 0; j < subjectList[i].wordlist.length; j++) {
+        if (kDebugMode) {
+          print("Chapter : $j");
+        }
+        for(int k = 0; k < subjectList[i].wordlist[j].words.length; k++) {
+          if (kDebugMode) {
+            print("Word : $k");
+          }
+          if(subjectList[i].wordlist[j].words[k].salt == null) {
+            if (kDebugMode) {
+              print("invalid data found");
+            }
+            subjectList[i].wordlist[j].words[k].salt = generateRandomString(4);
+          }
+        }
+      }
+    }
+  }
 }

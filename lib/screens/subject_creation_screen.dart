@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:vocabella/constants.dart';
+import 'package:vocabella/utils/constants.dart';
 
-import '../arguments.dart';
+import '../utils/arguments.dart';
 
 class SubjectCreationScreenParent extends StatelessWidget {
   const SubjectCreationScreenParent({Key? key}) : super(key: key);

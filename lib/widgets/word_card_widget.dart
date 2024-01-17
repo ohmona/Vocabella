@@ -1,8 +1,8 @@
 import 'package:basic_utils/basic_utils.dart';
 import 'package:flutter/material.dart';
-import 'package:vocabella/managers/tts_manager.dart';
-import 'package:vocabella/animations.dart';
-import 'package:vocabella/short_languages.dart';
+import 'package:vocabella/widgets/tts_button.dart';
+import 'package:vocabella/utils/animations.dart';
+import 'package:vocabella/utils/short_languages.dart';
 
 enum Sequence {
   appear,
@@ -20,42 +20,36 @@ enum DivisionMode {
 }
 
 class WordCard extends StatefulWidget {
-  WordCard({
+  const WordCard({
     Key? key,
     required this.word,
     required this.example,
     required this.isQuestion,
     required this.isOddTHCard,
     required this.language,
+    required this.swapZOrder,
   }) : super(key: key);
 
   final String word, example, language;
   final bool isQuestion, isOddTHCard;
 
-  late void Function() animAppear;
-  late void Function() breakAnimAppear;
-  late void Function() animDisappear;
-  late void Function() breakAnimDisappear;
-  late void Function() animSmall;
-  late void Function() breakAnimSmall;
-  late void Function() animMedium;
-  late void Function() breakAnimMedium;
-  late void Function() reset;
-  late void Function() resetCenter;
-
-  late void Function({required String newWord, required String newExample})
-      setDisplayWordAndExample;
-
-  late Sequence sequence;
-
-  late TTSButton wordTTS;
-  late TTSButton exampleTTS;
+  final void Function() swapZOrder;
 
   @override
-  State<WordCard> createState() => _WordCardState();
+  State<WordCard> createState() => WordCardState();
 }
 
-class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
+class WordCardState extends State<WordCard> with TickerProviderStateMixin {
+  late Sequence _sequence;
+
+  Sequence getSequence() => _sequence;
+
+  void setSequence(Sequence sequence) {
+    setState(() {
+      _sequence = sequence;
+    });
+  }
+
   late String displayWord;
   late String displayExample;
 
@@ -102,53 +96,20 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
 
   late DivisionMode divisionMode;
 
-  // Sync text-to-speech button to currently displaying text
-  void updateTTS() {
-    var ttsWord = displayWord;
-    var ttsExample = displayExample;
-
-    for (var short in shortForm) {
-      final case1 = "${short[0]} ";
-      final case2 = " ${short[0]}";
-
-      if (ttsWord.contains(case1)) {
-        var repIndex = ttsWord.indexOf(case1);
-        ttsWord = ttsWord.replaceAll(case1, short[1]);
-        ttsWord = StringUtils.addCharAtPosition(ttsWord, " ", repIndex + short[1].length);
-      }
-      else if(ttsWord.contains(case2)) {
-        var repIndex = ttsWord.indexOf(case2);
-        ttsWord = ttsWord.replaceAll(case2, short[1]);
-        ttsWord = StringUtils.addCharAtPosition(ttsWord, " ", repIndex);
-      }
-    }
-
-    widget.wordTTS = TTSButton(
-      textToRead: ttsWord,
-      language: widget.language,
-    );
-
-    widget.exampleTTS = TTSButton(
-      textToRead: ttsExample,
-      language: widget.language,
-    );
-
-    setState(() {});
-  }
-
   // Change currently displaying text and update corresponding text-to-speech
-  void _setDisplayWordAndExample(
+  void setDisplayWordAndExample(
       {required String newWord, required String newExample}) {
     setState(() {
       displayWord = newWord;
       displayExample = newExample;
-      updateTTS();
     });
   }
 
   @override
   void initState() {
     super.initState();
+
+    _sequence = Sequence.hidden;
 
     controller1 = AnimationController(vsync: this);
     controller2 = AnimationController(vsync: this);
@@ -157,38 +118,11 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
 
     displayWord = widget.word;
     displayExample = widget.example;
-
-    widget.setDisplayWordAndExample = _setDisplayWordAndExample;
-
     divisionMode = DivisionMode.defaultPortrait;
 
     refreshAnimValue();
     initSize();
-
-    widget.animDisappear = animDisappear;
-    widget.breakAnimDisappear = breakAnimDisappear;
-    widget.animAppear = animAppear;
-    widget.breakAnimAppear = breakAnimAppear;
-    widget.animSmall = animSmall;
-    widget.breakAnimSmall = breakAnimSmall;
-    widget.animMedium = animMedium;
-    widget.breakAnimMedium = breakAnimMedium;
-    widget.reset = reset;
-    widget.resetCenter = resetCenter;
-
     if (widget.isQuestion && widget.isOddTHCard) animAppear();
-
-    widget.wordTTS = TTSButton(
-      textToRead: widget.word,
-      language: widget.language,
-    );
-
-    widget.exampleTTS = TTSButton(
-      textToRead: widget.example,
-      language: widget.language,
-    );
-
-    updateTTS();
   }
 
   void updateAnimValue() {
@@ -223,10 +157,10 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
 
   // Animation once called
   void animAppear() {
-    if (widget.sequence != Sequence.hidden) return;
+    if (_sequence != Sequence.hidden) return;
 
     if (!widget.isQuestion) {
-      widget.sequence = Sequence.question;
+      _sequence = Sequence.question;
       return;
     }
 
@@ -257,7 +191,7 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
 
     animation.addStatusListener((status) {
       if (animation.isCompleted) {
-        widget.sequence = Sequence.question;
+        _sequence = Sequence.question;
       }
     });
 
@@ -265,8 +199,8 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
   }
 
   void breakAnimAppear() {
-    if(widget.sequence != Sequence.hidden) return;
-    if(!controller1.isAnimating) return;
+    if (_sequence != Sequence.hidden) return;
+    if (!controller1.isAnimating) return;
 
     setState(() {
       controller1.stop();
@@ -274,13 +208,13 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
 
       transformOffset = Offset(0, mainOffset.dy);
 
-      widget.sequence = Sequence.question;
+      _sequence = Sequence.question;
     });
   }
 
   // Animation for question-card
   void animSmall() {
-    if (widget.sequence != Sequence.showing) return;
+    if (_sequence != Sequence.showing) return;
 
     late Animation<double> animation;
     late Animation<double> animation1;
@@ -319,7 +253,8 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
 
     animation.addStatusListener((status) {
       if (animation.isCompleted) {
-        widget.sequence = Sequence.answer;
+        _sequence = Sequence.answer;
+        widget.swapZOrder();
       }
     });
 
@@ -327,8 +262,8 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
   }
 
   void breakAnimSmall() {
-    if(widget.sequence != Sequence.showing) return;
-    if(!controller2.isAnimating) return;
+    if (_sequence != Sequence.showing) return;
+    if (!controller2.isAnimating) return;
 
     setState(() {
       controller2.stop();
@@ -337,13 +272,13 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
       height = smallHeight;
       scaleFactor = smallScale;
       transformOffset = Offset(smallOffset.dx, smallOffset.dy);
-      widget.sequence = Sequence.answer;
+      _sequence = Sequence.answer;
     });
   }
 
   // Animation for answer-card
   void animMedium() {
-    if (widget.sequence != Sequence.showing) return;
+    if (_sequence != Sequence.showing) return;
 
     late Animation<double> animation;
     late Animation<double> animation1;
@@ -383,7 +318,7 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
 
     animation.addStatusListener((status) {
       if (animation.isCompleted) {
-        widget.sequence = Sequence.answer;
+        _sequence = Sequence.answer;
       }
     });
 
@@ -391,8 +326,8 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
   }
 
   void breakAnimMedium() {
-    if(widget.sequence != Sequence.showing) return;
-    if(!controller3.isAnimating) return;
+    if (_sequence != Sequence.showing) return;
+    if (!controller3.isAnimating) return;
 
     setState(() {
       controller3.stop();
@@ -401,13 +336,15 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
       height = mediumHeight;
       scaleFactor = mediumScale;
       transformOffset = Offset(mediumOffset.dx, mediumOffset.dy);
-      widget.sequence = Sequence.answer;
+      _sequence = Sequence.answer;
     });
   }
 
   // Animation for disposal
   void animDisappear() {
-    if (widget.sequence != Sequence.disappear) return;
+    if (_sequence != Sequence.disappear) return;
+
+    widget.swapZOrder();
 
     late Animation<double> animation;
 
@@ -427,7 +364,9 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
     });
     animation.addStatusListener((status) {
       if (animation.isCompleted) {
-        widget.sequence = Sequence.hidden;
+        _sequence = Sequence.hidden;
+        transformOffset = mainHiddenOffset;
+        setState(() {});
       }
     });
 
@@ -435,14 +374,15 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
   }
 
   void breakAnimDisappear() {
-    if(widget.sequence != Sequence.disappear) return;
-    if(!controller4.isAnimating) return;
+    if (_sequence != Sequence.disappear) return;
+    if (!controller4.isAnimating) return;
 
     setState(() {
       controller4.stop();
       controller4.reset();
       opacity = zeroOpacity;
-      widget.sequence = Sequence.hidden;
+      transformOffset = mainHiddenOffset;
+      _sequence = Sequence.hidden;
     });
   }
 
@@ -466,6 +406,18 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
       scaleFactor = defaultScale;
       opacity = oneOpacity;
     });
+  }
+
+  @override
+  void didUpdateWidget(WordCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    print("Did Update Widget called");
+    print("Did Update Widget called");
+    print("Did Update Widget called");
+    print("Did Update Widget called");
+    print("Did Update Widget called");
+    print("Did Update Widget called");
+    print("Did Update Widget called");
   }
 
   @override
@@ -495,19 +447,19 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
     refreshAnimValue();
 
     // Apply values to actual values will be applied
-    if (widget.sequence == Sequence.question) {
+    if (_sequence == Sequence.question) {
       width = defaultWidth;
       height = defaultHeight;
       transformOffset = mainOffset;
       scaleFactor = defaultScale;
       opacity = oneOpacity;
-    } else if (widget.sequence == Sequence.answer) {
+    } else if (_sequence == Sequence.answer) {
       width = widget.isQuestion ? smallWidth : mediumWidth;
       height = widget.isQuestion ? smallHeight : mediumHeight;
       transformOffset = widget.isQuestion ? smallOffset : mediumOffset;
       scaleFactor = widget.isQuestion ? smallScale : mediumScale;
       opacity = oneOpacity;
-    } else if (widget.sequence == Sequence.hidden) {
+    } else if (_sequence == Sequence.hidden) {
       width = defaultWidth;
       height = defaultHeight;
       transformOffset = mainHiddenOffset;
@@ -538,81 +490,89 @@ class _WordCardState extends State<WordCard> with TickerProviderStateMixin {
         scale: scaleFactor,
         child: Opacity(
           opacity: opacity,
-          child: Container(
-            clipBehavior: Clip.hardEdge,
-            /*margin: EdgeInsets.only(
-                left: margins[0],
-                right: margins[1],
-                bottom: margins[2],
-                top: margins[3]),*/
-            width: width,
-            height: height,
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(30),
-              color: Colors.white,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.grey.withOpacity(0.11),
-                  Colors.white.withOpacity(0.1),
-                ],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(1),
-                  offset: const Offset(4, 4),
-                  blurRadius: 15,
-                  spreadRadius: 1,
-                  blurStyle: BlurStyle.normal,
-                ),
-                BoxShadow(
-                  color: Colors.white.withOpacity(1),
-                  offset: const Offset(-4, -4),
-                  blurRadius: 15,
-                  spreadRadius: 1,
-                  blurStyle: BlurStyle.normal,
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  displayWord,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w400,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 100,
-                        ),
-                      ]),
-                ),
-                if (!noEx) const SizedBox(height: 30),
-                if (!noEx)
-                  Text(
-                    displayExample,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
-                  ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    widget.wordTTS,
-                    if (!noEx) const SizedBox(width: 30),
-                    if (!noEx) widget.exampleTTS,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              clipBehavior: Clip.hardEdge,
+              /*margin: EdgeInsets.only(
+                    left: margins[0],
+                    right: margins[1],
+                    bottom: margins[2],
+                    top: margins[3]),*/
+              width: width,
+              height: height,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                color: Colors.white,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.grey.withOpacity(0.11),
+                    Colors.white.withOpacity(0.1),
                   ],
                 ),
-              ],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(1),
+                    offset: const Offset(4, 4),
+                    blurRadius: 15,
+                    spreadRadius: 1,
+                    blurStyle: BlurStyle.normal,
+                  ),
+                  BoxShadow(
+                    color: Colors.white.withOpacity(1),
+                    offset: const Offset(-4, -4),
+                    blurRadius: 15,
+                    spreadRadius: 1,
+                    blurStyle: BlurStyle.normal,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    displayWord,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w400,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 100,
+                          ),
+                        ]),
+                  ),
+                  if (!noEx) const SizedBox(height: 30),
+                  if (!noEx)
+                    Text(
+                      displayExample,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+                  if(widget.isQuestion) Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TTSButton(
+                          textToRead: formatText(displayWord),
+                          language: widget.language),
+                      if (!noEx) const SizedBox(width: 30),
+                      if (!noEx)
+                        TTSButton(
+                            textToRead: displayExample,
+                            language: widget.language),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:vocabella/arguments.dart';
-import 'package:vocabella/constants.dart';
+import 'package:vocabella/utils/arguments.dart';
+import 'package:vocabella/utils/constants.dart';
 import 'package:vocabella/models/session_data_model.dart';
 import 'package:vocabella/models/subject_data_model.dart';
 import 'package:vocabella/screens/quiz_screen.dart';
@@ -70,6 +70,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
           example2: wordPair.example1,
           created: wordPair.created,
           lastEdit: wordPair.lastEdit,
+          salt: wordPair.salt,
         );
         newList.add(reversed);
       }
@@ -97,6 +98,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
             example2: wordPair.example1,
             created: wordPair.created,
             lastEdit: wordPair.lastEdit,
+            salt: wordPair.salt,
           );
           newList.add(reversed);
         }

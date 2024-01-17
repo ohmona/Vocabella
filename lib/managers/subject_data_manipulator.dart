@@ -3,10 +3,16 @@ import 'package:vocabella/models/subject_data_model.dart';
 
 import '../models/wordpair_model.dart';
 
-enum Operation { LASTLEARNED, ERRORSTACK, FAVOURITE, LASTPRIORITYFACTOR, TOTALLEARNED }
+enum Operation {
+  LASTLEARNED,
+  ERRORSTACK,
+  FAVOURITE,
+  LASTPRIORITYFACTOR,
+  TOTALLEARNED
+}
 
 String opToString(Operation op) {
-  switch(op) {
+  switch (op) {
     case Operation.LASTLEARNED:
       return "LASTLEARNED";
     case Operation.ERRORSTACK:
@@ -21,55 +27,58 @@ String opToString(Operation op) {
 }
 
 Operation opFromString(String str) {
-  if(str == "LASTLEARNED") return Operation.LASTLEARNED;
-  if(str == "ERRORSTACK") return Operation.ERRORSTACK;
-  if(str == "FAVOURITE") return Operation.FAVOURITE;
-  if(str == "LASTPRIORITYFACTOR") return Operation.LASTPRIORITYFACTOR;
-  if(str == "TOTALLEARNED") return Operation.TOTALLEARNED;
+  if (str == "LASTLEARNED") return Operation.LASTLEARNED;
+  if (str == "ERRORSTACK") return Operation.ERRORSTACK;
+  if (str == "FAVOURITE") return Operation.FAVOURITE;
+  if (str == "LASTPRIORITYFACTOR") return Operation.LASTPRIORITYFACTOR;
+  if (str == "TOTALLEARNED") return Operation.TOTALLEARNED;
   return Operation.FAVOURITE;
 }
+
+const double invalidDoubleData = -1.0;
+const int invalidIntData = -1;
+const bool defaultBoolData = false;
+final DateTime invalidDateTime = DateTime(1, 1, 1, 0, 1);
 
 class OperationStructure {
   OperationStructure.forTime({
     required this.word,
     required this.operation,
-    this.doubleData = -1.0,
-    this.intData = -1,
-    this.boolData = false,
+    this.doubleData = invalidDoubleData,
+    this.intData = invalidIntData,
+    this.boolData = defaultBoolData,
     required this.timeData,
   });
 
   OperationStructure({
     required this.word,
     required this.operation,
-    this.doubleData = -1.0,
-    this.intData = -1,
-    this.boolData = false,
+    this.doubleData = invalidDoubleData,
+    this.intData = invalidIntData,
+    this.boolData = defaultBoolData,
   });
 
   late WordPairIdentifier word;
   late Operation operation;
-  double doubleData = -1.0;
-  int intData = -1;
-  bool boolData = false;
-  DateTime timeData = DateTime(1, 1, 1, 0, 1);
+  double doubleData = invalidDoubleData;
+  int intData = invalidIntData;
+  bool boolData = defaultBoolData;
+  DateTime timeData = invalidDateTime;
 
   OperationStructure.fromJson(dynamic json) {
     operation = opFromString(json['operation']);
 
     word = WordPairIdentifier.fromJson(json['word']);
 
-    if(operation == Operation.LASTLEARNED) {
-      timeData = DateTime.tryParse(json['timeData']) ?? DateTime(1, 1, 1, 0, 1);
-    }
-    else if(operation == Operation.LASTPRIORITYFACTOR) {
-      doubleData = json['doubleData'] ?? -1.0;
-    }
-    else if(operation == Operation.TOTALLEARNED || operation == Operation.ERRORSTACK) {
-      intData = json['intData'] ?? -1;
-    }
-    else {
-      boolData = json['boolData'] ?? false;
+    if (operation == Operation.LASTLEARNED) {
+      timeData = DateTime.tryParse(json['timeData']) ?? invalidDateTime;
+    } else if (operation == Operation.LASTPRIORITYFACTOR) {
+      doubleData = json['doubleData'] ?? invalidDoubleData;
+    } else if (operation == Operation.TOTALLEARNED ||
+        operation == Operation.ERRORSTACK) {
+      intData = json['intData'] ?? invalidIntData;
+    } else {
+      boolData = json['boolData'] ?? defaultBoolData;
     }
   }
 
@@ -85,9 +94,9 @@ class OperationStructure {
   }
 
   dynamic getData() {
-    if(doubleData != -1.0) return doubleData;
-    if(intData != -1) return intData;
-    if(timeData != DateTime(1, 1, 1, 0, 1)) return timeData;
+    if (doubleData != invalidDoubleData) return doubleData;
+    if (intData != invalidIntData) return intData;
+    if (timeData != invalidDateTime) return timeData;
     return boolData;
   }
 }
@@ -99,6 +108,7 @@ class WordPairIdentifier {
     required this.e1,
     required this.e2,
     required this.created,
+    required this.salt,
   });
 
   late String w1;
@@ -106,6 +116,7 @@ class WordPairIdentifier {
   late String e1;
   late String e2;
   late DateTime created;
+  late String? salt;
 
   WordPairIdentifier.fromJson(dynamic json) {
     w1 = json['w1'];
@@ -113,6 +124,7 @@ class WordPairIdentifier {
     e1 = json['e1'];
     e2 = json['e2'];
     created = DateTime.tryParse(json['created'])!;
+    salt = json['salt'];
   }
 
   Map<String, dynamic> toJson() {
@@ -122,6 +134,7 @@ class WordPairIdentifier {
       "e1": e1,
       "e2": e2,
       "created": created.toString(),
+      "salt": salt,
     };
     return map;
   }
@@ -130,9 +143,10 @@ class WordPairIdentifier {
     return WordPairIdentifier(
       w1: wordPair.word1,
       w2: wordPair.word2,
-      e1: wordPair.example1!,
-      e2: wordPair.example2!,
+      e1: wordPair.example1,
+      e2: wordPair.example2,
       created: wordPair.created!,
+      salt: wordPair.salt,
     );
   }
 
@@ -144,7 +158,8 @@ class WordPairIdentifier {
         wordPair.word2 == data.w2 &&
         wordPair.example1 == data.e1 &&
         wordPair.example2 == data.e2 &&
-        wordPair.created == data.created;
+        wordPair.created == data.created &&
+        (wordPair.salt ?? "null") == (data.salt ?? "null");
   }
 }
 
@@ -181,7 +196,9 @@ class SubjectManipulator {
       for (int i = 0; i < subjectCopy.wordlist.length; i++) {
         for (int j = 0; j < subjectCopy.wordlist[i].words.length; j++) {
           if (WordPairIdentifier.isTheWordPair(
-              wordPair: subjectCopy.wordlist[i].words[j], data: word)) {
+            wordPair: subjectCopy.wordlist[i].words[j],
+            data: word,
+          )) {
             switch (operation) {
               case Operation.LASTLEARNED:
                 if (data is DateTime) {

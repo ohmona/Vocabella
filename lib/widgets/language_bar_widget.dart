@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vocabella/constants.dart';
+import 'package:vocabella/utils/constants.dart';
 import 'package:vocabella/models/subject_data_model.dart';
 
 class LanguageBar extends StatelessWidget {

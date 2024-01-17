@@ -4,8 +4,10 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:vocabella/arguments.dart';
-import 'package:vocabella/configuration.dart';
+import 'package:vocabella/managers/tts_voice_manager.dart';
+import 'package:vocabella/utils/arguments.dart';
+import 'package:vocabella/utils/chrono.dart';
+import 'package:vocabella/utils/configuration.dart';
 import 'package:vocabella/managers/session_saver.dart';
 import 'package:vocabella/models/session_data_model.dart';
 import 'package:vocabella/screens/result_screen.dart';
@@ -94,10 +96,6 @@ class _QuizScreenState extends State<QuizScreen> {
   String inputValue = "";
 
   // Cards
-  late WordCard questionCard;
-  late WordCard answerCard;
-  late WordCard questionCard2;
-  late WordCard answerCard2;
   late Stack cardStack;
   late ProgressBar progressBar;
 
@@ -126,6 +124,49 @@ class _QuizScreenState extends State<QuizScreen> {
 
   List<OperationStructure> operations = [];
   late String subjectId;
+
+  late DateTime startTime;
+
+  final GlobalKey<WordCardState> _question1 = GlobalKey();
+  final GlobalKey<WordCardState> _answer1 = GlobalKey();
+  final GlobalKey<WordCardState> _question2 = GlobalKey();
+  final GlobalKey<WordCardState> _answer2 = GlobalKey();
+
+  // add error stack of the current wordPair in the queue
+  void pushErrorStack(int value) {
+    if (AppConfig.bUseSmartWordOrder) {
+      var id = WordPairIdentifier.fromWordPair(listOfQuestions[count - 1]);
+      var op = Operation.ERRORSTACK;
+      operations
+          .add(OperationStructure(word: id, operation: op, intData: value));
+    }
+  }
+
+  // add last learned of the current wordPair in the queue
+  void pushLastLearned() {
+    if (AppConfig.bUseSmartWordOrder) {
+      var id = WordPairIdentifier.fromWordPair(listOfQuestions[count - 1]);
+      var op = Operation.LASTLEARNED;
+      operations.add(OperationStructure.forTime(
+          word: id, operation: op, timeData: startTime));
+    }
+  }
+
+  // add total learned of the current wordPair in the queue
+  void pushTotalLearned() {
+    if (AppConfig.bUseSmartWordOrder) {
+      var id = WordPairIdentifier.fromWordPair(listOfQuestions[count - 1]);
+      var op2 = Operation.TOTALLEARNED;
+      var previousTotalLearned = listOfQuestions[count - 1].totalLearned;
+      if (previousTotalLearned == null || previousTotalLearned < 0) {
+        previousTotalLearned = 0;
+      }
+      var data2 = previousTotalLearned + 1;
+
+      operations
+          .add(OperationStructure(word: id, operation: op2, intData: data2));
+    }
+  }
 
   /// Once user has submitted the answer
   void onSummit(String text) {
@@ -163,32 +204,19 @@ class _QuizScreenState extends State<QuizScreen> {
         // Pure InFirstTry count
         inFirstTry++;
 
-        if(AppConfig.bUseSmartWordOrder) {
-          var id = WordPairIdentifier.fromWordPair(listOfQuestions[count - 1]);
-          var op = Operation.ERRORSTACK;
-          var value = 0;
-          operations.add(OperationStructure(word: id, operation: op, intData: value));
-        }
-
+        pushErrorStack(0);
       } else if (!listOfWrongs.contains(listOfQuestions[count - 1]) &&
           hasRepetitionBegun) {
         // InFirstTry but it's on revision
         inRepetitionFirstTry++;
+
+        pushErrorStack(stageCount - 1);
       }
       progressBar.updateProgress(
           questionsNumber, inFirstTry + inRepetitionFirstTry);
 
-      if(AppConfig.bUseSmartWordOrder) {
-        var id = WordPairIdentifier.fromWordPair(listOfQuestions[count - 1]);
-        var op = Operation.LASTLEARNED;
-        var data = DateTime.now();
-
-        var op2 = Operation.TOTALLEARNED;
-        var data2 = listOfQuestions[count - 1].totalLearned! + 1;
-
-        operations.add(OperationStructure.forTime(word: id, operation: op, timeData: data));
-        operations.add(OperationStructure(word: id, operation: op2, intData: data2));
-      }
+      pushLastLearned();
+      pushTotalLearned();
     } else {
       // The given answer was wrong so the corresponding word will be
       // added into list and only if it's first time
@@ -246,19 +274,21 @@ class _QuizScreenState extends State<QuizScreen> {
       Future.delayed(
         const Duration(milliseconds: 1),
         () {
-          bool firstAppearing = questionCard.sequence == Sequence.hidden &&
-              questionCard2.sequence == Sequence.disappear;
-          bool secondAppearing = questionCard2.sequence == Sequence.hidden &&
-              questionCard.sequence == Sequence.disappear;
+          bool firstAppearing =
+              _question1.currentState!.getSequence() == Sequence.hidden &&
+                  _question2.currentState!.getSequence() == Sequence.disappear;
+          bool secondAppearing =
+              _question2.currentState!.getSequence() == Sequence.hidden &&
+                  _question1.currentState!.getSequence() == Sequence.disappear;
           if (firstAppearing) {
-            questionCard.breakAnimAppear();
-            questionCard2.breakAnimDisappear();
-            answerCard2.breakAnimDisappear();
+            _question1.currentState!.breakAnimAppear();
+            _question2.currentState!.breakAnimDisappear();
+            _answer2.currentState!.breakAnimDisappear();
             showAnswer();
           } else if (secondAppearing) {
-            questionCard2.breakAnimAppear();
-            questionCard.breakAnimDisappear();
-            answerCard.breakAnimDisappear();
+            _question2.currentState!.breakAnimAppear();
+            _question1.currentState!.breakAnimDisappear();
+            _answer1.currentState!.breakAnimDisappear();
             showAnswer();
           }
         },
@@ -281,26 +311,28 @@ class _QuizScreenState extends State<QuizScreen> {
     // Show answer
     if (isOddTHCard) {
       // Change sequence of Cards
-      questionCard.sequence = Sequence.showing;
-      answerCard.sequence = Sequence.showing;
+      _question1.currentState!.setSequence(Sequence.showing);
+      _answer1.currentState!.setSequence(Sequence.showing);
 
       // Animate cards
-      questionCard.animSmall();
-      answerCard.animMedium();
+      _question1.currentState!.animSmall();
+      _answer1.currentState!.animMedium();
 
       // Play TTS
-      answerCard.wordTTS.play();
+      TTSManager.requestPlay(TTSQueue(
+          text: listOfQuestions[count - 1].word2, language: language2));
     } else {
       // Change sequence of Cards
-      questionCard2.sequence = Sequence.showing;
-      answerCard2.sequence = Sequence.showing;
+      _question2.currentState!.setSequence(Sequence.showing);
+      _answer2.currentState!.setSequence(Sequence.showing);
 
       // Animate cards
-      questionCard2.animSmall();
-      answerCard2.animMedium();
+      _question2.currentState!.animSmall();
+      _answer2.currentState!.animMedium();
 
       // Play TTS
-      answerCard2.wordTTS.play();
+      TTSManager.requestPlay(TTSQueue(
+          text: listOfQuestions[count - 1].word2, language: language2));
     }
 
     // show checker
@@ -333,15 +365,15 @@ class _QuizScreenState extends State<QuizScreen> {
     // Check if the current sequence is "Answer"
     // Unless, exit method to prevent from unexpected animation and sequencing
     if (checkIsNotSequence(Sequence.answer)) {
-      if (questionCard.sequence == Sequence.showing ||
-          questionCard2.sequence == Sequence.showing) {
+      if (_question1.currentState!.getSequence() == Sequence.showing ||
+          _question2.currentState!.getSequence() == Sequence.showing) {
         Future.delayed(
           const Duration(milliseconds: 1),
           () {
-            questionCard.breakAnimSmall();
-            answerCard.breakAnimMedium();
-            questionCard2.breakAnimSmall();
-            answerCard2.breakAnimMedium();
+            _question1.currentState!.breakAnimSmall();
+            _answer1.currentState!.breakAnimMedium();
+            _question2.currentState!.breakAnimSmall();
+            _answer2.currentState!.breakAnimMedium();
             onWasCorrect();
           },
         );
@@ -361,32 +393,21 @@ class _QuizScreenState extends State<QuizScreen> {
         !hasRepetitionBegun) {
       // Pure InFirstTry count
       inFirstTry++;
-      if(AppConfig.bUseSmartWordOrder) {
-        var id = WordPairIdentifier.fromWordPair(listOfQuestions[count - 1]);
-        var op = Operation.ERRORSTACK;
-        var value = 0;
-        operations.add(OperationStructure(word: id, operation: op, intData: value));
-      }
+
+      pushErrorStack(0);
     } else if (!listOfWrongs.contains(listOfQuestions[count - 1]) &&
         hasRepetitionBegun) {
       // InFirstTry but it's on revision
       inRepetitionFirstTry++;
+
+      pushErrorStack(stageCount - 1);
     }
 
     progressBar.updateProgress(
         questionsNumber, inFirstTry + inRepetitionFirstTry);
 
-    if(AppConfig.bUseSmartWordOrder) {
-      var id = WordPairIdentifier.fromWordPair(listOfQuestions[count - 1]);
-      var op = Operation.LASTLEARNED;
-      var data = DateTime.now();
-
-      var op2 = Operation.TOTALLEARNED;
-      var data2 = listOfQuestions[count - 1].totalLearned! + 1;
-
-      operations.add(OperationStructure.forTime(word: id, operation: op, timeData: data));
-      operations.add(OperationStructure(word: id, operation: op2, intData: data2));
-    }
+    pushLastLearned();
+    pushTotalLearned();
 
     // Jump to next process
     _afterSummitingCorrectness();
@@ -398,15 +419,15 @@ class _QuizScreenState extends State<QuizScreen> {
     // Check if the current sequence is "Answer"
     // Unless, exit method to prevent from unexpected animation and sequencing
     if (checkIsNotSequence(Sequence.answer)) {
-      if (questionCard.sequence == Sequence.showing ||
-          questionCard2.sequence == Sequence.showing) {
+      if (_question1.currentState!.getSequence() == Sequence.showing ||
+          _question2.currentState!.getSequence() == Sequence.showing) {
         Future.delayed(
           const Duration(milliseconds: 1),
           () {
-            questionCard.breakAnimSmall();
-            answerCard.breakAnimMedium();
-            questionCard2.breakAnimSmall();
-            answerCard2.breakAnimMedium();
+            _question1.currentState!.breakAnimSmall();
+            _answer1.currentState!.breakAnimMedium();
+            _question2.currentState!.breakAnimSmall();
+            _answer2.currentState!.breakAnimMedium();
             onWasWrong();
           },
         );
@@ -440,22 +461,22 @@ class _QuizScreenState extends State<QuizScreen> {
 
     // Question part
     isOddTHCard
-        ? questionCard2.setDisplayWordAndExample(
+        ? _question2.currentState!.setDisplayWordAndExample(
             newWord: listOfQuestions[index].word1,
             newExample: listOfQuestions[index].example1 ?? "",
           )
-        : questionCard.setDisplayWordAndExample(
+        : _question1.currentState!.setDisplayWordAndExample(
             newWord: listOfQuestions[index].word1,
             newExample: listOfQuestions[index].example1 ?? "",
           );
 
     // Answer part
     isOddTHCard
-        ? answerCard2.setDisplayWordAndExample(
+        ? _answer2.currentState!.setDisplayWordAndExample(
             newWord: listOfQuestions[index].word2,
             newExample: listOfQuestions[index].example2 ?? "",
           )
-        : answerCard.setDisplayWordAndExample(
+        : _answer1.currentState!.setDisplayWordAndExample(
             newWord: listOfQuestions[index].word2,
             newExample: listOfQuestions[index].example2 ?? "",
           );
@@ -481,21 +502,21 @@ class _QuizScreenState extends State<QuizScreen> {
       }
 
       isOddTHCard
-          ? questionCard2.setDisplayWordAndExample(
+          ? _question2.currentState!.setDisplayWordAndExample(
               newWord: listOfQuestions[count].word1,
               newExample: listOfQuestions[count].example1 ?? "",
             )
-          : questionCard.setDisplayWordAndExample(
+          : _question1.currentState!.setDisplayWordAndExample(
               newWord: listOfQuestions[count].word1,
               newExample: listOfQuestions[count].example1 ?? "",
             );
 
       isOddTHCard
-          ? answerCard2.setDisplayWordAndExample(
+          ? _answer2.currentState!.setDisplayWordAndExample(
               newWord: listOfQuestions[count].word2,
               newExample: listOfQuestions[count].example2 ?? "",
             )
-          : answerCard.setDisplayWordAndExample(
+          : _answer1.currentState!.setDisplayWordAndExample(
               newWord: listOfQuestions[count].word2,
               newExample: listOfQuestions[count].example2 ?? "",
             );
@@ -529,15 +550,15 @@ class _QuizScreenState extends State<QuizScreen> {
   void showNext() {
     // Check if the current sequence is Answer
     if (checkIsNotSequence(Sequence.answer)) {
-      if (questionCard.sequence == Sequence.showing ||
-          questionCard2.sequence == Sequence.showing) {
+      if (_question1.currentState!.getSequence() == Sequence.showing ||
+          _question2.currentState!.getSequence() == Sequence.showing) {
         Future.delayed(
           const Duration(milliseconds: 1),
           () {
-            questionCard.breakAnimSmall();
-            answerCard.breakAnimMedium();
-            questionCard2.breakAnimSmall();
-            answerCard2.breakAnimMedium();
+            _question1.currentState!.breakAnimSmall();
+            _answer1.currentState!.breakAnimMedium();
+            _question2.currentState!.breakAnimSmall();
+            _answer2.currentState!.breakAnimMedium();
             inputCheckerBox.breakAnimAppear();
             showNext();
           },
@@ -593,6 +614,7 @@ class _QuizScreenState extends State<QuizScreen> {
               questionsNumber,
               inFirstTry / questionsNumber,
               operations,
+              startTime,
             ),
           );
           return; // In this line, the quiz is finished
@@ -610,15 +632,15 @@ class _QuizScreenState extends State<QuizScreen> {
 
         // Dispose and appear cards (depending on isOddTHCard)
         if (isOddTHCard) {
-          answerCard.wordTTS.stop();
+          if (AppConfig.stopTTSBeforeContinuing) TTSManager.stop();
           // Change sequence of Cards
-          questionCard.sequence = Sequence.disappear;
-          answerCard.sequence = Sequence.disappear;
+          _question1.currentState!.setSequence(Sequence.disappear);
+          _answer1.currentState!.setSequence(Sequence.disappear);
 
           // Animate cards
-          questionCard.animDisappear();
-          answerCard.animDisappear();
-          questionCard2.animAppear();
+          _question1.currentState!.animDisappear();
+          _answer1.currentState!.animDisappear();
+          _question2.currentState!.animAppear();
 
           // Move answer card
           onTransitionStarted();
@@ -626,15 +648,15 @@ class _QuizScreenState extends State<QuizScreen> {
           // Play TTS : Deactivated
           //questionCard2.wordTTS.play();
         } else {
-          answerCard2.wordTTS.stop();
+          if (AppConfig.stopTTSBeforeContinuing) TTSManager.stop();
           // Change sequence of Cards
-          questionCard2.sequence = Sequence.disappear;
-          answerCard2.sequence = Sequence.disappear;
+          _question2.currentState!.setSequence(Sequence.disappear);
+          _answer2.currentState!.setSequence(Sequence.disappear);
 
           // Animate cards
-          questionCard2.animDisappear();
-          answerCard2.animDisappear();
-          questionCard.animAppear();
+          _question2.currentState!.animDisappear();
+          _answer2.currentState!.animDisappear();
+          _question1.currentState!.animAppear();
 
           // Move answer card
           onTransitionStarted();
@@ -666,15 +688,6 @@ class _QuizScreenState extends State<QuizScreen> {
     hasRepetitionBegun = true;
     if (repetitionProgress == 0) repetitionProgress = 1;
     if (absoluteRepetitionProgress == 0) absoluteRepetitionProgress = 1;
-
-    if(AppConfig.bUseSmartWordOrder) {
-      for (var wordPair in listOfWrongs) {
-        var id = WordPairIdentifier.fromWordPair(wordPair);
-        var op = Operation.ERRORSTACK;
-        var value = stageCount; // 1 means the answer was wrong once
-        operations.add(OperationStructure(word: id, operation: op, intData: value));
-      }
-    }
 
     // Initially, shuffle list of words to revise
     listOfWrongs.shuffle();
@@ -831,11 +844,11 @@ class _QuizScreenState extends State<QuizScreen> {
     Sequence requiredSequence = desired;
     // Check if sequence both of current cards aren't desired sequence
     if (isOddTHCard) {
-      trigger = questionCard.sequence != requiredSequence &&
-          answerCard.sequence != requiredSequence;
+      trigger = _question1.currentState!.getSequence() != requiredSequence &&
+          _answer1.currentState!.getSequence() != requiredSequence;
     } else {
-      trigger = questionCard2.sequence != requiredSequence &&
-          answerCard2.sequence != requiredSequence;
+      trigger = _question2.currentState!.getSequence() != requiredSequence &&
+          _answer2.currentState!.getSequence() != requiredSequence;
     }
     return trigger;
   }
@@ -847,11 +860,13 @@ class _QuizScreenState extends State<QuizScreen> {
     // to behind of the QuestionCard. Card to move is chosen depending on isOddTHCard,
     // which means the stage is either 1st, 3rd, 5th... or 2nd, 4th, 6th...
     if (isOddTHCard
-        ? questionCard.sequence == Sequence.appear
-        : questionCard2.sequence == Sequence.appear) {
+        ? _question1.currentState!.getSequence() == Sequence.appear
+        : _question2.currentState!.getSequence() == Sequence.appear) {
       setState(() {
         // Answer card is placed into center
-        isOddTHCard ? answerCard.resetCenter() : answerCard2.resetCenter();
+        isOddTHCard
+            ? _answer1.currentState!.resetCenter()
+            : _answer2.currentState!.resetCenter();
         transitionTimer.cancel(); // Stop the timer
       });
     } else {
@@ -921,12 +936,16 @@ class _QuizScreenState extends State<QuizScreen> {
     // to initial location (bottom). Card to move is chosen depending on isOddTHCard,
     // which means the stage is either 1st, 3rd, 5th... or 2nd, 4th, 6th...
     if (isOddTHCard
-        ? questionCard2.sequence == Sequence.hidden
-        : questionCard.sequence == Sequence.hidden) {
+        ? _question2.currentState!.getSequence() == Sequence.hidden
+        : _question1.currentState!.getSequence() == Sequence.hidden) {
       setState(() {
         // Corresponding cards are placed into initial location (bottom)
-        isOddTHCard ? answerCard2.reset() : answerCard.reset();
-        isOddTHCard ? questionCard2.reset() : questionCard.reset();
+        isOddTHCard
+            ? _answer2.currentState!.reset()
+            : _answer1.currentState!.reset();
+        isOddTHCard
+            ? _question2.currentState!.reset()
+            : _question1.currentState!.reset();
         disposalTimer.cancel(); // Stop the timer
       });
     }
@@ -963,8 +982,36 @@ class _QuizScreenState extends State<QuizScreen> {
       wrongAnswers: wrongAnswers,
       id: subjectId,
       operations: operations,
+      startTime: startTime,
     );
     SessionSaver.session = session;
+  }
+
+  void initSession() {
+    if (kDebugMode) {
+      print("=============================");
+      print("Restarting session...");
+      session.printData();
+    }
+    listOfQuestions = session.listOfQuestions!;
+    listOfWrongs = session.listOfWrongs!;
+    count = session.count!;
+    questionsNumber = session.questionsNumber!;
+    language1 = session.language1!;
+    language2 = session.language2!;
+    isOddTHCard = session.isOddTHCard!;
+    absoluteProgress = session.absoluteProgress!;
+    originalProgress = session.originalProgress!;
+    wrongAnswers = session.wrongAnswers!;
+    absoluteRepetitionProgress = session.absoluteRepetitionProgress!;
+    repetitionProgress = session.repetitionProgress!;
+    hasRepetitionBegun = session.hasRepetitionBegun!;
+    inFirstTry = session.inFirstTry!;
+    inRepetitionFirstTry = session.inRepetitionFirstTry!;
+    stageCount = session.stageCount!;
+    subjectId = session.id!;
+    operations = session.operations!;
+    startTime = session.startTime!;
   }
 
   void orderInitialWords() {
@@ -990,14 +1037,12 @@ class _QuizScreenState extends State<QuizScreen> {
         lastLearnedInDay += lastLearned.month * 30 * 1.0;
         lastLearnedInDay += lastLearned.year * 365 * 1.0;
         lastLearnedInDay += lastLearned.hour / 24;
-        lastLearnedInDay += lastLearned.minute / (60 * 24);
 
         DateTime now = DateTime.now();
         double nowInDay = now.day * 1.0;
         nowInDay += now.month * 30 * 1.0;
         nowInDay += now.year * 365 * 1.0;
         nowInDay += now.hour / 24;
-        nowInDay += now.minute / (60 * 24);
 
         double dayInterval = nowInDay - lastLearnedInDay;
         if (lastLearned == DateTime(1, 1, 1, 0, 0)) {
@@ -1055,13 +1100,13 @@ class _QuizScreenState extends State<QuizScreen> {
         var w = WordPairIdentifier.fromWordPair(wordPair);
         var o = Operation.LASTPRIORITYFACTOR;
         double data;
-        if(highest != lowest) {
+        if (highest != lowest) {
           data = (priority - lowest) / (highest - lowest);
-        }
-        else {
+        } else {
           data = 0;
         }
-        operations.add(OperationStructure(word: w, operation: o, doubleData: data));
+        operations
+            .add(OperationStructure(word: w, operation: o, doubleData: data));
       }
     }
 
@@ -1069,6 +1114,45 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   late Timer autoSaver;
+
+  late WordCard question1;
+  late WordCard answer1;
+  late WordCard question2;
+  late WordCard answer2;
+
+  bool swapped = false;
+
+  void swapZOrder() {
+    return;
+
+    if (swapped) {
+      setState(() {
+        cardStack = Stack(
+          children: [
+            answer1,
+            question1,
+            answer2,
+            question2,
+            inputCheckerBox,
+          ],
+        );
+      });
+      swapped = false;
+    } else {
+      setState(() {
+        cardStack = Stack(
+          children: [
+            question1,
+            answer1,
+            question2,
+            answer2,
+            inputCheckerBox,
+          ],
+        );
+      });
+      swapped = true;
+    }
+  }
 
   @override
   void initState() {
@@ -1093,6 +1177,8 @@ class _QuizScreenState extends State<QuizScreen> {
     listOfQuestions = widget.wordPack;
     questionsNumber = listOfQuestions.length;
 
+    startTime = DateTime.now();
+
     // Create language variable to handle
     language1 = widget.language1;
     language2 = widget.language2;
@@ -1105,39 +1191,17 @@ class _QuizScreenState extends State<QuizScreen> {
 
     session = widget.sessionData;
     if (session.existSessionData) {
-      if (kDebugMode) {
-        print("=============================");
-        print("Restarting session...");
-        session.printData();
-      }
-      listOfQuestions = session.listOfQuestions!;
-      listOfWrongs = session.listOfWrongs!;
-      count = session.count!;
-      questionsNumber = session.questionsNumber!;
-      language1 = session.language1!;
-      language2 = session.language2!;
-      isOddTHCard = session.isOddTHCard!;
-      absoluteProgress = session.absoluteProgress!;
-      originalProgress = session.originalProgress!;
-      wrongAnswers = session.wrongAnswers!;
-      absoluteRepetitionProgress = session.absoluteRepetitionProgress!;
-      repetitionProgress = session.repetitionProgress!;
-      hasRepetitionBegun = session.hasRepetitionBegun!;
-      inFirstTry = session.inFirstTry!;
-      inRepetitionFirstTry = session.inRepetitionFirstTry!;
-      stageCount = session.stageCount!;
-      subjectId = session.id!;
-      operations = session.operations!;
+      initSession();
     } else {
-      if(AppConfig.bUseSmartWordOrder) {
+      if (AppConfig.bUseSmartWordOrder) {
         orderInitialWords();
-      }
-      else {
+      } else {
         listOfQuestions.shuffle();
       }
     }
 
     SubjectManipulator.accessSubject(id: subjectId);
+    TTSManager.init();
 
     // Print subject information
     if (kDebugMode) {
@@ -1159,57 +1223,58 @@ class _QuizScreenState extends State<QuizScreen> {
       count4second = count - 1;
     }
 
-    // Initialise 4 cards for test
-    questionCard = WordCard(
-      isQuestion: true,
-      isOddTHCard: isOddTHCard,
-      word: listOfQuestions[count4first].word1,
-      example: listOfQuestions[count4first].example1 ?? "",
-      language: language1,
-    );
-
-    answerCard = WordCard(
-      isQuestion: false,
-      isOddTHCard: isOddTHCard,
-      word: listOfQuestions[count4first].word2,
-      example: listOfQuestions[count4first].example2 ?? "",
-      language: language2,
-    );
-
-    questionCard2 = WordCard(
-      isQuestion: true,
-      isOddTHCard: !isOddTHCard,
-      word: listOfQuestions[count4second].word1,
-      example: listOfQuestions[count4second].example1 ?? "",
-      language: language1,
-    );
-
-    answerCard2 = WordCard(
-      isQuestion: false,
-      isOddTHCard: !isOddTHCard,
-      word: listOfQuestions[count4second].word2,
-      example: listOfQuestions[count4second].example2 ?? "",
-      language: language2,
-    );
-
-    answerCard.sequence = Sequence.hidden;
-    questionCard.sequence = Sequence.hidden;
-    answerCard2.sequence = Sequence.hidden;
-    questionCard2.sequence = Sequence.hidden;
-
     inputCheckerBox = InputCheckerBox(
       color: Colors.white,
       text: "Nothing is here...",
     );
 
+    answer1 = WordCard(
+      key: _answer1,
+      isQuestion: false,
+      isOddTHCard: isOddTHCard,
+      word: listOfQuestions[count4first].word2,
+      example: listOfQuestions[count4first].example2,
+      language: language2,
+      swapZOrder: swapZOrder,
+    );
+
+    question1 = WordCard(
+      key: _question1,
+      isQuestion: true,
+      isOddTHCard: isOddTHCard,
+      word: listOfQuestions[count4first].word1,
+      example: listOfQuestions[count4first].example1,
+      language: language1,
+      swapZOrder: swapZOrder,
+    );
+
+    answer2 = WordCard(
+      key: _answer2,
+      isQuestion: false,
+      isOddTHCard: !isOddTHCard,
+      word: listOfQuestions[count4second].word2,
+      example: listOfQuestions[count4second].example2,
+      language: language2,
+      swapZOrder: swapZOrder,
+    );
+
+    question2 = WordCard(
+      key: _question2,
+      isQuestion: true,
+      isOddTHCard: !isOddTHCard,
+      word: listOfQuestions[count4second].word1,
+      example: listOfQuestions[count4second].example1,
+      language: language1,
+      swapZOrder: swapZOrder,
+    );
+
     // Initialise Stack Component
     cardStack = Stack(
-      clipBehavior: Clip.hardEdge,
       children: [
-        answerCard,
-        questionCard,
-        answerCard2,
-        questionCard2,
+        answer1,
+        question1,
+        answer2,
+        question2,
         inputCheckerBox,
       ],
     );
@@ -1227,6 +1292,17 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   void dispose() {
     super.dispose();
+  }
+
+  bool isCurrentExampleEmpty() {
+    try {
+      int index = bDontTypeAnswer ? count - 1 : count - 2;
+      var b = listOfQuestions[index].example2.isEmpty;
+      return b;
+    }
+    catch(e) {
+      return true;
+    }
   }
 
   @override
@@ -1248,7 +1324,18 @@ class _QuizScreenState extends State<QuizScreen> {
           /*ProgressBar(
               progress: inFirstTry + inRepetitionFirstTry,
               total: questionsNumber),*/
-          progressBar,
+          Stack(
+            children: [
+              progressBar,
+              Text(
+                formatLastedTime(calcLastedTime(startTime, DateTime.now())),
+                style: TextStyle(
+                  color: Colors.grey.withOpacity(0.2),
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(
             height: 20,
           ),
@@ -1278,6 +1365,55 @@ class _QuizScreenState extends State<QuizScreen> {
                               : Icons.keyboard_alt_outlined,
                         ),
                       ),
+                    ),
+                  ),
+                  if(isShowingAnswer) Transform.translate(
+                    offset: Offset(0, MediaQuery.of(context).size.height - 300),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        FloatingActionButton(
+                          onPressed: () {
+                            if(bDontTypeAnswer) {
+                              TTSManager.requestPlay(TTSQueue(
+                                  text: listOfQuestions[count - 1].word2,
+                                  language: language2));
+                            }
+                            else {
+                              TTSManager.requestPlay(TTSQueue(
+                                  text: listOfQuestions[count - 2].word2,
+                                  language: language2));
+                            }
+                          },
+                          mini: true,
+                          backgroundColor: Colors.white,
+                          child: const Icon(
+                            Icons.music_note,
+                            color: Colors.black,
+                          ),
+                        ),
+                        if(!isCurrentExampleEmpty()) const SizedBox(width: 10),
+                        if(!isCurrentExampleEmpty()) FloatingActionButton(
+                          onPressed: () {
+                            if(bDontTypeAnswer) {
+                              TTSManager.requestPlay(TTSQueue(
+                                  text: listOfQuestions[count - 1].example2,
+                                  language: language2));
+                            }
+                            else {
+                              TTSManager.requestPlay(TTSQueue(
+                                  text: listOfQuestions[count - 2].example2,
+                                  language: language2));
+                            }
+                          },
+                          mini: true,
+                          backgroundColor: Colors.white,
+                          child: const Icon(
+                            Icons.music_note,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
               ],

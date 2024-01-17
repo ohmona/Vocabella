@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:vocabella/arguments.dart';
+import 'package:vocabella/utils/arguments.dart';
 
-import '../constants.dart';
+import '../utils/constants.dart';
 import '../models/chapter_model.dart';
 
 class WordSelectionScreenParent extends StatelessWidget {

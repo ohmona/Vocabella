@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:vocabella/constants.dart';
+import 'package:vocabella/utils/constants.dart';
 import 'package:vocabella/managers/data_handle_manager.dart';
 import 'package:vocabella/models/subject_data_model.dart';
 

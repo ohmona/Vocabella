@@ -75,8 +75,8 @@ class SessionSaver {
 
   static String makeJson() => session.toJson();
 
-  static void applyJson(dynamic json) {
-    if (json != null && (json as String).isEmpty) {
+  static void applyJson(String? json) {
+    if (json != null && json.isEmpty) {
       final object = jsonDecode(json);
       _session = SessionDataModel.fromJson(object);
     } else {

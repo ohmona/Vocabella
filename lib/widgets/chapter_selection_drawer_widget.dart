@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:vocabella/configuration.dart';
-import 'package:vocabella/constants.dart';
+import 'package:vocabella/utils/configuration.dart';
+import 'package:vocabella/utils/constants.dart';
 import 'package:vocabella/managers/data_handle_manager.dart';
 import 'package:vocabella/models/subject_data_model.dart';
 
@@ -23,6 +23,7 @@ class ChapterSelectionDrawer extends StatefulWidget {
     required this.existChapterNameAlready,
     required this.openDoubleChecker,
     required this.duplicateChapter,
+    required this.showLoadingScreen,
   }) : super(key: key);
 
   final SubjectDataModel subjectData;
@@ -30,13 +31,14 @@ class ChapterSelectionDrawer extends StatefulWidget {
   final String Function(int) getChapterName;
   final int currentChapterIndex;
   final void Function(String) addChapter;
-  final void Function() saveData;
+  final Future<File?> Function() saveData;
   final void Function(String) changeThumbnail;
   final void Function(String) changeSubjectName;
   final void Function(int, int) reorderChapter;
   final void Function(BuildContext) openDoubleChecker;
   final bool Function(String) existChapterNameAlready;
   final void Function() duplicateChapter;
+  final void Function(BuildContext) showLoadingScreen;
 
   static TextEditingController controller = TextEditingController();
   static String newTitle = "";
@@ -262,11 +264,12 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                 icon: const Icon(Icons.add),
                 splashRadius: 0.1,
               ),
-              if(AppConfig.bDebugMode) IconButton(
-                onPressed: widget.duplicateChapter,
-                icon: const Icon(Icons.control_point_duplicate),
-                splashRadius: 0.1,
-              ),
+              if (AppConfig.bDebugMode)
+                IconButton(
+                  onPressed: widget.duplicateChapter,
+                  icon: const Icon(Icons.control_point_duplicate),
+                  splashRadius: 0.1,
+                ),
             ],
           ),
           Expanded(
@@ -284,17 +287,17 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                     },
                     child: Container(
                       decoration: BoxDecoration(
-                        border: (widget.currentChapterIndex == index) ?
-                            Border.all(
-                              color: Colors.green,
-                              width: 2,
-                            )
+                        border: (widget.currentChapterIndex == index)
+                            ? Border.all(
+                                color: Colors.green,
+                                width: 2,
+                              )
                             : const Border(
-                          bottom: BorderSide(
-                            color: Colors.black,
-                            width: 0.5,
-                          ),
-                        ),
+                                bottom: BorderSide(
+                                  color: Colors.black,
+                                  width: 0.5,
+                                ),
+                              ),
                       ),
                       child: Container(
                         margin: const EdgeInsets.all(15),
@@ -333,40 +336,41 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                   ),
                 ),
                 IconButton(
-                  onPressed: () {
-                    widget.saveData();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          "saved",
+                  onPressed: () async {
+                    widget.showLoadingScreen(context);
+                    await widget.saveData();
+                    Future.delayed(const Duration(milliseconds: 1), () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            "saved",
+                          ),
+                          behavior: SnackBarBehavior.floating,
+                          duration: Duration(seconds: 2),
+                          elevation: 10,
                         ),
-                        behavior: SnackBarBehavior.floating,
-                        duration: Duration(seconds: 2),
-                        elevation: 10,
-                      ),
-                    );
-                    Navigator.pop(context);
+                      );
+                      Navigator.pop(context);
+                      Navigator.pop(context);
+                    });
                   },
                   icon: const Icon(
                     Icons.save,
                     color: Colors.white,
                   ),
                 ),
-                GestureDetector(
-                  onLongPress: () {
-                    widget.saveData();
-                    Navigator.popUntil(context, ModalRoute.withName('/'));
-                  },
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.exit_to_app,
-                      color: Colors.white,
-                    ),
-                    onPressed: () {
-                      widget.saveData();
-                      Navigator.popUntil(context, ModalRoute.withName('/'));
-                    },
+                IconButton(
+                  icon: const Icon(
+                    Icons.exit_to_app,
+                    color: Colors.white,
                   ),
+                  onPressed: () async {
+                    widget.showLoadingScreen(context);
+                    await widget.saveData();
+                    Future.delayed(const Duration(milliseconds: 10), () {
+                      Navigator.popUntil(context, ModalRoute.withName('/'));
+                    });
+                  },
                 ),
               ],
             ),

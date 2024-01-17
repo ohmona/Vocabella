@@ -59,6 +59,8 @@ class ProgressBarState extends State<ProgressBar> with TickerProviderStateMixin 
   void dispose() {
     super.dispose();
     controller.dispose();
+    animation.removeListener(() { });
+    animation.removeStatusListener((status) { });
   }
 
   @override

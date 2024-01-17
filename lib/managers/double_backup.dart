@@ -1,4 +1,6 @@
 
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:vocabella/managers/data_handle_manager.dart';
 
@@ -47,7 +49,7 @@ class DoubleBackup {
   }
 
   // Save current backup-count
-  static Future<void> saveDBCount(int spec) async { // 7. // 16.
+  static Future<bool> saveDBCount(int spec) async { // 7. // 16.
     if (kDebugMode) {
       print("[Double Backup] 4 Saving double-backup count...");
     }
@@ -55,16 +57,18 @@ class DoubleBackup {
     final path = await DataReadWriteManager.getLocalPath();
 
     if(spec == dbFirstSpec || spec == dbSecondSpec) {
-      await DataReadWriteManager.writeDataToPath(
+      var result = await DataReadWriteManager.writeDataToPath(
           path: "$path/$dbConfigFileName", data: spec.toString());
       if (kDebugMode) {
         print("[Double Backup] 5 Saving count succeeded : $spec"); // 8. // 17.
       }
+      return result.exists();
     }
     else {
       if (kDebugMode) {
         print("[Double Backup] 6 Invalid value has been tried to save");
       }
+      return false;
     }
   }
 
@@ -91,7 +95,7 @@ class DoubleBackup {
   }
 
   // Save backup data (to alpha or beta) and toggle count
-  static Future<void> saveDoubleBackup(String data) async { // 9. II.
+  static Future<File?> saveDoubleBackup(String data) async { // 9. II.
     if (kDebugMode) {
       print("[Double Backup] 10 Saving backup...");
     }
@@ -103,33 +107,37 @@ class DoubleBackup {
     if(countData != null) {
       if (countData == dbFirstSpec) {
         // Save data
-        await DataReadWriteManager.writeDataToPath(
-            path: "$path/$dbFileFirst", data: data);
+        await saveDBCount(dbFirstSpec);
         if (kDebugMode) {
           print("[Double Backup] 11 Writing backup to alpha succeeded");
         }
-        await saveDBCount(dbFirstSpec);
+        var result = await DataReadWriteManager.writeDataToPath(
+            path: "$path/$dbFileFirst", data: data);
+        return result;
       }
       else if (countData == dbSecondSpec) { // 14.
-        await DataReadWriteManager.writeDataToPath(
-            path: "$path/$dbFileSecond", data: data);
+        await saveDBCount(dbSecondSpec); // 15.
         if (kDebugMode) {
           print("[Double Backup] 12 Writing backup to beta succeeded");
         }
-        await saveDBCount(dbSecondSpec); // 15.
+        var result = await DataReadWriteManager.writeDataToPath(
+            path: "$path/$dbFileSecond", data: data);
+        return result;
       }
+      return null;
     }
     else {
-      await DataReadWriteManager.writeDataToPath(
+      await saveDBCount(dbFirstSpec);
+      var result = await DataReadWriteManager.writeDataToPath(
           path: "$path/$dbFileFirst", data: data);
       if (kDebugMode) {
         print("[Double Backup] 11 Writing backup to alpha succeeded");
       }
-      await saveDBCount(dbFirstSpec);
+      return result;
     }
   }
 
-  static Future<void> toggleDBCount() async { // I.
+  static Future<bool> toggleDBCount() async { // I.
     // 1.
 
     final countData = await loadDBCount(); // 2.
@@ -143,15 +151,16 @@ class DoubleBackup {
 
     if(countData != null) {
       if (countData == dbFirstSpec) {
-        await saveDBCount(dbSecondSpec); // 6.
+        return await saveDBCount(dbSecondSpec); // 6.
       }
       else if (countData == dbSecondSpec) {
-        await saveDBCount(dbFirstSpec);
+        return await saveDBCount(dbFirstSpec);
       }
     }
     else {
-      await saveDBCount(dbFirstSpec);
+      return await saveDBCount(dbFirstSpec);
     }
+    return false;
   }
 
   // Load data backed-up

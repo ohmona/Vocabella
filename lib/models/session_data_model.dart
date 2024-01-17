@@ -26,6 +26,8 @@ class SessionDataModel {
   String? id;
   List<OperationStructure>? operations;
 
+  DateTime? startTime;
+
   SessionDataModel({
     required this.existSessionData,
     this.listOfQuestions,
@@ -46,6 +48,7 @@ class SessionDataModel {
     this.stageCount,
     this.id,
     this.operations,
+    this.startTime,
   });
 
   SessionDataModel.fromJson(dynamic json) {
@@ -69,6 +72,7 @@ class SessionDataModel {
       inRepetitionFirstTry = json['inRepetitionFirstTry'];
       stageCount = json['stageCount'];
       id = json['id'];
+      startTime = DateTime.tryParse(json['startTime']) ?? DateTime.now();
 
       List<WordPair> loq = [];
       if(json['listOfQuestions'] != null) {
@@ -137,6 +141,7 @@ class SessionDataModel {
         "inFirstTry": inFirstTry,
         "inRepetitionFirstTry": inRepetitionFirstTry,
         "stageCount": stageCount,
+        "startTime": startTime.toString(),
         "id": id,
         "operations": operations?.map((op) => op.toJson())
             .toList(),

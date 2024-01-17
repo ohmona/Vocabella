@@ -6,7 +6,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:scroll_snap_list/scroll_snap_list.dart';
-import 'package:vocabella/constants.dart';
+import 'package:vocabella/overlays/loading_scene_overlay.dart';
+import 'package:vocabella/utils/constants.dart';
 import 'package:vocabella/main.dart';
 import 'package:vocabella/managers/data_handle_manager.dart';
 import 'package:vocabella/managers/double_backup.dart';
@@ -21,9 +22,10 @@ import 'package:vocabella/screens/config_screen.dart';
 import 'package:vocabella/screens/debug_screen.dart';
 import 'package:vocabella/screens/quiz_screen.dart';
 import 'package:vocabella/screens/subject_creation_screen.dart';
+import 'package:vocabella/utils/random.dart';
 import 'package:vocabella/widgets/recycle_bin_grid_tile_widget.dart';
 
-import '../arguments.dart';
+import '../utils/arguments.dart';
 import '../managers/session_saver.dart';
 import '../models/subject_data_model.dart';
 import '../widgets/bottom_button_widget.dart';
@@ -61,14 +63,14 @@ class _BodyState extends State<Body> {
   late Timer autoRefresher;
 
   /// Load new subject by picking a file
-  void loadNewData() async {
+  Future<void> loadNewData() async {
     // Clear cache before picking
     await FilePicker.platform.clearTemporaryFiles();
 
     // Pick a file
     Future<FilePickerResult?> result = DataPickerManager.pickFile();
 
-    result.then((value) async {
+    return result.then((value) async {
       if (value != null) {
         // Get the path of the picked file
         final String path = value.files.single.path!;
@@ -85,7 +87,7 @@ class _BodyState extends State<Body> {
 
         // Create a list of subject-objects by read data
         List<SubjectDataModel> newSubjectList =
-            SubjectDataModel.listFromJson(content);
+        SubjectDataModel.listFromJson(content);
 
         for (var newSub in newSubjectList) {
           bool oldOneFound = false;
@@ -107,7 +109,7 @@ class _BodyState extends State<Body> {
         await DataReadWriteManager.writeData(
             SubjectDataModel.listToJson(SubjectDataModel.subjectList));
       }
-      setState(() {});
+      reloadData();
     });
   }
 
@@ -120,19 +122,20 @@ class _BodyState extends State<Body> {
     required String newLanguage2,
     required String newChapter,
   }) {
+    // TODO fix the bug where nullpointererror is thrown once you start the session with newly created subject
+
     // Create dummy-data of WordPair and Chapter to add
     WordPair dummyWord = WordPair(
       word1: "type your word",
       word2: "type your word",
       created: DateTime.now(),
       lastEdit: DateTime.now(),
+      salt: generateRandomString(8),
     );
     Chapter firstChapter = Chapter(
       name: newChapter,
       words: [dummyWord],
-      //id: 1,
     );
-    //firstChapter.updateAllId();
 
     // Create dummy subject-data by just created dummy-data
     SubjectDataModel newSubject = SubjectDataModel(
@@ -143,6 +146,7 @@ class _BodyState extends State<Body> {
       thumb: "",
       id: makeSubjectId(date: DateTime.now().toString(), name: newTitle),
       version: appVersion,
+      lastOpenedChapterIndex: 0,
     );
 
     setState(() {
@@ -161,17 +165,20 @@ class _BodyState extends State<Body> {
 
   /// Open editor with chosen data
   void openEditor(SubjectDataModel subject) {
-    RecentActivity.latestOpenedSubject =
-        SubjectDataModel.getSubjectIndexByName(subject.title);
-    Navigator.pushNamed(
-      context,
-      EditorScreenParent.routeName,
-      arguments: EditorScreenArguments(
-        subject,
-        () => setState(() {}),
-      ),
-    ).then((value) {
-      setState(() {});
+    Navigator.of(context).push(LoadingOverlay());
+    Future.delayed(const Duration(milliseconds: 10), () {
+      RecentActivity.latestOpenedSubject =
+          SubjectDataModel.getSubjectIndexByName(subject.title);
+      Navigator.pushNamed(
+        context,
+        EditorScreenParent.routeName,
+        arguments: EditorScreenArguments(
+          subject,
+              () => setState(() {}),
+        ),
+      ).then((value) {
+        reloadData();
+      });
     });
   }
 
@@ -232,7 +239,12 @@ class _BodyState extends State<Body> {
       arguments: ChapterSelectionScreenArguments(
         subject,
       ),
-    );
+    ).then((value) {
+      if (kDebugMode) {
+        print("reload");
+      }
+      reloadData();
+    });
   }
 
   /// Unless there's no subject existing, move focusing subject to recycle bin
@@ -261,7 +273,15 @@ class _BodyState extends State<Body> {
     if (focusedIndex > SubjectDataModel.subjectList.length - 1) {
       focusedIndex = 0;
     }
-    setState(() {});
+    Future.delayed(
+      const Duration(milliseconds: 100),
+          () {
+        // Scroll a bit on start up to refresh focus
+        scroller.jumpTo(scroller.offset + 0.1);
+        startUp = false;
+      },
+    );
+    reloadData();
   }
 
   /// Move subject in recycle bin with specific index to static subject list
@@ -275,7 +295,7 @@ class _BodyState extends State<Body> {
     await DoubleBackup.toggleDBCount();
     await DoubleBackup.saveDoubleBackup(
         SubjectDataModel.listToJson(SubjectDataModel.subjectList));
-    setState(() {});
+    reloadData();
   }
 
   /// Delete data from recycle bin to dispose completely from session then save
@@ -283,6 +303,7 @@ class _BodyState extends State<Body> {
     setState(() {
       RemovedSubjectModel.recycleBin[index].remove();
       RemovedSubjectModel.saveRecycleBinData();
+      reloadData();
     });
   }
 
@@ -305,9 +326,9 @@ class _BodyState extends State<Body> {
 
     // load double backup data
     final firstData =
-        await DoubleBackup.loadDoubleBackup(DoubleBackup.dbFirstSpec);
+    await DoubleBackup.loadDoubleBackup(DoubleBackup.dbFirstSpec);
     final secondData =
-        await DoubleBackup.loadDoubleBackup(DoubleBackup.dbSecondSpec);
+    await DoubleBackup.loadDoubleBackup(DoubleBackup.dbSecondSpec);
     final lastCount = await DoubleBackup.loadDBCount();
 
     if (lastCount == DoubleBackup.dbFirstSpec) {
@@ -326,7 +347,7 @@ class _BodyState extends State<Body> {
 
     Future.delayed(
       const Duration(milliseconds: 10),
-      () {
+          () {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -341,7 +362,7 @@ class _BodyState extends State<Body> {
     );
     Future.delayed(
       const Duration(seconds: 10),
-      () {
+          () {
         setState(() {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -357,6 +378,7 @@ class _BodyState extends State<Body> {
             print("[Double Backup] Restoring done");
           }
         });
+        reloadData();
       },
     );
   }
@@ -408,8 +430,8 @@ class _BodyState extends State<Body> {
     );
   }
 
-  Future<void> openSessionReStarter(
-      BuildContext context, SessionDataModel sessionData) {
+  Future<void> openSessionReStarter(BuildContext context,
+      SessionDataModel sessionData) {
     return showDialog<void>(
       context: context,
       builder: (context) {
@@ -463,12 +485,24 @@ class _BodyState extends State<Body> {
     );
   }
 
+  late Future<String> data;
+
+  void reloadData() {
+    setState(() {
+      data = DataReadWriteManager.readData();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
 
+    print("=======================");
+    print("loading data");
+    data = DataReadWriteManager.readData();
+
     // Activate auto-refresher
-    autoRefresher = Timer.periodic(const Duration(minutes: 1), (timer) {
+    autoRefresher = Timer.periodic(const Duration(minutes: 5), (timer) {
       setState(() {
         if (kDebugMode) print("auto-refreshing");
       });
@@ -528,7 +562,7 @@ class _BodyState extends State<Body> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: DataReadWriteManager.readData(),
+      future: data,
       builder: (context, snapshot) {
         bool bLoaded = snapshot.hasData;
         RemovedSubjectModel.loadRecycleBinData();
@@ -538,7 +572,7 @@ class _BodyState extends State<Body> {
         if (bLoaded && startUp) {
           Future.delayed(
             const Duration(milliseconds: 100),
-            () {
+                () {
               // Scroll a bit on start up to refresh focus
               scroller.jumpTo(scroller.offset + 0.1);
               startUp = false;
@@ -574,7 +608,7 @@ class _BodyState extends State<Body> {
                         sessionData.printData();
                         Future.delayed(
                           const Duration(milliseconds: 100),
-                          () {
+                              () {
                             openSessionReStarter(context, sessionData);
                           },
                         );
@@ -613,7 +647,21 @@ class _BodyState extends State<Body> {
         IconButton(
           onPressed: () {
             setState(() {
-              loadNewData();
+              reloadData();
+            });
+          },
+          icon: const Icon(
+            Icons.refresh,
+          ),
+        ),
+        IconButton(
+          onPressed: () {
+            setState(() async {
+              Navigator.of(context).push(LoadingOverlay());
+              await loadNewData();
+              Future.delayed(const Duration(milliseconds: 10), () {
+                Navigator.pop(context);
+              });
             });
           },
           icon: const Icon(
@@ -630,7 +678,7 @@ class _BodyState extends State<Body> {
     emptyRecycleBinWidget = [buildEmptyRecycleBin()];
 
     late List<Widget> recycleBinWidget;
-    if(bBuildRecycleBin) {
+    if (bBuildRecycleBin) {
       recycleBinWidget = bBuildRecycleBin
           ? buildRecycleBin()
           : emptyRecycleBinWidget;
@@ -642,7 +690,9 @@ class _BodyState extends State<Body> {
           Container(
             height: 100,
             width: double.infinity,
-            color: Theme.of(context).cardColor,
+            color: Theme
+                .of(context)
+                .cardColor,
             alignment: Alignment.bottomLeft,
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
             child: GestureDetector(
@@ -663,12 +713,14 @@ class _BodyState extends State<Body> {
             ),
           ),
           for (Widget widget
-              in (bBuildRecycleBin ? recycleBinWidget : emptyRecycleBinWidget))
+          in (bBuildRecycleBin ? recycleBinWidget : emptyRecycleBinWidget))
             widget,
           Container(
             height: 60,
             width: double.infinity,
-            color: Theme.of(context).cardColor,
+            color: Theme
+                .of(context)
+                .cardColor,
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
             child: Stack(
               alignment: Alignment.bottomLeft,
@@ -710,7 +762,7 @@ class _BodyState extends State<Body> {
                           context,
                           ConfigScreen.routeName,
                         ).then((value) {
-                          setState(() {});
+                          reloadData();
                         });
                       },
                       icon: const Icon(
@@ -775,7 +827,6 @@ class _BodyState extends State<Body> {
           scrollDirection: Axis.vertical,
           itemCount: RemovedSubjectModel.recycleBin.length,
           itemBuilder: (context, index) {
-
             return RecycleBinGridTile(
               data: RemovedSubjectModel.recycleBin[index],
               index: index,
@@ -872,7 +923,9 @@ class _BodyState extends State<Body> {
         return Expanded(
           child: Center(
             child: SpinKitRing(
-              color: Theme.of(context).cardColor,
+              color: Theme
+                  .of(context)
+                  .cardColor,
             ),
           ),
         );

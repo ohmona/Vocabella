@@ -249,9 +249,12 @@ class _ConfigScreenState extends State<ConfigScreen> {
                     SubjectDataModel.fixInvalid();
 
                     print("Writing data...");
-                    // Finally we have to save data to the local no matter it should be
-                    await DataReadWriteManager.writeData(
-                        SubjectDataModel.listToJson(SubjectDataModel.subjectList)); // FUTURE
+
+                    await DataReadWriteManager.write(
+                      name: DataReadWriteManager.defaultFile,
+                      data: SubjectDataModel.listToJson(
+                          SubjectDataModel.subjectList),
+                    );
 
                     print("toggle db count...");
                     // After that we need to create another backup for fatal case like loosing data
@@ -261,7 +264,8 @@ class _ConfigScreenState extends State<ConfigScreen> {
                     print("save double backup...");
                     // Then save the backup data
                     var future = DoubleBackup.saveDoubleBackup(
-                        SubjectDataModel.listToJson(SubjectDataModel.subjectList)); // FUTURE
+                        SubjectDataModel.listToJson(
+                            SubjectDataModel.subjectList)); // FUTURE
                   },
                   child: const Text("fix"),
                 ),

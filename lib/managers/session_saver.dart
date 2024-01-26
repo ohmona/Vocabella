@@ -30,13 +30,11 @@ class SessionSaver {
     if (kDebugMode) {
       print("[Session] Initializing RecentActivity");
     }
-    final path = await DataReadWriteManager.getLocalPath();
     final data = await readSessionData();
 
     if (data!.isEmpty) {
       _session = SessionDataModel(existSessionData: false);
-      await DataReadWriteManager.writeDataToPath(
-          path: "$path/$sessionFile", data: makeJson());
+      await DataReadWriteManager.write(data: makeJson(), name: sessionFile);
       if (kDebugMode) {
         print("[Session] Initializing Session succeeded");
       }
@@ -52,11 +50,8 @@ class SessionSaver {
       print("[Session] Reading data");
     }
 
-    final path = await DataReadWriteManager.getLocalPath();
-
     try {
-      final data =
-          await DataReadWriteManager.readDataByPath("$path/$sessionFile");
+      final data = await DataReadWriteManager.read(name: sessionFile);
       if (kDebugMode) {
         print("[Session] Data reading succeeded");
         //print("===================================");
@@ -77,8 +72,15 @@ class SessionSaver {
 
   static void applyJson(String? json) {
     if (json != null && json.isEmpty) {
-      final object = jsonDecode(json);
-      _session = SessionDataModel.fromJson(object);
+      try {
+        final object = jsonDecode(json);
+        _session = SessionDataModel.fromJson(object);
+      }
+      catch(e) {
+        if (kDebugMode) {
+          print("decode error");
+        }
+      }
     } else {
       _session = SessionDataModel(existSessionData: false);
     }
@@ -91,13 +93,8 @@ class SessionSaver {
       print("[Session] Saving data");
     }
 
-    final path = await DataReadWriteManager.getLocalPath();
-
-    _session.printData();
-
     try {
-      await DataReadWriteManager.writeDataToPath(
-          data: makeJson(), path: "$path/$sessionFile");
+      await DataReadWriteManager.write(data: makeJson(), name: sessionFile);
       isSessionBeingSaved = false;
       if (kDebugMode) {
         print("[Session] Saving data succeeded");

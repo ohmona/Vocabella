@@ -8,23 +8,17 @@ enum CheckerBoxState {
 }
 
 class InputCheckerBox extends StatefulWidget {
-  InputCheckerBox({Key? key, required this.color, required this.text})
+  const InputCheckerBox({Key? key, required this.color, required this.text})
       : super(key: key);
 
   final Color color;
   final String text;
 
-  late void Function(CheckerBoxState) animTrigger;
-  late void Function(Color) changeColor;
-  late void Function(String) changeText;
-  late void Function() breakAnimAppear;
-  late void Function() breakAnimDisappear;
-
   @override
-  State<InputCheckerBox> createState() => _InputCheckerBoxState();
+  State<InputCheckerBox> createState() => InputCheckerBoxState();
 }
 
-class _InputCheckerBoxState extends State<InputCheckerBox>
+class InputCheckerBoxState extends State<InputCheckerBox>
     with TickerProviderStateMixin {
   late String text;
   late Color color;
@@ -137,12 +131,6 @@ class _InputCheckerBoxState extends State<InputCheckerBox>
 
     text = widget.text;
     color = widget.color;
-
-    widget.animTrigger = animTrigger;
-    widget.changeColor = changeColor;
-    widget.changeText = changeText;
-    widget.breakAnimDisappear = breakAnimDisappear;
-    widget.breakAnimAppear = breakAnimAppear;
 
     opacity = defaultOpacity;
     transform = hiddenOffset;

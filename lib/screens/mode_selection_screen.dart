@@ -140,110 +140,100 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
         title: const Text('Confirm your exercise'),
         elevation: 0,
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: bgGradient,
-        ),
-        child: Builder(builder: (context) {
-          if (isPortraitMode(width: width, height: height)) {
-            return Column(
-              children: [
-                SizedBox(
-                  height: height * 0.6,
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: width * 0.3,
-                        height: height * 0.6,
-                        child: buildModeButtons(width, height),
-                      ),
-                      buildThumbnail(width * 0.7, height * 0.6),
-                    ],
-                  ),
-                ),
-                const SizedBox(
-                  height: 10,
-                ),
-                buildInfoText(),
-                buildPlayButton(context, width * 0.34),
-              ],
-            );
-          } else {
-            return Row(
-              children: [
-                SizedBox(
-                  width: width * 0.7,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      SizedBox(
-                        width: width * 0.7,
-                        height: height * 0.3,
-                        child: buildModeButtons(width, height),
-                      ),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: Stack(
+        alignment: Alignment.bottomLeft,
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: bgGradient,
+            ),
+            child: Builder(builder: (context) {
+              if (isPortraitMode(width: width, height: height)) {
+                return Column(
+                  children: [
+                    SizedBox(
+                      height: height * 0.6,
+                      child: Row(
                         children: [
-                          buildPlayButton(context, width * 0.25),
-                          Column(
-                            children: [
-                              buildInfoText(),
-                              SizedBox(
-                                height: height * 0.05,
-                              ),
-                            ],
+                          SizedBox(
+                            width: width * 0.3,
+                            height: height * 0.6,
+                            child: buildModeButtons(width, height),
+                          ),
+                          buildThumbnail(width * 0.7, height * 0.6),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 10,
+                    ),
+                    buildInfoText(),
+                  ],
+                );
+              } else {
+                return Row(
+                  children: [
+                    SizedBox(
+                      width: width * 0.7,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          SizedBox(
+                            width: width * 0.7,
+                            height: height * 0.3,
+                            child: buildModeButtons(width, height),
+                          ),
+                          Transform.translate(
+                            offset: const Offset(0, -35),
+                            child: buildInfoText(),
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-                buildThumbnail(width * 0.3, height * 0.85),
-              ],
-            );
-          }
-        }),
+                    ),
+                    buildThumbnail(width * 0.3, height * 0.85),
+                  ],
+                );
+              }
+            }),
+          ),
+          buildPlayButton(context, 150),
+        ],
       ),
     );
   }
 
-  Row buildPlayButton(BuildContext context, double width) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        GestureDetector(
-          onTap: () {
-            onPressContinue(context);
-          },
-          child: Container(
-            margin: const EdgeInsets.all(30),
-            height: width,
-            width: width,
-            decoration: const BoxDecoration(
-              borderRadius: BorderRadius.all(Radius.circular(45)),
+  Widget buildPlayButton(BuildContext context, double width) {
+    return GestureDetector(
+      onTap: () {
+        onPressContinue(context);
+      },
+      child: Container(
+        margin: const EdgeInsets.all(30),
+        width: width,
+        height: width,
+        decoration: const BoxDecoration(
+          borderRadius: BorderRadius.all(Radius.circular(45)),
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
               color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.white,
-                  blurRadius: 15,
-                ),
-              ],
+              blurRadius: 15,
             ),
-            child: const Icon(
-              Icons.arrow_right,
-              color: Colors.black,
-              size: 100,
-              shadows: [
-                Shadow(
-                  color: Colors.black,
-                  blurRadius: 15,
-                ),
-              ],
-            ),
-          ),
+          ],
         ),
-      ],
+        child: const Icon(
+          Icons.arrow_right,
+          color: Colors.black,
+          size: 70,
+          shadows: [
+            Shadow(
+              color: Colors.black,
+              blurRadius: 15,
+            ),
+          ],
+        ),
+      ),
     );
   }
 

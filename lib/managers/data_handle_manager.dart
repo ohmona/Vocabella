@@ -4,50 +4,44 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class DataReadWriteManager {
-  static Future<String> get _localPath async {
+  // LOCAL PATH
+  static Future<String> get dirPath async {
     final directory = await getApplicationDocumentsDirectory();
-    return directory.path;
+    var path = directory.path;
+
+    if(Platform.isWindows) {
+      path = "$path\\Vocabella";
+      Directory(path).create();
+    }
+
+    return path;
   }
 
-  static Future<String> get _localFilePath async {
-    final path = await _localPath;
-    return '$path/subjects.json';
-  }
+  static const String defaultFile = "subjects.json";
 
-  static Future<String> getLocalAnyFilePath(String name) async {
-    final path = await _localPath;
-    return '$path/$name.json';
-  }
-
-  static Future<String> getLocalPath() {
-    return _localPath;
-  }
-
-  static Future<String> getLocalFilePath() {
-    return _localFilePath;
-  }
-
-  static Future<String> readData() async {
+  static Future<String> read({
+    String? dir,
+    String path = "",
+    required String name,
+  }) async {
     try {
-      final file = File(await _localFilePath);
+      final rootPath = await dirPath;
+      File file;
+      if (dir == null) {
+        file = File("$rootPath$path\\$name");
+      } else {
+        file = File("$dir$path\\$name");
+      }
       return await file.readAsString();
     } catch (e) {
       return '';
     }
   }
 
-  static Future<String> readDataFrom({required String name}) async {
-    try {
-      final file = File(await getLocalAnyFilePath(name));
-      return await file.readAsString();
-    } catch (e) {
-      return '';
-    }
-  }
-
-  static Future<String> readDataByPath(String path) async {
+  static Future<String> readPath(String path) async {
     try {
       final file = File(path);
       return await file.readAsString();
@@ -56,27 +50,29 @@ class DataReadWriteManager {
     }
   }
 
-  static Future<File> writeData(String data) async {
-    final file = File(await _localFilePath);
-    return await file.writeAsString(data);
+  static Future<File> write({
+    required String data,
+    required String name,
+    String path = "",
+    String? dir,
+  }) async {
+    final rootPath = await dirPath;
+    File file;
+    if (dir == null) {
+      file = File("$rootPath$path\\$name");
+    } else {
+      file = File("$dir$path\\$name");
+    }
+    return file.writeAsString(data);
   }
 
-  static Future<void> writeDataTo({required String data, required String name}) async {
-    final file = File(await getLocalAnyFilePath(name));
-    await file.writeAsString(data);
-  }
-
-  static Future<File> writeDataToPath({required String data, required String path}) async {
-    final file = File(path);
-    return await file.writeAsString(data);
-  }
-
+  // IMAGE
   static Future<File?> loadNewImage(ImageSource imageSource) async {
     final XFile? xImage = await ImagePicker().pickImage(source: imageSource);
 
     if (xImage != null) {
       final File image = File(xImage.path);
-      final String path = await _localPath + xImage.name;
+      final String path = await dirPath + xImage.name;
       final File newImage = await image.copy(path);
 
       return newImage;
@@ -102,14 +98,21 @@ class DataReadWriteManager {
     }
   }
 
-  static void exportData({
+  // SHARE DATA
+  /*static void exportData({
     required String folderPath,
     required String name,
     required String contents,
   }) {
-    final url = "$folderPath/$name.vcb";
+    final url = "$folderPath\\$name.vcb";
     final file = File(url);
     file.writeAsString(contents);
+  }*/
+
+  static void share({required String dir, required String name}) async {
+    XFile file = XFile(
+        "$dir/$name");
+    Share.shareXFiles([file]);
   }
 }
 

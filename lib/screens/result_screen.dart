@@ -37,8 +37,10 @@ class ResultScreen extends StatelessWidget {
   }
 
   Future<File?> saveData() async {
-    await DataReadWriteManager.writeData(
-        SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+    await DataReadWriteManager.write(
+      name: DataReadWriteManager.defaultFile,
+      data: SubjectDataModel.listToJson(SubjectDataModel.subjectList),
+    );
     await DoubleBackup.toggleDBCount();
     var future = DoubleBackup.saveDoubleBackup(
         SubjectDataModel.listToJson(SubjectDataModel.subjectList));
@@ -181,7 +183,8 @@ class ResultScreen extends StatelessWidget {
                   }
                   // Return to home
                   await saveData();
-                  Future.delayed(const Duration(milliseconds: 10), () {
+
+                  Future.delayed(Duration(milliseconds: args.operations.length + 500), () {
                     SubjectManipulator.disposeAccess();
                     Navigator.popUntil(context, ModalRoute.withName('/'));
                   });

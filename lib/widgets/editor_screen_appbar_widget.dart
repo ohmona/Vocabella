@@ -17,15 +17,14 @@ class EditorScreenAppbar extends StatefulWidget {
     required this.bReadOnly,
     required this.toggleReadOnly,
     required this.chapterName,
-    required this.bFavourite,
     required this.changeFavourite,
-    required this.getFavourite, required this.favouriteCount,
+    required this.getFavourite,
+    required this.favouriteCount,
   }) : super(key: key);
 
   final Chapter currentChapter;
   final bool bShowingWords;
   final bool bDeleteMode;
-  final bool bFavourite;
   final bool bReadOnly;
   final int wordCount;
   final int favouriteCount;

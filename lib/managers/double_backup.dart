@@ -23,19 +23,17 @@ class DoubleBackup {
     if (kDebugMode) {
       print("[Double Backup] 1 Initializing double backup");
     }
-    final path = await DataReadWriteManager.getLocalPath();
+    final path = await DataReadWriteManager.dirPath;
     final countData = await loadDBCount();
 
     if(countData == null) {
-      await DataReadWriteManager.writeDataToPath(
-          path: "$path/$dbConfigFileName", data: dbFirstSpec.toString());
+      await DataReadWriteManager.write(dir: path, name: dbConfigFileName, data: dbFirstSpec.toString());
       if (kDebugMode) {
         print("[Double Backup] 2 Initializing double backup succeeded");
       }
     }
     else if(countData != dbFirstSpec && countData != dbSecondSpec) {
-      await DataReadWriteManager.writeDataToPath(
-          path: "$path/$dbConfigFileName", data: dbFirstSpec.toString());
+      await DataReadWriteManager.write(dir: path, name: dbConfigFileName, data: dbFirstSpec.toString());
       if (kDebugMode) {
         print("[Double Backup] 2.1 Initializing double backup succeeded");
       }
@@ -54,11 +52,8 @@ class DoubleBackup {
       print("[Double Backup] 4 Saving double-backup count...");
     }
 
-    final path = await DataReadWriteManager.getLocalPath();
-
     if(spec == dbFirstSpec || spec == dbSecondSpec) {
-      var result = await DataReadWriteManager.writeDataToPath(
-          path: "$path/$dbConfigFileName", data: spec.toString());
+      var result = await DataReadWriteManager.write(name: dbConfigFileName, data: spec.toString());
       if (kDebugMode) {
         print("[Double Backup] 5 Saving count succeeded : $spec"); // 8. // 17.
       }
@@ -78,10 +73,8 @@ class DoubleBackup {
       print("[Double Backup] 7 Loading double-backup count...");
     }
 
-    final path = await DataReadWriteManager.getLocalPath();
-
     try {
-      var count = await DataReadWriteManager.readDataByPath("$path/$dbConfigFileName");
+      var count = await DataReadWriteManager.read(name: dbConfigFileName);
       if (kDebugMode) {
         print("[Double Backup] 8 Loading count succeeded : $count");
       }
@@ -100,7 +93,6 @@ class DoubleBackup {
       print("[Double Backup] 10 Saving backup...");
     }
 
-    final path = await DataReadWriteManager.getLocalPath();
     final countData = await loadDBCount();  // 10.
     // 13.
 
@@ -111,8 +103,7 @@ class DoubleBackup {
         if (kDebugMode) {
           print("[Double Backup] 11 Writing backup to alpha succeeded");
         }
-        var result = await DataReadWriteManager.writeDataToPath(
-            path: "$path/$dbFileFirst", data: data);
+        var result = await DataReadWriteManager.write(name: dbFileFirst, data: data);
         return result;
       }
       else if (countData == dbSecondSpec) { // 14.
@@ -120,16 +111,14 @@ class DoubleBackup {
         if (kDebugMode) {
           print("[Double Backup] 12 Writing backup to beta succeeded");
         }
-        var result = await DataReadWriteManager.writeDataToPath(
-            path: "$path/$dbFileSecond", data: data);
+        var result = await DataReadWriteManager.write(name: dbFileSecond, data: data);
         return result;
       }
       return null;
     }
     else {
       await saveDBCount(dbFirstSpec);
-      var result = await DataReadWriteManager.writeDataToPath(
-          path: "$path/$dbFileFirst", data: data);
+      var result = await DataReadWriteManager.write(name: dbFileFirst, data: data);
       if (kDebugMode) {
         print("[Double Backup] 11 Writing backup to alpha succeeded");
       }
@@ -170,21 +159,16 @@ class DoubleBackup {
     }
 
     try {
-      // get current count
-      final path = await DataReadWriteManager.getLocalPath();
-
       // read data
       if (spec == dbFirstSpec) {
-        final data = await DataReadWriteManager.readDataByPath(
-            "$path/$dbFileFirst");
+        final data = await DataReadWriteManager.read(name: dbFileFirst);
         if (kDebugMode) {
           print("[Double Backup] 14 Loading backup data from first file succeeded");
         }
         return data;
       }
       else if (spec == dbSecondSpec) {
-        final data = await DataReadWriteManager.readDataByPath(
-            "$path/$dbFileSecond");
+        final data = await DataReadWriteManager.read(name: dbFileSecond);
         if (kDebugMode) {
           print("[Double Backup] 15 Loading backup data from second file succeeded");
         }
@@ -210,7 +194,7 @@ class DoubleBackup {
     if (kDebugMode) {
       print("[Double Backup] 18 Saving...");
     }
-    await DataReadWriteManager.writeData(backupData);
+    await DataReadWriteManager.write(data: backupData, name: DataReadWriteManager.defaultFile);
     if (kDebugMode) {
       print("[Double Backup] 19 Saving succeeded");
     }

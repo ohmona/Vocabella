@@ -22,12 +22,10 @@ class RecentActivity {
     if (kDebugMode) {
       print("[Recent Activity] Initializing RecentActivity");
     }
-    final path = await DataReadWriteManager.getLocalPath();
     final data = await readRAData();
 
     if(data!.isEmpty) {
-      await DataReadWriteManager.writeDataToPath(
-          path: "$path/$recentActivityFile", data: makeJson());
+      await DataReadWriteManager.write(name: recentActivityFile, data: makeJson());
       if (kDebugMode) {
         print("[Recent Activity] Initializing Recent Activity succeeded");
       }
@@ -44,10 +42,8 @@ class RecentActivity {
       print("[Recent Activity] Reading data");
     }
 
-    final path = await DataReadWriteManager.getLocalPath();
-
     try {
-      final data = await DataReadWriteManager.readDataByPath("$path/$recentActivityFile");
+      final data = await DataReadWriteManager.read(name: recentActivityFile);
       if (kDebugMode) {
         print("[Recent Activity] Data reading succeeded");
       }
@@ -70,10 +66,17 @@ class RecentActivity {
   }
 
   static void applyJson(dynamic json) {
-    final object = jsonDecode(json);
+    try {
+      final object = jsonDecode(json);
 
-    // Here comes the data
-    _latestOpenedSubject = object["latestOpenedSubject"];
+      // Here comes the data
+      _latestOpenedSubject = object["latestOpenedSubject"];
+    }
+    catch(e) {
+      if (kDebugMode) {
+        print("invalid json!");
+      }
+    }
   }
 
   static void applyRAData() async => applyJson(await readRAData());
@@ -83,10 +86,8 @@ class RecentActivity {
       print("[Recent Activity] Saving data");
     }
 
-    final path = await DataReadWriteManager.getLocalPath();
-
     try {
-      await DataReadWriteManager.writeDataToPath(data: makeJson(), path: "$path/$recentActivityFile");
+      await DataReadWriteManager.write(data: makeJson(), name: recentActivityFile);
       if (kDebugMode) {
         print("[Recent Activity] Saving data succeeded");
       }

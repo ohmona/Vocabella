@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 const double _widgetHeight = 60;
 
 class ProgressBar extends StatefulWidget {
-  ProgressBar({Key? key, required this.total, required this.progress})
+  const ProgressBar({Key? key, required this.total, required this.progress})
       : super(key: key);
 
   final int total, progress;
-  late void Function(int, int) updateProgress;
+  //late void Function(int, int) updateProgress;
 
   @override
   State<ProgressBar> createState() => ProgressBarState();
@@ -24,7 +24,7 @@ class ProgressBarState extends State<ProgressBar> with TickerProviderStateMixin 
   late AnimationController controller;
   late Animation<double> animation;
 
-  void update(int total, int progress) {
+  void updateProgress(int total, int progress) {
     setState(() {
       this.progress = progress;
       this.total = total;
@@ -66,7 +66,6 @@ class ProgressBarState extends State<ProgressBar> with TickerProviderStateMixin 
   @override
   void initState() {
     super.initState();
-    widget.updateProgress = update;
     progress = widget.progress;
     total = widget.total;
 

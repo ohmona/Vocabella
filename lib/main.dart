@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:desktop_window/desktop_window.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -20,7 +23,7 @@ import 'utils/configuration.dart';
 import 'utils/constants.dart';
 import 'package:flutter/rendering.dart';
 
-const appVersion = "1.5.6";
+const appVersion = "1.6";
 const appInfo = 'ver. $appVersion by ohmona';
 
 void main() async {
@@ -38,6 +41,10 @@ void main() async {
 
   //debugPaintPointersEnabled = true;
   //debugPaintSizeEnabled  = true;
+
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    DesktopWindow.setMinWindowSize(const Size(500, 700));
+  }
 
   runApp(const MyApp());
 }

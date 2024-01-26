@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:googleapis/apigeeregistry/v1.dart';
 import 'package:keyboard_utils/keyboard_aware/keyboard_aware.dart';
 import 'package:keyboard_utils/keyboard_utils.dart';
 import 'package:keyboard_utils/keyboard_listener.dart' as keyboard_listener;
@@ -25,6 +24,11 @@ import 'package:vocabella/widgets/word_grid_tile_widget.dart';
 import '../managers/data_handle_manager.dart';
 import '../models/chapter_model.dart';
 import '../models/wordpair_model.dart';
+
+enum ViewMode {
+  normal,
+  favourite,
+}
 
 class EditorScreenParent extends StatelessWidget {
   const EditorScreenParent({Key? key}) : super(key: key);
@@ -84,6 +88,8 @@ class _EditorScreenState extends State<EditorScreen> {
 
   late Timer autoSaveTimer;
 
+  late ViewMode viewMode;
+
   /// find the total number of contents
   int getWordsCount() => currentChapter.words.length * 2;
 
@@ -108,6 +114,8 @@ class _EditorScreenState extends State<EditorScreen> {
   bool isTargetingQuestion(int index) => index % 2 == 0;
 
   bool isValidIndex(int index) => index < getWordsCount();
+
+  bool isAdditionIndex(int index) => index == getWordsCount() + 1;
 
   bool bAddingNewWord = false;
 
@@ -144,8 +152,8 @@ class _EditorScreenState extends State<EditorScreen> {
       if (bQuestionTargeting) return target.word1;
       if (!bQuestionTargeting) return target.word2;
     } else {
-      if (bQuestionTargeting) return target.example1 ?? "";
-      if (!bQuestionTargeting) return target.example2 ?? "";
+      if (bQuestionTargeting) return target.example1;
+      if (!bQuestionTargeting) return target.example2;
     }
 
     return "";
@@ -239,7 +247,11 @@ class _EditorScreenState extends State<EditorScreen> {
 
   void toggleDeleteMode() {
     setState(() {
-      bDeleteMode = !bDeleteMode;
+      if (bDeleteMode) {
+        bDeleteMode = false;
+      } else {
+        bDeleteMode = true;
+      }
     });
   }
 
@@ -289,11 +301,9 @@ class _EditorScreenState extends State<EditorScreen> {
         //saveData();
 
         Future.delayed(const Duration(milliseconds: 50), () {
-          if(currentChapter.lastIndex == null) {
-            changeFocus(0,
-                requestFocus: true, force: true);
-          }
-          else if (!bReadOnly) {
+          if (currentChapter.lastIndex == null) {
+            changeFocus(0, requestFocus: true, force: true);
+          } else if (!bReadOnly) {
             // Focus on last focused index
             if (currentChapter.lastIndex! < (currentChapter.words.length) * 2) {
               changeFocus(currentChapter.lastIndex!,
@@ -360,12 +370,10 @@ class _EditorScreenState extends State<EditorScreen> {
     }
   }
 
-  bool ableToSave() {
-    return true;
-  }
+  bool ableToSave() => true;
 
   /// Save all data to local storage
-  Future<File?> saveData() async {
+  void saveData() async {
     if (focusedIndex == null) return null;
 
     if (ableToSave()) {
@@ -379,10 +387,10 @@ class _EditorScreenState extends State<EditorScreen> {
           SubjectDataModel.subjectList[i] = subjectData;
         }
 
-        print("Writing data...");
-        // Finally we have to save data to the local no matter it should be
-        await DataReadWriteManager.writeData(
-            SubjectDataModel.listToJson(SubjectDataModel.subjectList)); // FUTURE
+        await DataReadWriteManager.write(
+          name: DataReadWriteManager.defaultFile,
+          data: SubjectDataModel.listToJson(SubjectDataModel.subjectList),
+        );
 
         print("toggle db count...");
         // After that we need to create another backup for fatal case like loosing data
@@ -391,10 +399,8 @@ class _EditorScreenState extends State<EditorScreen> {
 
         print("save double backup...");
         // Then save the backup data
-        var future = DoubleBackup.saveDoubleBackup(
-            SubjectDataModel.listToJson(SubjectDataModel.subjectList)); // FUTURE
-
-        return future;
+        await DoubleBackup.saveDoubleBackup(SubjectDataModel.listToJson(
+            SubjectDataModel.subjectList)); // FUTURE
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -534,7 +540,7 @@ class _EditorScreenState extends State<EditorScreen> {
     scrollController.jumpTo(calcIndexToScroll(index) * 50);
   }
 
-  final KeyboardUtils _keyboardUtils = KeyboardUtils();
+  late KeyboardUtils _keyboardUtils;
   late int _idKeyboardListener;
 
   int calcIndexToScroll(int index) {
@@ -766,7 +772,7 @@ class _EditorScreenState extends State<EditorScreen> {
 
   // Returns favourite state of the focused index
   bool isLiked() {
-    if(focusedIndex == null) return false;
+    if (focusedIndex == null) return false;
     if (!isValidIndex(focusedIndex!)) return false;
 
     bool? favourite =
@@ -798,11 +804,15 @@ class _EditorScreenState extends State<EditorScreen> {
         list.add(i);
       }
     }
-    print("===========================");
-    print("printing favourites");
-    list.forEach((element) {
-      print(element);
-    });
+    if (kDebugMode) {
+      print("===========================");
+      print("printing favourites");
+    }
+    for (var element in list) {
+      if (kDebugMode) {
+        print(element);
+      }
+    }
     return list;
   }
 
@@ -823,9 +833,11 @@ class _EditorScreenState extends State<EditorScreen> {
     autoSaveTimer.cancel();
     super.dispose();
 
-    _keyboardUtils.unsubscribeListener(subscribingId: _idKeyboardListener);
-    if (_keyboardUtils.canCallDispose()) {
-      _keyboardUtils.dispose();
+    if(Platform.isIOS || Platform.isAndroid) {
+      _keyboardUtils.unsubscribeListener(subscribingId: _idKeyboardListener);
+      if (_keyboardUtils.canCallDispose()) {
+        _keyboardUtils.dispose();
+      }
     }
   }
 
@@ -846,34 +858,42 @@ class _EditorScreenState extends State<EditorScreen> {
 
     textBeforeEdit = getTextOf(focusedIndex!);
 
+    viewMode = ViewMode.normal;
+
+    if(Platform.isIOS || Platform.isAndroid) {
+      _keyboardUtils = KeyboardUtils();
+    }
+
     // Apply last opened chapter and grid
     var startUpChapter = subjectData.lastOpenedChapterIndex ?? 0;
     currentChapter = subjectData.wordlist[startUpChapter];
     focusedIndex = currentChapter.lastIndex ?? 0;
 
     // activate auto-save
-    autoSaveTimer = Timer.periodic(const Duration(seconds: 120), (timer) {
+    autoSaveTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       saveData();
     });
 
-    _idKeyboardListener = _keyboardUtils.add(
-        listener: keyboard_listener.KeyboardListener(
-      willHideKeyboard: () {
-        _showingKeyboard = false;
-        if (kDebugMode) {
-          print("========================");
-          print("hiding keyboard");
-        }
-      },
-      willShowKeyboard: (double keyboardHeight) {
-        _showingKeyboard = true;
-        _keyboardHeight = keyboardHeight;
-        if (kDebugMode) {
-          print("========================");
-          print(keyboardHeight);
-        }
-      },
-    ));
+    if(Platform.isIOS || Platform.isAndroid) {
+      _idKeyboardListener = _keyboardUtils.add(
+          listener: keyboard_listener.KeyboardListener(
+            willHideKeyboard: () {
+              _showingKeyboard = false;
+              if (kDebugMode) {
+                print("========================");
+                print("hiding keyboard");
+              }
+            },
+            willShowKeyboard: (double keyboardHeight) {
+              _showingKeyboard = true;
+              _keyboardHeight = keyboardHeight;
+              if (kDebugMode) {
+                print("========================");
+                print(keyboardHeight);
+              }
+            },
+          ));
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       if (currentChapter.lastIndex! < (currentChapter.words.length) * 2) {
@@ -909,21 +929,7 @@ class _EditorScreenState extends State<EditorScreen> {
           elevation: 0,
         ),
       ),
-      drawer: ChapterSelectionDrawer(
-        changeChapter: changeChapter,
-        currentChapterIndex: getCurrentChapterIndex(),
-        getChapterName: getChapterName,
-        subjectData: subjectData,
-        addChapter: addChapter,
-        saveData: saveData,
-        changeThumbnail: changeThumbnail,
-        changeSubjectName: changeSubjectName,
-        reorderChapter: reorderChapter,
-        existChapterNameAlready: existChapterNameAlready,
-        openDoubleChecker: openDoubleChecker,
-        duplicateChapter: duplicateChapter,
-        showLoadingScreen: showLoadingScreen,
-      ),
+      drawer: _buildChapterDrawer(),
       body: WillPopScope(
         onWillPop: () async {
           widget.refresh();
@@ -934,364 +940,377 @@ class _EditorScreenState extends State<EditorScreen> {
         child: KeyboardAware(
           builder: (context, keyboardConfig) => Column(
             children: [
-              Expanded(
-                child: Stack(
-                  children: [
-                    Column(
-                      children: [
-                        const SizedBox(
-                          height: gridViewTopMargin,
-                        ),
-                        Expanded(
-                          child: ReorderableListView.builder(
-                            scrollController: scrollController,
-                            physics: const BouncingScrollPhysics(),
-                            itemCount: bShowingFavouriteOnly
-                                ? countFavourite() + 1
-                                : (getWordsCount() / 2 + 1).toInt(),
-                            dragStartBehavior: DragStartBehavior.start,
-                            buildDefaultDragHandles: false,
-                            onReorder: (oldIndex, newIndex) {
-                              if (!bShowingFavouriteOnly) {
-                                final maxIndex = getWordsCount() ~/ 2;
-                                final currentIndexNormalized =
-                                    focusedIndex! ~/ 2;
-
-                                currentChapter.lastIndex = newIndex;
-
-                                if (oldIndex >= maxIndex ||
-                                    newIndex > maxIndex) {
-                                  return;
-                                }
-
-                                setState(() {
-                                  if (oldIndex < newIndex) {
-                                    newIndex -= 1;
-                                  }
-                                  final item =
-                                      currentChapter.words.removeAt(oldIndex);
-                                  currentChapter.words.insert(newIndex, item);
-
-                                  if (oldIndex == currentIndexNormalized) {
-                                    focusedIndex =
-                                        isTargetingQuestion(focusedIndex!)
-                                            ? newIndex * 2
-                                            : newIndex * 2 + 1;
-                                  } else if (currentIndexNormalized <
-                                      oldIndex) {
-                                    if (currentIndexNormalized >= newIndex) {
-                                      focusedIndex = focusedIndex! + 2;
-                                    }
-                                  } else if (currentIndexNormalized >
-                                      oldIndex) {
-                                    if (currentIndexNormalized <= newIndex) {
-                                      focusedIndex = focusedIndex! - 2;
-                                    }
-                                  }
-                                });
-                              }
-                            },
-                            itemBuilder: ((context, index) {
-                              late bool bValid;
-                              late String? displayingText1;
-                              late String? displayingText2;
-                              late WordPair wordPair;
-                              late bool bFocused1;
-                              late bool bFocused2;
-
-                              if (!bShowingFavouriteOnly) {
-                                bValid = index < getWordsCount() ~/ 2;
-                                displayingText1 =
-                                    bValid ? getTextOf(2 * index) : "";
-                                displayingText2 =
-                                    bValid ? getTextOf(2 * index + 1) : "";
-
-                                wordPair = bValid
-                                    ? currentChapter
-                                        .words[getWordPairIndex(2 * index)]
-                                    : WordPair.nullWordPair();
-
-                                bFocused1 = 2 * index == focusedIndex;
-                                bFocused2 = 2 * index + 1 == focusedIndex;
-                              } else {
-                                print("Causing errors : $index");
-                                int size = countFavourite();
-
-                                bValid = index < size;
-                                wordPair = bValid
-                                    ? currentChapter
-                                        .words[getFavouriteIndex(index)]
-                                    : WordPair.nullWordPair();
-                                if (bShowingWords) {
-                                  displayingText1 =
-                                      bValid ? wordPair.word1 : "";
-                                  displayingText2 =
-                                      bValid ? wordPair.word2 : "";
-                                } else {
-                                  displayingText1 =
-                                      bValid ? wordPair.example1 : "";
-                                  displayingText1 ??= "";
-                                  displayingText2 =
-                                      bValid ? wordPair.example2 : "";
-                                  displayingText2 ??= "";
-                                }
-                                print(index);
-                                print(displayingText1);
-                                print(displayingText2);
-
-                                bFocused1 = bValid
-                                    ? 2 * getFavouriteIndex(index) ==
-                                        focusedIndex
-                                    : false;
-                                bFocused2 = bValid
-                                    ? 2 * getFavouriteIndex(index) + 1 ==
-                                        focusedIndex
-                                    : false;
-                              }
-
-                              return ReorderableDelayedDragStartListener(
-                                index: index,
-                                key: Key("$index"),
-                                child: Row(
-                                  children: [
-                                    WordGridTile(
-                                      text: displayingText1,
-                                      index: 2 * index,
-                                      saveText: updateWord,
-                                      bShowingWords: bShowingWords,
-                                      currentChapter: currentChapter,
-                                      addWord: addWord,
-                                      bDeleteMode: bDeleteMode,
-                                      deleteWord: removeWord,
-                                      changeFocus: changeFocus,
-                                      bFocused: bFocused1,
-                                      wordAdditionBuffer: wordAdditionBuffer,
-                                      wordPair: wordPair,
-                                    ),
-                                    WordGridTile(
-                                      text: displayingText2,
-                                      index: 2 * index + 1,
-                                      saveText: updateWord,
-                                      bShowingWords: bShowingWords,
-                                      currentChapter: currentChapter,
-                                      addWord: addWord,
-                                      bDeleteMode: bDeleteMode,
-                                      deleteWord: removeWord,
-                                      changeFocus: changeFocus,
-                                      bFocused: bFocused2,
-                                      wordAdditionBuffer: wordAdditionBuffer,
-                                      wordPair: wordPair,
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Transform.translate(
-                      offset: const Offset(0, 60),
-                      child: Row(
-                        children: [
-                          LanguageBar(
-                            subjectData: subjectData,
-                            index: 0,
-                            changeSubject: changeSubject,
-                          ),
-                          Container(
-                            width: 2,
-                            height: 50,
-                            color: Colors.grey,
-                          ),
-                          LanguageBar(
-                            subjectData: subjectData,
-                            index: 1,
-                            changeSubject: changeSubject,
-                          ),
-                        ],
-                      ),
-                    ),
-                    EditorScreenAppbar(
-                      currentChapter: currentChapter,
-                      bShowingWords: bShowingWords,
-                      toggleWords: toggleWords,
-                      bDeleteMode: bDeleteMode,
-                      toggleDeleteMode: toggleDeleteMode,
-                      changeChapterName: changeChapterName,
-                      wordCount: currentChapter.words.length,
-                      bReadOnly: bReadOnly,
-                      toggleReadOnly: toggleReadOnly,
-                      chapterName: currentChapter.name,
-                      bFavourite: isLiked(),
-                      changeFavourite: changeFavourite,
-                      getFavourite: () {
-                        return isLiked();
-                      },
-                      favouriteCount: countFavourite(),
-                    ),
-                    /*FloatingActionButton(onPressed: () {
-                      Navigator.of(context).push(DataSaveOverlay(
-                        saveData: saveData,
-                      ));
-                    }),*/
-                  ],
-                ),
-              ),
-              Builder(
-                builder: (context) {
-                  if (bReadOnly) {
-                    return const SizedBox(
-                      height: 0,
-                    );
-                  }
-
-                  return Padding(
-                    padding: MediaQuery.of(context).viewInsets,
-                    child: Container(
-                      // Input Box Container
-                      decoration: BoxDecoration(
-                        color: Colors.grey,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.5),
-                            blurRadius: 10,
-                            blurStyle: BlurStyle.normal,
-                          ),
-                        ],
-                      ),
-                      height: bottomBarHeight,
-                      child: Padding(
-                        padding: const EdgeInsets.all(60 * 0.1),
-                        child: Container(
-                          // Input Box
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(5),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.white,
-                                blurRadius: 15,
-                              ),
-                            ],
-                          ),
-                          child: Transform.translate(
-                            offset: (MediaQuery.of(context).size.height < 600)
-                                ? const Offset(0, -6)
-                                : const Offset(0, 3),
-                            child: TextField(
-                              focusNode: bottomBarFocusNode,
-                              decoration: InputDecoration(
-                                border: InputBorder.none,
-                                disabledBorder: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                errorBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                focusedErrorBorder: InputBorder.none,
-                                floatingLabelAlignment:
-                                    FloatingLabelAlignment.start,
-                                hoverColor: Colors.transparent,
-                                focusColor: Colors.transparent,
-                                suffixIcon: Transform.translate(
-                                  offset:
-                                      (MediaQuery.of(context).size.height < 600)
-                                          ? const Offset(0, 3)
-                                          : const Offset(0, 0),
-                                  child: IconButton(
-                                    icon: const Icon(Icons.edit),
-                                    color: Colors.grey.withOpacity(0.5),
-                                    onPressed: () {},
-                                  ),
-                                ),
-                                prefixIcon: Transform.translate(
-                                  offset:
-                                      (MediaQuery.of(context).size.height < 600)
-                                          ? const Offset(0, 3)
-                                          : const Offset(0, 0),
-                                  child: Icon(
-                                    Icons.keyboard_alt_outlined,
-                                    color: Colors.grey.withOpacity(0.5),
-                                  ),
-                                ),
-                              ),
-                              style: TextStyle(
-                                fontSize:
-                                    (MediaQuery.of(context).size.height < 600)
-                                        ? 12
-                                        : 16,
-                                fontWeight: FontWeight.w400,
-                              ),
-                              controller: textEditingController,
-                              cursorColor: Colors.grey.withOpacity(0.5),
-                              textAlign: TextAlign.center,
-                              onChanged: (value) {
-                                if (focusedIndex != null) {
-                                  setState(() {
-                                    updateWord(value, focusedIndex!);
-                                  });
-                                }
-                              },
-                              onSubmitted: (value) {
-                                if (focusedIndex != null) {
-                                  bottomBarFocusNode.requestFocus();
-                                  if (!bAddingNewWord) {
-                                    setState(() {
-                                      updateWord(value, focusedIndex!);
-                                      textEditingController.text = "";
-                                      changeFocus(focusedIndex! + 1);
-                                    });
-                                  } else {
-                                    setState(() {
-                                      updateWord(value, focusedIndex!);
-                                      textEditingController.text = "";
-
-                                      if (wordAdditionBuffer.word1.isNotEmpty &&
-                                          wordAdditionBuffer.word2.isNotEmpty) {
-                                        terminateWordAddition();
-                                        changeFocus(focusedIndex! + 1);
-                                        return;
-                                      }
-
-                                      if (isTargetingQuestion(focusedIndex!)) {
-                                        if (wordAdditionBuffer.word2.isEmpty ||
-                                            wordAdditionBuffer
-                                                .word1.isNotEmpty) {
-                                          changeFocus(focusedIndex! + 1);
-                                        } else {
-                                          changeFocus(focusedIndex!);
-                                        }
-                                      } else {
-                                        if (wordAdditionBuffer.word1.isEmpty ||
-                                            wordAdditionBuffer
-                                                .word2.isNotEmpty) {
-                                          changeFocus(focusedIndex! - 1);
-                                        } else {
-                                          changeFocus(focusedIndex!);
-                                        }
-                                      }
-                                    });
-                                  }
-                                }
-                              },
-                              onTap: () {
-                                jumpToIndex(focusedIndex!);
-                                if (focusedIndex == null) {
-                                  bottomBarFocusNode.unfocus();
-                                }
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              )
+              _buildBody(),
+              _buildBottomBar(context),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  void _onPressSummit(String value) {
+    if (focusedIndex != null) {
+      bottomBarFocusNode.requestFocus();
+      if (!bAddingNewWord) {
+        setState(() {
+          updateWord(value, focusedIndex!);
+          textEditingController.text = "";
+          changeFocus(focusedIndex! + 1);
+        });
+      } else {
+        setState(() {
+          updateWord(value, focusedIndex!);
+          textEditingController.text = "";
+
+          if (wordAdditionBuffer.word1.isNotEmpty &&
+              wordAdditionBuffer.word2.isNotEmpty) {
+            terminateWordAddition();
+            changeFocus(focusedIndex! + 1);
+            return;
+          }
+
+          if (isTargetingQuestion(focusedIndex!)) {
+            if (wordAdditionBuffer.word2.isEmpty ||
+                wordAdditionBuffer.word1.isNotEmpty) {
+              changeFocus(focusedIndex! + 1);
+            } else {
+              changeFocus(focusedIndex!);
+            }
+          } else {
+            if (wordAdditionBuffer.word1.isEmpty ||
+                wordAdditionBuffer.word2.isNotEmpty) {
+              changeFocus(focusedIndex! - 1);
+            } else {
+              changeFocus(focusedIndex!);
+            }
+          }
+        });
+      }
+    }
+  }
+
+  Widget _buildBody() {
+    return Expanded(
+      child: Stack(
+        children: [
+          Column(
+            children: [
+              const SizedBox(
+                height: gridViewTopMargin,
+              ),
+              Expanded(
+                child: _buildList(),
+              ),
+            ],
+          ),
+          _buildLanguageBar(),
+          _buildAppBar(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildList() {
+    return ReorderableListView.builder(
+      scrollController: scrollController,
+      physics: const BouncingScrollPhysics(),
+      itemCount: bShowingFavouriteOnly
+          ? countFavourite() + 1
+          : (getWordsCount() / 2 + 1).toInt(),
+      dragStartBehavior: DragStartBehavior.start,
+      buildDefaultDragHandles: false,
+      onReorder: (oldIndex, newIndex) {
+        if (!bShowingFavouriteOnly) {
+          final maxIndex = getWordsCount() ~/ 2;
+          final currentIndexNormalized = focusedIndex! ~/ 2;
+
+          currentChapter.lastIndex = newIndex;
+
+          if (oldIndex >= maxIndex || newIndex > maxIndex) {
+            return;
+          }
+
+          setState(() {
+            if (oldIndex < newIndex) {
+              newIndex -= 1;
+            }
+            final item = currentChapter.words.removeAt(oldIndex);
+            currentChapter.words.insert(newIndex, item);
+
+            if (oldIndex == currentIndexNormalized) {
+              focusedIndex = isTargetingQuestion(focusedIndex!)
+                  ? newIndex * 2
+                  : newIndex * 2 + 1;
+            } else if (currentIndexNormalized < oldIndex) {
+              if (currentIndexNormalized >= newIndex) {
+                focusedIndex = focusedIndex! + 2;
+              }
+            } else if (currentIndexNormalized > oldIndex) {
+              if (currentIndexNormalized <= newIndex) {
+                focusedIndex = focusedIndex! - 2;
+              }
+            }
+          });
+        }
+      },
+      itemBuilder: ((context, index) {
+        late bool bValid;
+        late String? displayingText1;
+        late String? displayingText2;
+        late WordPair wordPair;
+        late bool bFocused1;
+        late bool bFocused2;
+
+        if (!bShowingFavouriteOnly) {
+          bValid = index < getWordsCount() ~/ 2;
+          displayingText1 = bValid ? getTextOf(2 * index) : "";
+          displayingText2 = bValid ? getTextOf(2 * index + 1) : "";
+
+          if (bValid) {
+            displayingText1 = getTextOf(2 * index);
+            displayingText2 = getTextOf(2 * index + 1);
+            wordPair = currentChapter.words[getWordPairIndex(2 * index)];
+          } else if (index < (getWordsCount() + 2) ~/ 2) {
+            // end cells
+            displayingText1 = getTextOf(2 * index);
+            displayingText2 = getTextOf(2 * index + 1);
+            wordPair = wordAdditionBuffer;
+          } else {
+            displayingText1 = "";
+            displayingText2 = "";
+            wordPair = WordPair.nullWordPair();
+          }
+
+          bFocused1 = 2 * index == focusedIndex;
+          bFocused2 = 2 * index + 1 == focusedIndex;
+        } else {
+          // TODO
+          int size = countFavourite();
+
+          bValid = index < size;
+          wordPair = bValid
+              ? currentChapter.words[getFavouriteIndex(index)]
+              : WordPair.nullWordPair();
+          if (bShowingWords) {
+            displayingText1 = bValid ? wordPair.word1 : "";
+            displayingText2 = bValid ? wordPair.word2 : "";
+          } else {
+            displayingText1 = bValid ? wordPair.example1 : "";
+            displayingText2 = bValid ? wordPair.example2 : "";
+          }
+
+          bFocused1 =
+              bValid ? 2 * getFavouriteIndex(index) == focusedIndex : false;
+          bFocused2 =
+              bValid ? 2 * getFavouriteIndex(index) + 1 == focusedIndex : false;
+        }
+
+        return ReorderableDelayedDragStartListener(
+          index: index,
+          key: Key("$index"),
+          child: Row(
+            children: [
+              WordGridTile(
+                text: displayingText1,
+                index: 2 * index,
+                saveText: updateWord,
+                bShowingWords: bShowingWords,
+                currentChapter: currentChapter,
+                addWord: addWord,
+                bDeleteMode: bDeleteMode,
+                deleteWord: removeWord,
+                changeFocus: changeFocus,
+                bFocused: bFocused1,
+                wordAdditionBuffer: wordAdditionBuffer,
+                wordPair: wordPair,
+                viewMode: viewMode,
+              ),
+              WordGridTile(
+                text: displayingText2,
+                index: 2 * index + 1,
+                saveText: updateWord,
+                bShowingWords: bShowingWords,
+                currentChapter: currentChapter,
+                addWord: addWord,
+                bDeleteMode: bDeleteMode,
+                deleteWord: removeWord,
+                changeFocus: changeFocus,
+                bFocused: bFocused2,
+                wordAdditionBuffer: wordAdditionBuffer,
+                wordPair: wordPair,
+                viewMode: viewMode,
+              ),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildLanguageBar() {
+    return Transform.translate(
+      offset: const Offset(0, 60),
+      child: Row(
+        children: [
+          LanguageBar(
+            subjectData: subjectData,
+            index: 0,
+            changeSubject: changeSubject,
+          ),
+          Container(
+            width: 2,
+            height: 50,
+            color: Colors.grey,
+          ),
+          LanguageBar(
+            subjectData: subjectData,
+            index: 1,
+            changeSubject: changeSubject,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomBar(BuildContext context) {
+    if (bReadOnly) {
+      return const SizedBox(
+        height: 0,
+      );
+    }
+
+    return Padding(
+      padding: MediaQuery.of(context).viewInsets,
+      child: Container(
+        // Input Box Container
+        decoration: BoxDecoration(
+          color: Colors.grey,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.5),
+              blurRadius: 10,
+              blurStyle: BlurStyle.normal,
+            ),
+          ],
+        ),
+        height: bottomBarHeight,
+        child: Padding(
+          padding: const EdgeInsets.all(60 * 0.1),
+          child: Container(
+            // Input Box
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.white,
+                  blurRadius: 15,
+                ),
+              ],
+            ),
+            child: Transform.translate(
+              offset: (MediaQuery.of(context).size.height < 600)
+                  ? const Offset(0, -6)
+                  : const Offset(0, 3),
+              child: TextField(
+                focusNode: bottomBarFocusNode,
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  floatingLabelAlignment: FloatingLabelAlignment.start,
+                  hoverColor: Colors.transparent,
+                  focusColor: Colors.transparent,
+                  suffixIcon: Transform.translate(
+                    offset: (MediaQuery.of(context).size.height < 600)
+                        ? const Offset(0, 3)
+                        : const Offset(0, 0),
+                    child: IconButton(
+                      icon: const Icon(Icons.edit),
+                      color: Colors.grey.withOpacity(0.5),
+                      onPressed: () {},
+                    ),
+                  ),
+                  prefixIcon: Transform.translate(
+                    offset: (MediaQuery.of(context).size.height < 600)
+                        ? const Offset(0, 3)
+                        : const Offset(0, 0),
+                    child: Icon(
+                      Icons.keyboard_alt_outlined,
+                      color: Colors.grey.withOpacity(0.5),
+                    ),
+                  ),
+                ),
+                style: TextStyle(
+                  fontSize:
+                      (MediaQuery.of(context).size.height < 600) ? 12 : 16,
+                  fontWeight: FontWeight.w400,
+                ),
+                controller: textEditingController,
+                cursorColor: Colors.grey.withOpacity(0.5),
+                textAlign: TextAlign.center,
+                onChanged: (value) {
+                  if (focusedIndex != null) {
+                    setState(() {
+                      updateWord(value, focusedIndex!);
+                    });
+                  }
+                },
+                onSubmitted: _onPressSummit,
+                onTap: () {
+                  jumpToIndex(focusedIndex!);
+                  if (focusedIndex == null) {
+                    bottomBarFocusNode.unfocus();
+                  }
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppBar() {
+    return EditorScreenAppbar(
+      currentChapter: currentChapter,
+      bShowingWords: bShowingWords,
+      toggleWords: toggleWords,
+      bDeleteMode: bDeleteMode,
+      toggleDeleteMode: toggleDeleteMode,
+      changeChapterName: changeChapterName,
+      wordCount: currentChapter.words.length,
+      bReadOnly: bReadOnly,
+      toggleReadOnly: toggleReadOnly,
+      chapterName: currentChapter.name,
+      changeFavourite: changeFavourite,
+      getFavourite: () {
+        return isLiked();
+      },
+      favouriteCount: countFavourite(),
+    );
+  }
+
+  Widget _buildChapterDrawer() {
+    return ChapterSelectionDrawer(
+      changeChapter: changeChapter,
+      currentChapterIndex: getCurrentChapterIndex(),
+      getChapterName: getChapterName,
+      subjectData: subjectData,
+      addChapter: addChapter,
+      saveData: saveData,
+      changeThumbnail: changeThumbnail,
+      changeSubjectName: changeSubjectName,
+      reorderChapter: reorderChapter,
+      existChapterNameAlready: existChapterNameAlready,
+      openDoubleChecker: openDoubleChecker,
+      duplicateChapter: duplicateChapter,
+      showLoadingScreen: showLoadingScreen,
     );
   }
 

@@ -1,8 +1,9 @@
 import 'dart:io';
 
+import 'package:filepicker_windows/filepicker_windows.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 import 'package:vocabella/utils/configuration.dart';
 import 'package:vocabella/utils/constants.dart';
 import 'package:vocabella/managers/data_handle_manager.dart';
@@ -31,7 +32,7 @@ class ChapterSelectionDrawer extends StatefulWidget {
   final String Function(int) getChapterName;
   final int currentChapterIndex;
   final void Function(String) addChapter;
-  final Future<File?> Function() saveData;
+  final void Function() saveData;
   final void Function(String) changeThumbnail;
   final void Function(String) changeSubjectName;
   final void Function(int, int) reorderChapter;
@@ -175,13 +176,13 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
   }
 
   void shareSubject() async {
-    String path = await DataReadWriteManager.getLocalPath();
+    String path = await DataReadWriteManager.dirPath;
     File file = File("$path/${widget.subjectData.title}.json");
     await file
         .writeAsString(SubjectDataModel.listToJson([widget.subjectData]))
         .then((value) async {
-      XFile toShare = XFile("$path/${widget.subjectData.title}.json");
-      await Share.shareXFiles([toShare]);
+      DataReadWriteManager.share(
+          dir: path, name: "${widget.subjectData.title}.json");
     });
   }
 
@@ -328,17 +329,41 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                IconButton(
-                  onPressed: shareSubject,
-                  icon: const Icon(
-                    Icons.share,
-                    color: Colors.white,
+                if (Platform.isAndroid || Platform.isIOS)
+                  IconButton(
+                    onPressed: shareSubject,
+                    icon: const Icon(
+                      Icons.share,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
+                if (Platform.isWindows)
+                  IconButton(
+                    onPressed: () async {
+                      final picker = DirectoryPicker()
+                        ..title = 'Select a directory';
+                      final result = picker.getDirectory();
+
+                      if (result != null) {
+                        final path = result.path;
+                        File file =
+                            File("$path/${widget.subjectData.title}.json");
+                        await file.writeAsString(
+                            SubjectDataModel.listToJson([widget.subjectData]));
+                        Future.delayed(const Duration(milliseconds: 500), () {
+                          launchUrlString(result.path);
+                        });
+                      }
+                    },
+                    icon: const Icon(
+                      Icons.share,
+                      color: Colors.white,
+                    ),
+                  ),
                 IconButton(
                   onPressed: () async {
                     widget.showLoadingScreen(context);
-                    await widget.saveData();
+                    widget.saveData();
                     Future.delayed(const Duration(milliseconds: 1), () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -366,8 +391,11 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                   ),
                   onPressed: () async {
                     widget.showLoadingScreen(context);
-                    await widget.saveData();
-                    Future.delayed(const Duration(milliseconds: 10), () {
+                    widget.saveData();
+                    Future.delayed(
+                        Duration(
+                            milliseconds:
+                                (calcTotalWordCount() * 1).toInt() + 100), () {
                       Navigator.popUntil(context, ModalRoute.withName('/'));
                     });
                   },
@@ -378,6 +406,16 @@ class _ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
         ],
       ),
     );
+  }
+
+  int calcTotalWordCount() {
+    var count = 0;
+    for (var sub in SubjectDataModel.subjectList) {
+      for (var chap in sub.wordlist) {
+        count += chap.words.length;
+      }
+    }
+    return count;
   }
 }
 

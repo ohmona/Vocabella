@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:scroll_snap_list/scroll_snap_list.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 import 'package:vocabella/overlays/loading_scene_overlay.dart';
 import 'package:vocabella/utils/constants.dart';
 import 'package:vocabella/main.dart';
@@ -16,7 +18,6 @@ import 'package:vocabella/models/chapter_model.dart';
 import 'package:vocabella/models/removed_subject_model.dart';
 import 'package:vocabella/models/session_data_model.dart';
 import 'package:vocabella/models/wordpair_model.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:vocabella/screens/config_screen.dart';
 import 'package:vocabella/screens/debug_screen.dart';
@@ -64,8 +65,10 @@ class _BodyState extends State<Body> {
 
   /// Load new subject by picking a file
   Future<void> loadNewData() async {
-    // Clear cache before picking
-    await FilePicker.platform.clearTemporaryFiles();
+    if(Platform.isIOS || Platform.isAndroid) {
+      // Clear cache before picking
+      await FilePicker.platform.clearTemporaryFiles();
+    }
 
     // Pick a file
     Future<FilePickerResult?> result = DataPickerManager.pickFile();
@@ -76,7 +79,7 @@ class _BodyState extends State<Body> {
         final String path = value.files.single.path!;
 
         // Read data from the file with got path
-        String content = await DataReadWriteManager.readDataByPath(path);
+        String content = await DataReadWriteManager.readPath(path);
         if (kDebugMode) {
           print("==================================");
           print("Path of picked content");
@@ -87,7 +90,7 @@ class _BodyState extends State<Body> {
 
         // Create a list of subject-objects by read data
         List<SubjectDataModel> newSubjectList =
-        SubjectDataModel.listFromJson(content);
+            SubjectDataModel.listFromJson(content);
 
         for (var newSub in newSubjectList) {
           bool oldOneFound = false;
@@ -105,9 +108,10 @@ class _BodyState extends State<Body> {
           }
         }
 
-        // Save updated data to file
-        await DataReadWriteManager.writeData(
-            SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+        await DataReadWriteManager.write(
+          name: DataReadWriteManager.defaultFile,
+          data: SubjectDataModel.listToJson(SubjectDataModel.subjectList),
+        );
       }
       reloadData();
     });
@@ -121,7 +125,7 @@ class _BodyState extends State<Body> {
     required String newLanguage1,
     required String newLanguage2,
     required String newChapter,
-  }) {
+  }) async {
     // TODO fix the bug where nullpointererror is thrown once you start the session with newly created subject
 
     // Create dummy-data of WordPair and Chapter to add
@@ -152,11 +156,12 @@ class _BodyState extends State<Body> {
     setState(() {
       // Add just created, empty subject-data to static list
       SubjectDataModel.subjectList.add(newSubject);
-
-      // Save updated list to local storage
-      DataReadWriteManager.writeData(
-          SubjectDataModel.listToJson(SubjectDataModel.subjectList));
     });
+
+    await DataReadWriteManager.write(
+      name: DataReadWriteManager.defaultFile,
+      data: SubjectDataModel.listToJson(SubjectDataModel.subjectList),
+    );
 
     RecentActivity.latestOpenedSubject = focusedIndex;
     // Open subject-editor with created subject
@@ -166,7 +171,10 @@ class _BodyState extends State<Body> {
   /// Open editor with chosen data
   void openEditor(SubjectDataModel subject) {
     Navigator.of(context).push(LoadingOverlay());
-    Future.delayed(const Duration(milliseconds: 10), () {
+    reloadData();
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      Navigator.of(context).pop();
       RecentActivity.latestOpenedSubject =
           SubjectDataModel.getSubjectIndexByName(subject.title);
       Navigator.pushNamed(
@@ -174,7 +182,7 @@ class _BodyState extends State<Body> {
         EditorScreenParent.routeName,
         arguments: EditorScreenArguments(
           subject,
-              () => setState(() {}),
+          () => setState(() {}),
         ),
       ).then((value) {
         reloadData();
@@ -230,20 +238,26 @@ class _BodyState extends State<Body> {
       return;
     }
 
-    // If everything is ok, save index and push user to chapter-selection
-    RecentActivity.latestOpenedSubject =
-        SubjectDataModel.getSubjectIndexByName(subject.title);
-    Navigator.pushNamed(
-      context,
-      ChapterSelectionScreenParent.routeName,
-      arguments: ChapterSelectionScreenArguments(
-        subject,
-      ),
-    ).then((value) {
-      if (kDebugMode) {
-        print("reload");
-      }
-      reloadData();
+    Navigator.of(context).push(LoadingOverlay());
+    reloadData();
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      Navigator.of(context).pop();
+      // If everything is ok, save index and push user to chapter-selection
+      RecentActivity.latestOpenedSubject =
+          SubjectDataModel.getSubjectIndexByName(subject.title);
+      Navigator.pushNamed(
+        context,
+        ChapterSelectionScreenParent.routeName,
+        arguments: ChapterSelectionScreenArguments(
+          subject,
+        ),
+      ).then((value) {
+        if (kDebugMode) {
+          print("reload");
+        }
+        reloadData();
+      });
     });
   }
 
@@ -258,37 +272,53 @@ class _BodyState extends State<Body> {
       return;
     }
 
-    RemovedSubjectModel.moveToRecycleBin(focusedIndex);
-    await RemovedSubjectModel.saveRecycleBinData();
-
-    await DataReadWriteManager.writeData(
-        SubjectDataModel.listToJson(SubjectDataModel.subjectList));
-
-    // Since data has been updated, we have to backup it as well
-    await DoubleBackup.toggleDBCount();
-    await DoubleBackup.saveDoubleBackup(
-        SubjectDataModel.listToJson(SubjectDataModel.subjectList));
-
-    // If user deleted last subject, due to out of bound issue, reset focused index to 0
-    if (focusedIndex > SubjectDataModel.subjectList.length - 1) {
-      focusedIndex = 0;
-    }
-    Future.delayed(
-      const Duration(milliseconds: 100),
-          () {
-        // Scroll a bit on start up to refresh focus
-        scroller.jumpTo(scroller.offset + 0.1);
-        startUp = false;
-      },
-    );
+    Navigator.of(context).push(LoadingOverlay());
     reloadData();
+
+    Future.delayed(const Duration(milliseconds: 500), () async {
+      RemovedSubjectModel.moveToRecycleBin(focusedIndex);
+      await RemovedSubjectModel.saveRecycleBinData();
+
+      await DataReadWriteManager.write(
+        name: DataReadWriteManager.defaultFile,
+        data: SubjectDataModel.listToJson(SubjectDataModel.subjectList),
+      );
+
+      // Since data has been updated, we have to backup it as well
+      await DoubleBackup.toggleDBCount();
+      await DoubleBackup.saveDoubleBackup(
+          SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+
+      // If user deleted last subject, due to out of bound issue, reset focused index to 0
+      if (focusedIndex > SubjectDataModel.subjectList.length - 1) {
+        focusedIndex = SubjectDataModel.subjectList.length - 1;
+      }
+
+      reloadData();
+      await Future.delayed(
+        const Duration(milliseconds: 500),
+        () {
+          // Scroll a bit on start up to refresh focus
+          scroller.jumpTo(scroller.offset + 10);
+          startUp = false;
+        },
+      );
+
+      Future.delayed(const Duration(milliseconds: 500), () {
+        Navigator.of(context).pop();
+      });
+    });
   }
 
   /// Move subject in recycle bin with specific index to static subject list
   void restoreSubject(int index) async {
+    Navigator.of(context).push(LoadingOverlay());
+
     RemovedSubjectModel.recycleBin[index].restore();
-    await DataReadWriteManager.writeData(
-        SubjectDataModel.listToJson(SubjectDataModel.subjectList));
+    await DataReadWriteManager.write(
+      name: DataReadWriteManager.defaultFile,
+      data: SubjectDataModel.listToJson(SubjectDataModel.subjectList),
+    );
     await RemovedSubjectModel.saveRecycleBinData();
 
     // Since data has been updated, we have to backup it as well
@@ -296,6 +326,10 @@ class _BodyState extends State<Body> {
     await DoubleBackup.saveDoubleBackup(
         SubjectDataModel.listToJson(SubjectDataModel.subjectList));
     reloadData();
+
+    await Future.delayed(const Duration(milliseconds: 500), () {
+      Navigator.of(context).pop();
+    });
   }
 
   /// Delete data from recycle bin to dispose completely from session then save
@@ -326,9 +360,9 @@ class _BodyState extends State<Body> {
 
     // load double backup data
     final firstData =
-    await DoubleBackup.loadDoubleBackup(DoubleBackup.dbFirstSpec);
+        await DoubleBackup.loadDoubleBackup(DoubleBackup.dbFirstSpec);
     final secondData =
-    await DoubleBackup.loadDoubleBackup(DoubleBackup.dbSecondSpec);
+        await DoubleBackup.loadDoubleBackup(DoubleBackup.dbSecondSpec);
     final lastCount = await DoubleBackup.loadDBCount();
 
     if (lastCount == DoubleBackup.dbFirstSpec) {
@@ -347,7 +381,7 @@ class _BodyState extends State<Body> {
 
     Future.delayed(
       const Duration(milliseconds: 10),
-          () {
+      () {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -362,7 +396,7 @@ class _BodyState extends State<Body> {
     );
     Future.delayed(
       const Duration(seconds: 10),
-          () {
+      () {
         setState(() {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -384,7 +418,8 @@ class _BodyState extends State<Body> {
   }
 
   Future<bool> isDataValid() async {
-    final data = await DataReadWriteManager.readData();
+    final data =
+        await DataReadWriteManager.read(name: DataReadWriteManager.defaultFile);
     if (data.isEmpty || data == "[]") {
       if (kDebugMode) {
         print("[Vocabella] Data is not valid.");
@@ -430,8 +465,8 @@ class _BodyState extends State<Body> {
     );
   }
 
-  Future<void> openSessionReStarter(BuildContext context,
-      SessionDataModel sessionData) {
+  Future<void> openSessionReStarter(
+      BuildContext context, SessionDataModel sessionData) {
     return showDialog<void>(
       context: context,
       builder: (context) {
@@ -489,7 +524,7 @@ class _BodyState extends State<Body> {
 
   void reloadData() {
     setState(() {
-      data = DataReadWriteManager.readData();
+      //data = DataReadWriteManager.readData();
     });
   }
 
@@ -499,7 +534,7 @@ class _BodyState extends State<Body> {
 
     print("=======================");
     print("loading data");
-    data = DataReadWriteManager.readData();
+    data = DataReadWriteManager.read(name: DataReadWriteManager.defaultFile);
 
     // Activate auto-refresher
     autoRefresher = Timer.periodic(const Duration(minutes: 5), (timer) {
@@ -562,7 +597,7 @@ class _BodyState extends State<Body> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: data,
+      future: DataReadWriteManager.read(name: DataReadWriteManager.defaultFile),
       builder: (context, snapshot) {
         bool bLoaded = snapshot.hasData;
         RemovedSubjectModel.loadRecycleBinData();
@@ -572,7 +607,7 @@ class _BodyState extends State<Body> {
         if (bLoaded && startUp) {
           Future.delayed(
             const Duration(milliseconds: 100),
-                () {
+            () {
               // Scroll a bit on start up to refresh focus
               scroller.jumpTo(scroller.offset + 0.1);
               startUp = false;
@@ -608,7 +643,7 @@ class _BodyState extends State<Body> {
                         sessionData.printData();
                         Future.delayed(
                           const Duration(milliseconds: 100),
-                              () {
+                          () {
                             openSessionReStarter(context, sessionData);
                           },
                         );
@@ -679,9 +714,8 @@ class _BodyState extends State<Body> {
 
     late List<Widget> recycleBinWidget;
     if (bBuildRecycleBin) {
-      recycleBinWidget = bBuildRecycleBin
-          ? buildRecycleBin()
-          : emptyRecycleBinWidget;
+      recycleBinWidget =
+          bBuildRecycleBin ? buildRecycleBin() : emptyRecycleBinWidget;
     }
 
     return Drawer(
@@ -690,9 +724,7 @@ class _BodyState extends State<Body> {
           Container(
             height: 100,
             width: double.infinity,
-            color: Theme
-                .of(context)
-                .cardColor,
+            color: Theme.of(context).cardColor,
             alignment: Alignment.bottomLeft,
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
             child: GestureDetector(
@@ -713,14 +745,12 @@ class _BodyState extends State<Body> {
             ),
           ),
           for (Widget widget
-          in (bBuildRecycleBin ? recycleBinWidget : emptyRecycleBinWidget))
+              in (bBuildRecycleBin ? recycleBinWidget : emptyRecycleBinWidget))
             widget,
           Container(
             height: 60,
             width: double.infinity,
-            color: Theme
-                .of(context)
-                .cardColor,
+            color: Theme.of(context).cardColor,
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
             child: Stack(
               alignment: Alignment.bottomLeft,
@@ -745,17 +775,29 @@ class _BodyState extends State<Body> {
                         color: Colors.white,
                       ),
                     ),
-                    IconButton(
-                      onPressed: () async {
-                        XFile file = XFile(
-                            await DataReadWriteManager.getLocalFilePath());
-                        Share.shareXFiles([file]);
-                      },
-                      icon: const Icon(
-                        Icons.share,
-                        color: Colors.white,
+                    if (Platform.isAndroid || Platform.isIOS)
+                      IconButton(
+                        onPressed: () async {
+                          DataReadWriteManager.share(
+                            dir: await DataReadWriteManager.dirPath,
+                            name: DataReadWriteManager.defaultFile,
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.share,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
+                    if(Platform.isWindows)
+                      IconButton(
+                        onPressed: () async {
+                          launchUrlString(await DataReadWriteManager.dirPath);
+                        },
+                        icon: const Icon(
+                          Icons.folder,
+                          color: Colors.white,
+                        ),
+                      ),
                     IconButton(
                       onPressed: () async {
                         Navigator.pushNamed(
@@ -923,9 +965,7 @@ class _BodyState extends State<Body> {
         return Expanded(
           child: Center(
             child: SpinKitRing(
-              color: Theme
-                  .of(context)
-                  .cardColor,
+              color: Theme.of(context).cardColor,
             ),
           ),
         );

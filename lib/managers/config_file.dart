@@ -14,12 +14,10 @@ class ConfigFile {
     if (kDebugMode) {
       print("[Config] Initializing Config");
     }
-    final path = await DataReadWriteManager.getLocalPath();
     final data = await readConfigData();
 
     if(data!.isEmpty) {
-      await DataReadWriteManager.writeDataToPath(
-          path: "$path/$configFile", data: makeJson());
+      await DataReadWriteManager.write(name: configFile, data: makeJson());
       if (kDebugMode) {
         print("[Config] Initializing Config succeeded");
       }
@@ -37,10 +35,8 @@ class ConfigFile {
       print("[Config] Reading data");
     }
 
-    final path = await DataReadWriteManager.getLocalPath();
-
     try {
-      final data = await DataReadWriteManager.readDataByPath("$path/$configFile");
+      final data = await DataReadWriteManager.read(name: configFile);
       if (kDebugMode) {
         print("[Config] Data reading succeeded");
         print("===================================");
@@ -84,10 +80,10 @@ class ConfigFile {
       print("[Config] Saving data");
     }
 
-    final path = await DataReadWriteManager.getLocalPath();
+    final path = await DataReadWriteManager.dirPath;
 
     try {
-      await DataReadWriteManager.writeDataToPath(data: makeJson(), path: "$path/$configFile");
+      await DataReadWriteManager.write(data: makeJson(), dir: path, name: configFile);
       if (kDebugMode) {
         print("[Config] Saving data succeeded");
       }

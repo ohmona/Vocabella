@@ -218,7 +218,9 @@ class _QuizScreenState extends State<QuizScreen> {
           _question2.currentState!.getSequence() == Sequence.showing) {
         Future.delayed(
           const Duration(milliseconds: 1),
-          _skipShowingDT,
+          () {
+            _skipShowingDT(true);
+          },
         );
       }
       return;
@@ -250,7 +252,9 @@ class _QuizScreenState extends State<QuizScreen> {
           _question2.currentState!.getSequence() == Sequence.showing) {
         Future.delayed(
           const Duration(milliseconds: 1),
-          _skipShowingDT,
+          () {
+            _skipShowingDT(false);
+          },
         );
       }
       return;
@@ -552,12 +556,12 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   // don't type
-  void _skipShowingDT() {
+  void _skipShowingDT(bool correct) {
     _question1.currentState!.breakAnimSmall();
     _answer1.currentState!.breakAnimMedium();
     _question2.currentState!.breakAnimSmall();
     _answer2.currentState!.breakAnimMedium();
-    onWasCorrect();
+    correct ? onWasCorrect() : onWasWrong();
   }
 
   // type

@@ -23,7 +23,7 @@ import 'utils/configuration.dart';
 import 'utils/constants.dart';
 import 'package:flutter/rendering.dart';
 
-const appVersion = "1.6";
+const appVersion = "1.7.1";
 const appInfo = 'ver. $appVersion by ohmona';
 
 void main() async {

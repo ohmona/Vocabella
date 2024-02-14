@@ -24,7 +24,8 @@ class SubjectDataModel {
   int chapterCount = -1;
 
   // Added after 1.3.7
-  int? lastOpenedChapterIndex = 0;
+  //int? lastOpenedChapterIndex = 0;
+  String? lastOpenedChapter = "";
 
   SubjectDataModel({
     required this.title,
@@ -34,7 +35,7 @@ class SubjectDataModel {
     required this.languages,
     this.version,
     this.id,
-    this.lastOpenedChapterIndex,
+    this.lastOpenedChapter,
   });
 
   /// Create list of data from not decoded json data
@@ -43,7 +44,7 @@ class SubjectDataModel {
   static List<SubjectDataModel> listFromJson(dynamic json) {
     if (kDebugMode) {
       print("========================================");
-      print("make list");
+      print("Initialising a list from json");
     }
     try {
       // Declare list to return
@@ -51,9 +52,16 @@ class SubjectDataModel {
 
       // Decode received json data to dart List
       final jsonList = jsonDecode(json) as List<dynamic>;
+      if (kDebugMode) {
+        print("Decoding json and converting to List successful");
+      }
 
       // Create individual instances from decoded json
       for (dynamic inst in jsonList) {
+        if (kDebugMode) {
+          print("========================================");
+          print("Initialising a Subject : ${jsonList.indexOf(inst)}");
+        }
         // Since the data is currently dynamic, it's necessary to copy the data one by one
 
         // Create dummy instance having nothing
@@ -67,17 +75,43 @@ class SubjectDataModel {
 
         // Copy essential data
         sub.title = inst['title'];
+        if (kDebugMode) {
+          print("Title loading successful");
+        }
         sub.thumb = inst['thumb'];
+        if (kDebugMode) {
+          print("Thumbnail loading successful");
+        }
         sub.subjects[0] = inst['subjects'][0];
+        if (kDebugMode) {
+          print("First Subject loading successful");
+        }
         sub.subjects[1] = inst['subjects'][1];
+        if (kDebugMode) {
+          print("Second Subject loading successful");
+        }
         sub.languages[0] = inst['languages'][0];
+        if (kDebugMode) {
+          print("First Language loading successful");
+        }
         sub.languages[1] = inst['languages'][1];
+        if (kDebugMode) {
+          print("Second Language loading successful");
+        }
 
         sub.version = inst['version'];
         // Check if json hasn't version data
         if(inst['version'] == null) {
           // if there's no data, assume that the data was created in version 1.0
           sub.version = "1.0";
+          if (kDebugMode) {
+            print("Version initialising successful");
+          }
+        }
+        else {
+          if (kDebugMode) {
+            print("Version loading successful");
+          }
         }
 
         sub.id = inst['id'];
@@ -88,28 +122,59 @@ class SubjectDataModel {
             print("data creation date: $date");
           }
           sub.id = makeSubjectId(date: date, name: sub.title);
+          if (kDebugMode) {
+            print("ID creation successful");
+          }
+        }
+        else {
+          if (kDebugMode) {
+            print("ID loading successful");
+          }
         }
 
 
         // Copy word data
         for (int i = 0; i < (inst['wordlist'] as List<dynamic>).length; i++) {
           sub.wordlist.add(Chapter.fromJson(inst['wordlist'][i]));
+          if (kDebugMode) {
+            print("Chapter loading successful : $i");
+          }
+        }
+        if (kDebugMode) {
+          print("Chapters initialising successful");
         }
 
         // Get the length of current chapters
         sub.chapterCount = sub.wordlist.length;
+        if (kDebugMode) {
+          print("Chapter Count loading successful");
+        }
 
         // Get the index of last opened Chapter
-        sub.lastOpenedChapterIndex = inst['lastOpenedChapterIndex'];
-        if(inst['lastOpenedChapterIndex'] == null) {
-          sub.lastOpenedChapterIndex = 0;
+        sub.lastOpenedChapter = inst['lastOpenedChapter'];
+        if(inst['lastOpenedChapter'] == null) {
+          sub.lastOpenedChapter = "/";
+        }
+        else {
+          if (kDebugMode) {
+            print("Last Opened Chapter loading successful");
+          }
         }
 
         // Update version
         sub.version = appVersion;
+        if (kDebugMode) {
+          print("App Version checking successful");
+        }
 
         // Finally add created instance to the list to return
         subjects.add(sub);
+        if (kDebugMode) {
+          print("Subject initialising successful");
+        }
+      }
+      if (kDebugMode) {
+        print("Subjects initialising successful");
       }
       return subjects;
     } catch (e) {
@@ -136,7 +201,7 @@ class SubjectDataModel {
       'wordlist': wordlist.map((chapter) => chapter.toJson()).toList(),
       'version': version,
       'id': id,
-      'lastOpenedChapterIndex': lastOpenedChapterIndex,
+      'lastOpenedChapter': lastOpenedChapter,
     };
   }
 
@@ -186,13 +251,13 @@ class SubjectDataModel {
       print("version : $version");
       print("id : $id");
       for (Chapter chap in wordlist) {
-        print("Chapter name : '${chap.name}'");
+        print("Chapter : '${chap.comprisePath()}'");
         //print("Chapter id : '${chap.id}'");
         for (WordPair word in chap.words) {
-          print("First word : '${word.word1}'");
+          /*print("First word : '${word.word1}'");
           print("Second word : '${word.word2}'");
           print("Fist example : '${word.example1}'");
-          print("Second example : '${word.example2}'");
+          print("Second example : '${word.example2}'");*/
           //print("id : '${word.id}'");
           //print("global id : '${word.globalId}'");
         }
@@ -379,5 +444,23 @@ class SubjectDataModel {
         }
       }
     }
+  }
+
+  int? indexOf(String fullPath) {
+    for(var ele in wordlist) {
+      if(fullPath == ele.comprisePath()) {
+        return wordlist.indexOf(ele);
+      }
+    }
+    return null;
+  }
+
+  int getIndexByPath(String smallPath) {
+    for(var ele in wordlist) {
+      if(smallPath == ele.path) {
+        return wordlist.indexOf(ele);
+      }
+    }
+    return -1;
   }
 }

@@ -139,6 +139,7 @@ class _BodyState extends State<Body> {
     Chapter firstChapter = Chapter(
       name: newChapter,
       words: [dummyWord],
+      path: "/",
     );
 
     // Create dummy subject-data by just created dummy-data
@@ -150,7 +151,7 @@ class _BodyState extends State<Body> {
       thumb: "",
       id: makeSubjectId(date: DateTime.now().toString(), name: newTitle),
       version: appVersion,
-      lastOpenedChapterIndex: 0,
+      lastOpenedChapter: "/$newTitle",
     );
 
     setState(() {

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:vocabella/screens/editor_screen.dart';
 import 'package:vocabella/utils/configuration.dart';
 
-import '../models/chapter_model.dart';
 import '../models/wordpair_model.dart';
 
 /*class WordGridTile extends StatefulWidget {
@@ -13,7 +12,6 @@ import '../models/wordpair_model.dart';
     required this.saveText,
     required this.currentChapter,
     required this.bShowingWords,
-    required this.addWord,
     required this.bDeleteMode,
     required this.deleteWord,
     required this.changeFocus,
@@ -27,7 +25,6 @@ import '../models/wordpair_model.dart';
   final WordPair wordPair;
 
   final void Function(String newText, int index) saveText;
-  final void Function(WordPair wordPair) addWord;
   final void Function(WordPair wordPair) deleteWord;
   final void Function(
     int newIndex, {
@@ -234,41 +231,39 @@ class WordGridTile extends StatelessWidget {
     Key? key,
     required this.index,
     required this.saveText,
-    required this.currentChapter,
     required this.bShowingWords,
-    required this.addWord,
     required this.bDeleteMode,
     required this.deleteWord,
     required this.changeFocus,
     required this.bFocused,
     required this.wordAdditionBuffer,
-    required this.wordPair,
+    required this.displayingWord,
     required this.text,
-    required this.viewMode,
+    required this.viewMode, required this.listSize,
   }) : super(key: key);
 
   final String text;
   final int index;
-  final WordPair wordPair;
+  final DisplayingWord displayingWord;
   final ViewMode viewMode;
 
   final void Function(String newText, int index) saveText;
-  final void Function(WordPair wordPair) addWord;
-  final void Function(WordPair wordPair) deleteWord;
+  final void Function(DisplayingWord wordPair) deleteWord;
   final void Function(
     int newIndex, {
     bool requestFocus,
     bool force,
   }) changeFocus;
 
-  final Chapter currentChapter;
+  //final Chapter currentChapter;
+  final int listSize;
   final WordPair wordAdditionBuffer;
   final bool bShowingWords;
   final bool bDeleteMode;
   final bool bFocused;
 
   Widget _buildContent() {
-    final favourite = wordPair.favourite!;
+    final favourite = displayingWord.wordPair.favourite!;
 
     // Define the desired font weight
     const FontWeight fontWeight =
@@ -310,7 +305,7 @@ class WordGridTile extends StatelessWidget {
   }
 
   BoxDecoration _buildBox() {
-    final favourite = wordPair.favourite!;
+    final favourite = displayingWord.wordPair.favourite!;
     final focused = bFocused;
 
     Color borderColor;
@@ -355,9 +350,9 @@ class WordGridTile extends StatelessWidget {
           ),
           if (AppConfig.bDebugMode)
             Text(
-              "C:${wordPair.created},E:${wordPair.lastEdit},I:${index},"
-              "F:${wordPair.favourite},LL:${wordPair.lastLearned},ER:${wordPair.errorStack},"
-              "LPF:${wordPair.lastPriorityFactor},TL:${wordPair.totalLearned},W:${wordPair.word1},K:${wordPair.salt}",
+              "C:${displayingWord.wordPair.created},E:${displayingWord.wordPair.lastEdit},I:${index},"
+              "F:${displayingWord.wordPair.favourite},LL:${displayingWord.wordPair.lastLearned},ER:${displayingWord.wordPair.errorStack},"
+              "LPF:${displayingWord.wordPair.lastPriorityFactor},TL:${displayingWord.wordPair.totalLearned},W:${displayingWord.wordPair.word1},K:${displayingWord.wordPair.salt}",
               style:
                   const TextStyle(fontSize: 7, color: Colors.black, shadows: [
                 Shadow(
@@ -381,7 +376,7 @@ class WordGridTile extends StatelessWidget {
           if (!bDeleteMode) {
             print("=================================");
             print("not delete mode");
-            if (currentChapter.words.length * 2 + 2 > index) {
+            if (listSize * 2 + 2 > index) {
               print("=================================");
               print("Focus requested");
               print("index : ${index}");
@@ -392,10 +387,7 @@ class WordGridTile extends StatelessWidget {
               //widget.openWordAdder(context);
             }
           } else {
-            if (currentChapter.words.length * 2 > index) {
-              WordPair word = currentChapter.words[index ~/ 2];
-              deleteWord(word);
-            }
+            deleteWord(displayingWord);
           }
         },
         child: _buildCell(context),

@@ -24,10 +24,20 @@ import 'package:vocabella/widgets/word_grid_tile_widget.dart';
 import '../managers/data_handle_manager.dart';
 import '../models/chapter_model.dart';
 import '../models/wordpair_model.dart';
+import '../utils/modal.dart';
 
 enum ViewMode {
   normal,
   favourite,
+}
+
+class DisplayingWord {
+  DisplayingWord(
+      {required this.wordPair, required this.path, required this.index});
+
+  WordPair wordPair;
+  String path; // comprising entire chapter path
+  int index;
 }
 
 class EditorScreenParent extends StatelessWidget {
@@ -73,7 +83,9 @@ class _EditorScreenState extends State<EditorScreen> {
 
   /// 1. Enables finding correct path
   /// 2. (later) name will be editable
-  late Chapter currentChapter;
+  //late Chapter currentChapter;
+  late String currentChapterPath;
+  late List<DisplayingWord> displayingWords;
 
   late bool bShowingWords;
   late bool bReadOnly;
@@ -90,22 +102,38 @@ class _EditorScreenState extends State<EditorScreen> {
 
   late ViewMode viewMode;
 
+  GlobalKey listViewKey = GlobalKey();
+  GlobalKey<ChapterSelectionDrawerState> chapterDrawerKey = GlobalKey();
+
+  late List<String> visibleList;
+
+  void addVisibleList(String content) {
+    if (!visibleList.contains(content)) {
+      visibleList.add(content);
+    }
+  }
+
+  void removeVisibleList(String content) => visibleList.remove(content);
+
   /// find the total number of contents
-  int getWordsCount() => currentChapter.words.length * 2;
+  int getWordsCount() => displayingWords.length * 2;
 
   /// find the correct Chapter
-  int getChapterIndexByName(String name) {
+  int getChapterIndexByPath(String path) {
     for (var element in subjectData.wordlist) {
-      if (element.name == name) {
+      if (element.comprisePath() == path) {
         return subjectData.wordlist.indexOf(element);
       }
     }
     return -1;
   }
 
-  int getChapterIndex(Chapter chapter) => subjectData.wordlist.indexOf(chapter);
+  //int getChapterIndex(Chapter chapter) => subjectData.wordlist.indexOf(chapter);
 
-  int getCurrentChapterIndex() => subjectData.wordlist.indexOf(currentChapter);
+  int getCurrentChapterIndex() {
+    print("currentChapterPath : $currentChapterPath");
+    return subjectData.indexOf(currentChapterPath) ?? -1;
+  }
 
   /// find the index of desired WordPair by general index
   int getWordPairIndex(int index) => index ~/ 2;
@@ -136,7 +164,7 @@ class _EditorScreenState extends State<EditorScreen> {
 
     WordPair target;
     if (isValidIndex(index)) {
-      target = currentChapter.words[wordPairIndex];
+      target = displayingWords[wordPairIndex].wordPair;
     } else if (bAddingNewWord) {
       if (kDebugMode) {
         print("=============================");
@@ -160,7 +188,8 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   /// get the name of desired chapter
-  String getChapterName(int index) => subjectData.wordlist[index].name;
+  String getChapterName(int index) =>
+      subjectData.wordlist[index].comprisePath();
 
   /// updates the text of targeting index
   void updateWord(String newText, int index) {
@@ -175,7 +204,7 @@ class _EditorScreenState extends State<EditorScreen> {
 
     if (!bAddingNewWord) {
       // copy the targeting WordPair
-      WordPair target = currentChapter.words[wordPairIndex];
+      WordPair target = displayingWords[wordPairIndex].wordPair;
 
       // check whether words or examples should be changed
       if (bShowingWords) {
@@ -189,8 +218,8 @@ class _EditorScreenState extends State<EditorScreen> {
       }
 
       // apply to actual data
-      currentChapter.words[wordPairIndex] = target;
-      currentChapter.words[wordPairIndex].lastEdit = DateTime.now();
+      displayingWords[wordPairIndex].wordPair = target;
+      displayingWords[wordPairIndex].wordPair.lastEdit = DateTime.now();
     } else {
       if (bQuestionTargeting) {
         wordAdditionBuffer.word1 = newText;
@@ -201,7 +230,9 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   void addWord(WordPair wordPair) {
-    currentChapter.wordCount = currentChapter.words.length;
+    // TODO Should be able to identify current Chapter
+    subjectData.wordlist[getCurrentChapterIndex()].wordCount =
+        displayingWords.length;
 
     setState(() {
       bool fine = false;
@@ -224,14 +255,21 @@ class _EditorScreenState extends State<EditorScreen> {
       }
 
       wordPair.printWord();
-      currentChapter.words.add(wordPair);
+      displayingWords.add(DisplayingWord(
+          wordPair: wordPair,
+          path: currentChapterPath,
+          index: displayingWords.length));
     });
   }
 
-  void removeWord(WordPair wordPair) {
+  // TODO solve the issue with removing word, user shouldn't delete the last remaining word
+  void removeWord(DisplayingWord word) {
     setState(() {
-      int targetIndex = currentChapter.words.indexOf(wordPair);
-      currentChapter.words.removeAt(targetIndex);
+      int targetIndex = displayingWords.indexOf(word);
+      displayingWords.removeAt(targetIndex);
+      if (!isValidIndex(focusedIndex!) && getWordsCount() != 0) {
+        changeFocus(focusedIndex! - 2);
+      }
     });
   }
 
@@ -271,45 +309,64 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   /// Change selected chapter
-  void changeChapter(String newName) {
+  void changeChapter(String newPath) {
     // Reset to initial state
     bShowingWords = true;
     bDeleteMode = false;
     bottomBarFocusNode.unfocus();
 
-    if (currentChapter.name == newName) return;
+    if (currentChapterPath == newPath) return;
 
     int oldChapterIndex = getCurrentChapterIndex();
     // Find the index of the desired chapter by its name
-    int newChapterIndex = getChapterIndexByName(newName);
+    int newChapterIndex = getChapterIndexByPath(newPath);
 
     // Check if the new chapter is found
     if (newChapterIndex != -1) {
       setState(() {
         // Save latest focused index
-        currentChapter.lastIndex = focusedIndex;
+        subjectData.wordlist[subjectData.indexOf(currentChapterPath)!]
+            .lastIndex = focusedIndex;
 
-        // Save changes of the current chapter into subject data
-        subjectData.wordlist[getCurrentChapterIndex()] = currentChapter;
+        // Save changes of the current chapter into subject data // TODO Apply Changes for Not-Chapter-Only modes
+        List<WordPair> list = [];
+        for (var element in displayingWords) {
+          list.add(element.wordPair);
+        }
+        subjectData.wordlist[getCurrentChapterIndex()].words = list;
+        displayingWords = [];
 
         // Load the desired chapter from subject data
-        currentChapter = subjectData.wordlist[newChapterIndex];
-        focusedIndex = currentChapter.lastIndex;
+        focusedIndex = subjectData.wordlist[newChapterIndex].lastIndex;
+
+        for (var word in subjectData.wordlist[newChapterIndex].words) {
+          displayingWords.add(
+            DisplayingWord(
+              wordPair: word,
+              path: currentChapterPath,
+              index: subjectData.wordlist[newChapterIndex].words.indexOf(word),
+            ),
+          );
+        }
+
+        currentChapterPath = newPath;
 
         // Save this chapter as latest opened
-        subjectData.lastOpenedChapterIndex = newChapterIndex;
+        subjectData.lastOpenedChapter = currentChapterPath;
         //saveData();
 
         Future.delayed(const Duration(milliseconds: 50), () {
-          if (currentChapter.lastIndex == null) {
+          if (subjectData.wordlist[newChapterIndex].lastIndex == null) {
             changeFocus(0, requestFocus: true, force: true);
           } else if (!bReadOnly) {
             // Focus on last focused index
-            if (currentChapter.lastIndex! < (currentChapter.words.length) * 2) {
-              changeFocus(currentChapter.lastIndex!,
+            if (subjectData.wordlist[newChapterIndex].lastIndex! <
+                (subjectData.wordlist[newChapterIndex].words.length) * 2) {
+              changeFocus(subjectData.wordlist[newChapterIndex].lastIndex!,
                   requestFocus: true, force: true);
             } else {
-              focusedIndex = (currentChapter.words.length * 2) - 1;
+              focusedIndex =
+                  (subjectData.wordlist[newChapterIndex].words.length * 2) - 1;
               changeFocus(focusedIndex!, requestFocus: true, force: true);
             }
           } else {
@@ -329,9 +386,9 @@ class _EditorScreenState extends State<EditorScreen> {
     }
   }
 
-  void addChapter(String newName) {
+  bool addChapter(String newName) {
     if (existChapterNameAlready(newName)) {
-      return;
+      return false;
     }
 
     setState(() {
@@ -347,13 +404,14 @@ class _EditorScreenState extends State<EditorScreen> {
       Chapter newChapter = Chapter(
         name: newName,
         words: words,
-        //id: subjectData.chapterCount + 1,
+        path: "/",
       );
       subjectData.chapterCount += 1;
       newChapter.wordCount = 1;
       subjectData.wordlist.add(newChapter);
     });
     changeChapter(newName);
+    return true;
   }
 
   /// Change subject name and language
@@ -377,7 +435,15 @@ class _EditorScreenState extends State<EditorScreen> {
     if (focusedIndex == null) return null;
 
     if (ableToSave()) {
-      currentChapter.lastIndex = focusedIndex;
+      subjectData.wordlist[subjectData.indexOf(currentChapterPath)!].lastIndex =
+          focusedIndex;
+
+      // Apply Changes to the actual data
+      List<WordPair> list = [];
+      for (var element in displayingWords) {
+        list.add(element.wordPair);
+      }
+      subjectData.wordlist[getCurrentChapterIndex()].words = list;
 
       for (int i = 0; i < SubjectDataModel.subjectList.length; i++) {
         // Find the correct data
@@ -426,7 +492,7 @@ class _EditorScreenState extends State<EditorScreen> {
       wordAdditionBuffer.lastEdit = DateTime.now();
       wordAdditionBuffer.salt = generateRandomString(8);
       addWord(wordAdditionBuffer);
-      saveData();
+      //saveData(); Disabled, due to lags
     }
 
     wordAdditionBuffer = WordPair(
@@ -449,7 +515,7 @@ class _EditorScreenState extends State<EditorScreen> {
 
     if (bReadOnly) return;
 
-    if (focusedIndex != null) {
+    if (focusedIndex != null && isValidIndex(focusedIndex!)) {
       if (getTextOf(focusedIndex!).isEmpty && bShowingWords) {
         updateWord(textBeforeEdit, focusedIndex!);
       }
@@ -473,7 +539,8 @@ class _EditorScreenState extends State<EditorScreen> {
 
     setState(() {
       focusedIndex = newIndex;
-      currentChapter.lastIndex = newIndex;
+      subjectData.wordlist[subjectData.indexOf(currentChapterPath)!].lastIndex =
+          newIndex;
 
       if (requestFocus) {
         Future.delayed(
@@ -492,7 +559,8 @@ class _EditorScreenState extends State<EditorScreen> {
         print("Change focus");
       }
 
-      scrollDelayedToFocus(delay: const Duration(milliseconds: 1));
+      jumpToIndex(smallIndex: focusedIndex! ~/ 2);
+      //scrollDelayedToFocus(delay: const Duration(milliseconds: 1));
       textEditingController.selection = TextSelection.fromPosition(
         TextPosition(
           offset: textEditingController.text.length,
@@ -510,12 +578,14 @@ class _EditorScreenState extends State<EditorScreen> {
       print("=================================");
       print("Scroll Delayed");
     }
-    scrollToIndex(focusedIndex!,
-        duration: const Duration(milliseconds: 200), delay: delay);
+    scrollToIndex(
+        smallIndex: focusedIndex! ~/ 2,
+        duration: const Duration(milliseconds: 200),
+        delay: delay);
   }
 
-  void scrollToIndex(
-    int index, {
+  void scrollToIndex({
+    required int smallIndex,
     required Duration duration,
     required Duration delay,
   }) {
@@ -525,78 +595,41 @@ class _EditorScreenState extends State<EditorScreen> {
     }
     Future.delayed(delay, () {
       scrollController.animateTo(
-        calcIndexToScroll(index) * 50,
+        calcOffsetToScroll(smallIndex: smallIndex),
         duration: duration,
         curve: scrollCurve,
       );
     });
   }
 
-  void jumpToIndex(int index) {
+  void jumpToIndex({required int smallIndex}) {
     if (kDebugMode) {
       print("=================================");
       print("Jump To Index");
     }
-    scrollController.jumpTo(calcIndexToScroll(index) * 50);
+    scrollController.jumpTo(calcOffsetToScroll(smallIndex: smallIndex));
   }
 
   late KeyboardUtils _keyboardUtils;
   late int _idKeyboardListener;
 
-  int calcIndexToScroll(int index) {
-    final targetIndex = (index ~/ 2);
-    const cellHeight = 50.0;
-    final keyboardMargin = _keyboardHeight;
-
-    final itemsOnScreen = ((_screenHeight -
-                bottomBarHeight -
-                gridViewTopMargin -
-                keyboardMargin) ~/
-            cellHeight) -
-        1;
-
+  double calcOffsetToScroll({required int smallIndex}) {
+    final itemCount = (getWordsCount() / 2 + 1).toInt();
+    final pos =
+        ((smallIndex + 2) * 50) - listViewKey.currentContext!.size!.height;
+    final maxPos =
+        ((itemCount) * 50) - listViewKey.currentContext!.size!.height;
     if (kDebugMode) {
-      print("=================================");
-      print("Calc index to scroll");
-      print("Index : $index");
-      print("targetIndex : $targetIndex");
-      print("cellHeight : $cellHeight");
-      print("_showingKeyboard : $_showingKeyboard");
-      print("_keyboardHeight : $_keyboardHeight");
-      print("keyboardMargin : $keyboardMargin");
-      print("_screenHeight : $_screenHeight");
-      print("bottomBarHeight : $bottomBarHeight");
-      print("gridViewTopMargin : $gridViewTopMargin");
-      print("itemsOnScreen : $itemsOnScreen");
-      print(
-          "targetIndex - (itemsOnScreen - 2) : ${targetIndex - (itemsOnScreen - 2)}");
+      print("$itemCount $pos $maxPos");
     }
-
-    // Case 1 : everything is fine! scroll to usual position
-    // Case 2 : position is overflowed to negative
-    // Case 3 : position is overflowed over valid index
-
-    var desired = targetIndex - (itemsOnScreen - 2);
-
-    if (desired < 0) {
-      // Case 2
-      return 0;
-    } else if (desired > currentChapter.words.length - itemsOnScreen + 1) {
-      // Case 3
-      return currentChapter.words.length - itemsOnScreen + 1;
-    } else {
-      // Case 1
-      return desired;
-    }
-  }
-
-  bool inRange(double value, double target, double interval) {
-    if (value < target + interval) {
-      if (value > target - interval) {
-        return true;
+    if (itemCount > listViewKey.currentContext!.size!.height / 50) {
+      if (pos >= 0 && pos <= maxPos + 0.1) {
+        return pos;
+      } else if (pos > maxPos) {
+        return maxPos;
       }
     }
-    return false;
+    return 0;
   }
 
   void changeThumbnail(String path) {
@@ -614,9 +647,15 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   void changeChapterName(String newName) {
+    // TODO Should be able to identify the current Chapter
     setState(() {
-      if (getChapterIndexByName(newName) == -1) {
-        currentChapter.name = newName;
+      String oldName = currentChapterPath.split("/").last;
+      String pathOnly = currentChapterPath.substring(
+          0, currentChapterPath.length - oldName.length);
+      print("$oldName $pathOnly $newName");
+      if (getChapterIndexByPath("$pathOnly$newName") == -1) {
+        subjectData.wordlist[subjectData.indexOf(currentChapterPath)!].name =
+            newName;
         changeChapter(newName);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -630,68 +669,23 @@ class _EditorScreenState extends State<EditorScreen> {
           ),
         );
       }
-    });
-    saveData();
-  }
-
-  void reorderChapter(int oldIndex, int newIndex) {
-    setState(() {
-      if (oldIndex < newIndex) {
-        newIndex -= 1;
-      }
-      final item = subjectData.wordlist.removeAt(oldIndex);
-      subjectData.wordlist.insert(newIndex, item);
-
-      // Save new index as latest opened
-      subjectData.lastOpenedChapterIndex = newIndex;
+      currentChapterPath = "$pathOnly$newName";
       saveData();
     });
   }
 
-  bool existChapterNameAlready(String name) {
+  bool existChapterNameAlready(String name, {String path = "/"}) {
     for (var element in subjectData.wordlist) {
-      if (element.name == name) {
+      if (element.name == name && element.path == path) {
         return true;
       }
     }
     return false;
   }
 
-  Future<void> openDoubleChecker(BuildContext context) {
-    return showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Attention!"),
-          content: const Text("Are you sure you want to save and exit?"),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: mintColor,
-              ),
-              child: const Text("No"),
-            ),
-            TextButton(
-              onPressed: () {
-                saveData();
-                Navigator.popUntil(context, ModalRoute.withName('/'));
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: mintColor,
-              ),
-              child: const Text("Yes"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   void duplicateChapter() {
-    setState(() {
+    throw UnimplementedError("Chapter Duplication hasn't been implemented yet");
+    /*setState(() {
       if (getChapterIndexByName("${currentChapter.name} - copy") == -1) {
         final currentChapterIndex = getChapterIndexByName(currentChapter.name);
         var chapter = Chapter.duplicate(currentChapter);
@@ -713,7 +707,122 @@ class _EditorScreenState extends State<EditorScreen> {
           ),
         );
       }
-    });
+    });*/
+  }
+
+  List<String> pathList() {
+    List<String> elements = [];
+    for (var chap in subjectData.wordlist) {
+      String oldName = chap.path.split("/").last;
+      String pathOnly =
+          chap.path.substring(0, chap.path.length - oldName.length);
+      if (!elements.contains(pathOnly)) {
+        elements.add(pathOnly);
+      }
+    }
+    return elements;
+  }
+
+  // Move Focused Chapter to new Folder
+  void addFolder(String folderName) {
+    int oldIndex = getChapterIndexByPath(currentChapterPath);
+
+    String oldName = currentChapterPath.split("/").last;
+    String pathOnly = currentChapterPath.substring(
+        0, currentChapterPath.length - oldName.length);
+
+    String newPath = "$pathOnly$folderName/";
+
+    if (!pathList().contains(newPath)) {
+      subjectData.wordlist[oldIndex].path = newPath;
+      currentChapterPath = "$pathOnly$folderName/$oldName";
+      addVisibleList(newPath);
+
+      resortChapters();
+      chapterDrawerKey.currentState!.updateLists(subjectData.wordlist);
+      changeChapter(currentChapterPath);
+    } else {
+      openAlert(context,
+          title: "Warning",
+          content: "You can't create the folder with existing name");
+    }
+  }
+
+  void moveChapter(String target, String destination) {
+    print("moving chapter $target $destination");
+    int oldIndex = getChapterIndexByPath(target);
+
+    String oldName = target.split("/").last;
+    String pathOnly = target.substring(0, target.length - oldName.length);
+
+    if (pathOnly == destination) return;
+
+    print("chapter [$oldName] moved : from $pathOnly, to $destination");
+
+    bool exist = existChapterNameAlready(oldName, path: destination);
+
+    if (!exist) {
+      addVisibleList(destination);
+      subjectData.wordlist[oldIndex].path = destination;
+      resortChapters();
+      chapterDrawerKey.currentState!.updateLists(subjectData.wordlist);
+      if (currentChapterPath == target) {
+        print("moving focused one");
+        currentChapterPath = "$destination$oldName";
+        changeChapter(currentChapterPath);
+      }
+    } else {
+      openAlert(context,
+          title: "Warning",
+          content: "There's already a chapter with an existing name");
+    }
+  }
+
+  void reorderChapter(String target, int newIndex) {
+    print("chpater resorted $target to $newIndex");
+    int oldIndex = subjectData.indexOf(target)!;
+
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    final item = subjectData.wordlist.removeAt(oldIndex);
+    subjectData.wordlist.insert(newIndex, item);
+    resortChapters();
+    chapterDrawerKey.currentState!.updateLists(subjectData.wordlist);
+  }
+
+  // target = first index after desired path
+  void insertChapters(int start, int size, int target) {
+    print("Inserting Chapter");
+    print("start:$start, size:$size, target:$target");
+    subjectData.printData();
+    print("Start Inserting");
+    List<Chapter> list = [];
+    for (int i = start; i < start + size; i++) {
+      list.add(subjectData.wordlist[i]);
+    }
+    print("I Queue: $list");
+    subjectData.printData();
+    for (var element in list) {
+      subjectData.wordlist.remove(element);
+    }
+    print("II Edited: ${subjectData.wordlist}");
+    subjectData.printData();
+    for (int i = 0; i < list.length; i++) {
+      if (start < target) {
+        print("III Inserting: ${list[i]} to ${i + target - size}");
+        subjectData.wordlist.insert(i + target - size, list[i]);
+      } else {
+        print("Moving to top");
+        print("Target ${i + target}, ${list[i]}");
+        subjectData.wordlist.insert(i + target, list[i]);
+      }
+    }
+    print("result");
+    subjectData.printData();
+    print("resort");
+    resortChapters();
+    chapterDrawerKey.currentState!.updateLists(subjectData.wordlist);
   }
 
   void saveKeyboardMargin() {
@@ -741,16 +850,17 @@ class _EditorScreenState extends State<EditorScreen> {
     if (isValidIndex(focusedIndex!)) {
       if (!bReadOnly) {
         setState(() {
-          bool? favourite =
-              currentChapter.words[getWordPairIndex(focusedIndex!)].favourite;
+          bool? favourite = displayingWords[getWordPairIndex(focusedIndex!)]
+              .wordPair
+              .favourite;
           if (favourite == null || favourite == false) {
             favourite = true;
           } else {
             favourite = false;
           }
-          currentChapter.words[getWordPairIndex(focusedIndex!)].favourite =
+          displayingWords[getWordPairIndex(focusedIndex!)].wordPair.favourite =
               favourite;
-          currentChapter.words[getWordPairIndex(focusedIndex!)].lastEdit =
+          displayingWords[getWordPairIndex(focusedIndex!)].wordPair.lastEdit =
               DateTime.now();
         });
       } /*else {
@@ -776,7 +886,7 @@ class _EditorScreenState extends State<EditorScreen> {
     if (!isValidIndex(focusedIndex!)) return false;
 
     bool? favourite =
-        currentChapter.words[getWordPairIndex(focusedIndex!)].favourite;
+        displayingWords[getWordPairIndex(focusedIndex!)].wordPair.favourite;
     if (favourite == null || favourite == false) {
       return false;
     } else {
@@ -786,9 +896,9 @@ class _EditorScreenState extends State<EditorScreen> {
 
   int countFavourite() {
     int count = 0;
-    for (int i = 0; i < currentChapter.words.length; i++) {
-      if (currentChapter.words[i].favourite != null) {
-        if (currentChapter.words[i].favourite!) {
+    for (int i = 0; i < displayingWords.length; i++) {
+      if (displayingWords[i].wordPair.favourite != null) {
+        if (displayingWords[i].wordPair.favourite!) {
           count += 1;
         }
       }
@@ -799,8 +909,8 @@ class _EditorScreenState extends State<EditorScreen> {
   List<int> favouriteList() {
     List<int> list = [];
 
-    for (int i = 0; i < currentChapter.words.length; i++) {
-      if (currentChapter.words[i].favourite!) {
+    for (int i = 0; i < displayingWords.length; i++) {
+      if (displayingWords[i].wordPair.favourite!) {
         list.add(i);
       }
     }
@@ -827,13 +937,103 @@ class _EditorScreenState extends State<EditorScreen> {
     Navigator.of(context).push(LoadingOverlay());
   }
 
+  // up to index
+  String limitPath(String original, int index) {
+    return original.split("/").sublist(0, index + 1).join("/");
+  }
+
+  // Resort Chapter according to its folder
+  void resortChapters() {
+    // Create a list of the paths
+    List<String> paths = [];
+    for (var chap in subjectData.wordlist) {
+      if (!paths.contains(chap.path)) {
+        paths.add(chap.path);
+      }
+    }
+
+    final original = paths;
+    // Sort this path according to the original order
+    paths.sort(
+      (a, b) {
+        // negative: a is located higher, true: b is located higher
+        if (a == "/" && b.endsWith("/")) {
+          return 1;
+        }
+        if (b == "/" && a.endsWith("/")) {
+          return -1;
+        }
+
+        List<String> segmentsA = a.split('/');
+        List<String> segmentsB = b.split('/');
+
+        int length = segmentsA.length < segmentsB.length
+            ? segmentsA.length
+            : segmentsB.length;
+
+        for (int i = 0; i < length; i++) {
+          if (segmentsA[i] == segmentsB[i]) {
+            //skip
+          } else {
+            String toCompareA = limitPath(segmentsA.join("/"), i);
+            String toCompareB = limitPath(segmentsB.join("/"), i);
+
+            for (var ori in original) {
+              if (ori.startsWith(toCompareA)) {
+                print(ori);
+                return -1;
+              } else if (ori.startsWith(toCompareB)) {
+                print(ori);
+                return 1;
+              }
+            }
+          }
+        }
+        return -1;
+      },
+    );
+
+    // Add every Chapter to a new list in sort
+    List<Chapter> sorted = [];
+    for (var path in paths) {
+      for (var chap in subjectData.wordlist) {
+        if (chap.path == path) {
+          sorted.add(chap);
+          // TODO improve re-sorting system
+        }
+      }
+    }
+
+    // Apply changes
+    subjectData.wordlist = sorted;
+  }
+
+  int whichAppearsFirst(
+      List<String> original, String start, String a, String b) {
+    for (var str in original) {
+      if (str.startsWith(start)) {
+        var s = str.substring(0, start.length - 1);
+        if (s.startsWith(a)) {
+          print("str: $str, start: $start");
+          print("s: $s");
+          return -1;
+        } else if (s.startsWith(b)) {
+          print("str: $str, start: $start");
+          print("s: $s");
+          return 1;
+        }
+      }
+    }
+    return -1;
+  }
+
   @override
   void dispose() {
     bottomBarFocusNode.dispose();
     autoSaveTimer.cancel();
     super.dispose();
 
-    if(Platform.isIOS || Platform.isAndroid) {
+    if (Platform.isIOS || Platform.isAndroid) {
       _keyboardUtils.unsubscribeListener(subscribingId: _idKeyboardListener);
       if (_keyboardUtils.canCallDispose()) {
         _keyboardUtils.dispose();
@@ -849,58 +1049,73 @@ class _EditorScreenState extends State<EditorScreen> {
     super.initState();
     // copy the data which is going to be edited
     subjectData = widget.data;
+    resortChapters();
 
     // initialize some values
-    currentChapter = subjectData.wordlist[0];
     bShowingWords = true;
     bReadOnly = false;
     focusedIndex = 0;
 
-    textBeforeEdit = getTextOf(focusedIndex!);
-
     viewMode = ViewMode.normal;
 
-    if(Platform.isIOS || Platform.isAndroid) {
+    visibleList = ["/"];
+
+    if (Platform.isIOS || Platform.isAndroid) {
       _keyboardUtils = KeyboardUtils();
     }
 
     // Apply last opened chapter and grid
-    var startUpChapter = subjectData.lastOpenedChapterIndex ?? 0;
-    currentChapter = subjectData.wordlist[startUpChapter];
-    focusedIndex = currentChapter.lastIndex ?? 0;
+    var startUpChapter = subjectData.wordlist[
+        subjectData.indexOf(subjectData.lastOpenedChapter ?? "/") ?? 0];
+    focusedIndex = startUpChapter.lastIndex ?? 0;
+    currentChapterPath = startUpChapter.comprisePath();
+
+    // Initialise Word List
+    displayingWords = [];
+    for (var word in startUpChapter.words) {
+      displayingWords.add(
+        DisplayingWord(
+          wordPair: word,
+          path: currentChapterPath,
+          index: startUpChapter.words.indexOf(word),
+        ),
+      );
+    }
+
+    textBeforeEdit = getTextOf(focusedIndex!);
 
     // activate auto-save
-    autoSaveTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+    autoSaveTimer = Timer.periodic(const Duration(seconds: 60), (timer) {
       saveData();
     });
 
-    if(Platform.isIOS || Platform.isAndroid) {
+    if (Platform.isIOS || Platform.isAndroid) {
       _idKeyboardListener = _keyboardUtils.add(
           listener: keyboard_listener.KeyboardListener(
-            willHideKeyboard: () {
-              _showingKeyboard = false;
-              if (kDebugMode) {
-                print("========================");
-                print("hiding keyboard");
-              }
-            },
-            willShowKeyboard: (double keyboardHeight) {
-              _showingKeyboard = true;
-              _keyboardHeight = keyboardHeight;
-              if (kDebugMode) {
-                print("========================");
-                print(keyboardHeight);
-              }
-            },
-          ));
+        willHideKeyboard: () {
+          _showingKeyboard = false;
+          if (kDebugMode) {
+            print("========================");
+            print("hiding keyboard");
+          }
+        },
+        willShowKeyboard: (double keyboardHeight) {
+          _showingKeyboard = true;
+          _keyboardHeight = keyboardHeight;
+          if (kDebugMode) {
+            print("========================");
+            print(keyboardHeight);
+          }
+        },
+      ));
     }
 
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      if (currentChapter.lastIndex! < (currentChapter.words.length) * 2) {
-        changeFocus(currentChapter.lastIndex!,
+      if (startUpChapter.lastIndex! < (startUpChapter.words.length) * 2) {
+        changeFocus(startUpChapter.lastIndex!,
             requestFocus: false, force: true);
       } else {
-        focusedIndex = (currentChapter.words.length * 2) - 1;
+        focusedIndex = (startUpChapter.words.length * 2) - 1;
         changeFocus(focusedIndex!, requestFocus: false, force: true);
       }
       saveKeyboardMargin();
@@ -1013,6 +1228,7 @@ class _EditorScreenState extends State<EditorScreen> {
 
   Widget _buildList() {
     return ReorderableListView.builder(
+      key: listViewKey,
       scrollController: scrollController,
       physics: const BouncingScrollPhysics(),
       itemCount: bShowingFavouriteOnly
@@ -1025,7 +1241,8 @@ class _EditorScreenState extends State<EditorScreen> {
           final maxIndex = getWordsCount() ~/ 2;
           final currentIndexNormalized = focusedIndex! ~/ 2;
 
-          currentChapter.lastIndex = newIndex;
+          subjectData.wordlist[subjectData.indexOf(currentChapterPath)!]
+              .lastIndex = newIndex;
 
           if (oldIndex >= maxIndex || newIndex > maxIndex) {
             return;
@@ -1035,8 +1252,9 @@ class _EditorScreenState extends State<EditorScreen> {
             if (oldIndex < newIndex) {
               newIndex -= 1;
             }
-            final item = currentChapter.words.removeAt(oldIndex);
-            currentChapter.words.insert(newIndex, item);
+            final item = displayingWords.removeAt(oldIndex);
+            displayingWords.insert(newIndex, item);
+            // TODO EDIT
 
             if (oldIndex == currentIndexNormalized) {
               focusedIndex = isTargetingQuestion(focusedIndex!)
@@ -1058,7 +1276,7 @@ class _EditorScreenState extends State<EditorScreen> {
         late bool bValid;
         late String? displayingText1;
         late String? displayingText2;
-        late WordPair wordPair;
+        late DisplayingWord wordPair;
         late bool bFocused1;
         late bool bFocused2;
 
@@ -1070,16 +1288,18 @@ class _EditorScreenState extends State<EditorScreen> {
           if (bValid) {
             displayingText1 = getTextOf(2 * index);
             displayingText2 = getTextOf(2 * index + 1);
-            wordPair = currentChapter.words[getWordPairIndex(2 * index)];
+            wordPair = displayingWords[getWordPairIndex(2 * index)];
           } else if (index < (getWordsCount() + 2) ~/ 2) {
             // end cells
             displayingText1 = getTextOf(2 * index);
             displayingText2 = getTextOf(2 * index + 1);
-            wordPair = wordAdditionBuffer;
+            wordPair = DisplayingWord(
+                wordPair: wordAdditionBuffer, path: "N/A", index: -1);
           } else {
             displayingText1 = "";
             displayingText2 = "";
-            wordPair = WordPair.nullWordPair();
+            wordPair = DisplayingWord(
+                wordPair: WordPair.nullWordPair(), path: "N/A", index: -1);
           }
 
           bFocused1 = 2 * index == focusedIndex;
@@ -1090,14 +1310,15 @@ class _EditorScreenState extends State<EditorScreen> {
 
           bValid = index < size;
           wordPair = bValid
-              ? currentChapter.words[getFavouriteIndex(index)]
-              : WordPair.nullWordPair();
+              ? displayingWords[getFavouriteIndex(index)]
+              : DisplayingWord(
+                  wordPair: WordPair.nullWordPair(), path: "N/A", index: -1);
           if (bShowingWords) {
-            displayingText1 = bValid ? wordPair.word1 : "";
-            displayingText2 = bValid ? wordPair.word2 : "";
+            displayingText1 = bValid ? wordPair.wordPair.word1 : "";
+            displayingText2 = bValid ? wordPair.wordPair.word2 : "";
           } else {
-            displayingText1 = bValid ? wordPair.example1 : "";
-            displayingText2 = bValid ? wordPair.example2 : "";
+            displayingText1 = bValid ? wordPair.wordPair.example1 : "";
+            displayingText2 = bValid ? wordPair.wordPair.example2 : "";
           }
 
           bFocused1 =
@@ -1116,30 +1337,28 @@ class _EditorScreenState extends State<EditorScreen> {
                 index: 2 * index,
                 saveText: updateWord,
                 bShowingWords: bShowingWords,
-                currentChapter: currentChapter,
-                addWord: addWord,
                 bDeleteMode: bDeleteMode,
                 deleteWord: removeWord,
                 changeFocus: changeFocus,
                 bFocused: bFocused1,
                 wordAdditionBuffer: wordAdditionBuffer,
-                wordPair: wordPair,
+                displayingWord: wordPair,
                 viewMode: viewMode,
+                listSize: displayingWords.length,
               ),
               WordGridTile(
                 text: displayingText2,
                 index: 2 * index + 1,
                 saveText: updateWord,
                 bShowingWords: bShowingWords,
-                currentChapter: currentChapter,
-                addWord: addWord,
                 bDeleteMode: bDeleteMode,
                 deleteWord: removeWord,
                 changeFocus: changeFocus,
                 bFocused: bFocused2,
                 wordAdditionBuffer: wordAdditionBuffer,
-                wordPair: wordPair,
+                displayingWord: wordPair,
                 viewMode: viewMode,
+                listSize: displayingWords.length,
               ),
             ],
           ),
@@ -1263,7 +1482,7 @@ class _EditorScreenState extends State<EditorScreen> {
                 },
                 onSubmitted: _onPressSummit,
                 onTap: () {
-                  jumpToIndex(focusedIndex!);
+                  jumpToIndex(smallIndex: focusedIndex!);
                   if (focusedIndex == null) {
                     bottomBarFocusNode.unfocus();
                   }
@@ -1278,16 +1497,15 @@ class _EditorScreenState extends State<EditorScreen> {
 
   Widget _buildAppBar() {
     return EditorScreenAppbar(
-      currentChapter: currentChapter,
       bShowingWords: bShowingWords,
       toggleWords: toggleWords,
       bDeleteMode: bDeleteMode,
       toggleDeleteMode: toggleDeleteMode,
       changeChapterName: changeChapterName,
-      wordCount: currentChapter.words.length,
+      wordCount: displayingWords.length,
       bReadOnly: bReadOnly,
       toggleReadOnly: toggleReadOnly,
-      chapterName: currentChapter.name,
+      chapterName: currentChapterPath.split("/").last,
       changeFavourite: changeFavourite,
       getFavourite: () {
         return isLiked();
@@ -1298,9 +1516,11 @@ class _EditorScreenState extends State<EditorScreen> {
 
   Widget _buildChapterDrawer() {
     return ChapterSelectionDrawer(
+      key: chapterDrawerKey,
       changeChapter: changeChapter,
-      currentChapterIndex: getCurrentChapterIndex(),
-      getChapterName: getChapterName,
+      getCurrentChapterPath: () {
+        return currentChapterPath;
+      },
       subjectData: subjectData,
       addChapter: addChapter,
       saveData: saveData,
@@ -1311,6 +1531,45 @@ class _EditorScreenState extends State<EditorScreen> {
       openDoubleChecker: openDoubleChecker,
       duplicateChapter: duplicateChapter,
       showLoadingScreen: showLoadingScreen,
+      addFolder: addFolder,
+      moveChapter: moveChapter,
+      addVisibleList: addVisibleList,
+      removeVisibleList: removeVisibleList,
+      visibleList: visibleList,
+      insertChapters: insertChapters,
+    );
+  }
+
+  Future<void> openDoubleChecker(BuildContext context) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Attention!"),
+          content: const Text("Are you sure you want to save and exit?"),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: mintColor,
+              ),
+              child: const Text("No"),
+            ),
+            TextButton(
+              onPressed: () {
+                saveData();
+                Navigator.popUntil(context, ModalRoute.withName('/'));
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: mintColor,
+              ),
+              child: const Text("Yes"),
+            ),
+          ],
+        );
+      },
     );
   }
 

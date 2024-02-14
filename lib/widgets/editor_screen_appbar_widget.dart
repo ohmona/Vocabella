@@ -2,12 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../utils/constants.dart';
-import '../models/chapter_model.dart';
 
 class EditorScreenAppbar extends StatefulWidget {
   const EditorScreenAppbar({
     Key? key,
-    required this.currentChapter,
     required this.bShowingWords,
     required this.toggleWords,
     required this.bDeleteMode,
@@ -22,7 +20,6 @@ class EditorScreenAppbar extends StatefulWidget {
     required this.favouriteCount,
   }) : super(key: key);
 
-  final Chapter currentChapter;
   final bool bShowingWords;
   final bool bDeleteMode;
   final bool bReadOnly;
@@ -141,7 +138,7 @@ class _EditorScreenAppbarState extends State<EditorScreenAppbar> {
                     splashFactory: NoSplash.splashFactory,
                   ),
                   child: Text(
-                    "${widget.currentChapter.name} (${widget.wordCount}/${widget.favouriteCount})",
+                    "${widget.chapterName} (${widget.wordCount}/${widget.favouriteCount})",
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,

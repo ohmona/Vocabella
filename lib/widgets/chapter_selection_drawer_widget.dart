@@ -35,6 +35,7 @@ class ChapterSelectionDrawer extends StatefulWidget {
     required this.removeVisibleList,
     required this.visibleList,
     required this.insertChapters,
+    required this.undoCrossing,
   }) : super(key: key);
 
   final SubjectDataModel subjectData; // Sorted!!
@@ -48,6 +49,7 @@ class ChapterSelectionDrawer extends StatefulWidget {
   final void Function(BuildContext) openDoubleChecker;
   final bool Function(String) existChapterNameAlready;
   final void Function() duplicateChapter;
+  final void Function() undoCrossing;
   final void Function(BuildContext) showLoadingScreen;
   final void Function(String) addFolder;
   final void Function(String, String) moveChapter;
@@ -104,7 +106,8 @@ class ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
             TextButton(
               onPressed: () {
                 setState(() {
-                  if (ChapterSelectionDrawer.controller.text.isNotEmpty) {
+                  if (ChapterSelectionDrawer.controller.text.isNotEmpty &&
+                      !ChapterSelectionDrawer.controller.text.contains("/")) {
                     if (widget
                         .addChapter(ChapterSelectionDrawer.controller.text)) {
                       ChapterSelectionDrawer.controller.text = "";
@@ -120,6 +123,12 @@ class ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                           content:
                               "You can't create a chapter with an existing name");
                     }
+                  } else {
+                    ChapterSelectionDrawer.controller.text = "";
+                    Navigator.of(context).pop();
+                    openAlert(context,
+                        title: "Warning",
+                        content: "You typed an invalid title");
                   }
                 });
               },
@@ -199,7 +208,9 @@ class ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
             TextButton(
               onPressed: () {
                 if (ChapterSelectionDrawer.controller.text.isNotEmpty) {
-                  widget.addFolder(ChapterSelectionDrawer.controller.text);
+                  if (!ChapterSelectionDrawer.controller.text.contains("/")) {
+                    widget.addFolder(ChapterSelectionDrawer.controller.text);
+                  }
                   ChapterSelectionDrawer.controller.text = "";
                   Navigator.of(context).pop();
                 }
@@ -261,6 +272,8 @@ class ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
   }
 
   void shareSubject() async {
+    print("=========================");
+    print("${SubjectDataModel.listToJson([widget.subjectData])}");
     String path = await DataReadWriteManager.dirPath;
     File file = File("$path/${widget.subjectData.title}.json");
     await file
@@ -848,13 +861,14 @@ class ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
               },
               onLongPressUp: () {
                 setState(() {
-                  if(selectedIndex < displayElements().length) {
+                  if (selectedIndex < displayElements().length) {
                     int trueIndex = convertToPathStructureIndex(selectedIndex);
                     String target = findElement(trueIndex);
                     String destination = "/";
                     int destinationIndex = -1;
 
-                    String targetOldName = findElement(trueIndex).split("/").last;
+                    String targetOldName =
+                        findElement(trueIndex).split("/").last;
                     String targetPathOnly = findElement(trueIndex).substring(0,
                         (findElement(trueIndex).length - targetOldName.length));
                     destination = targetPathOnly; // start point
@@ -887,7 +901,7 @@ class ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
 
                     // move
                     if (reducedElements().contains(fullElements()[
-                    convertToPathStructureIndex(selectedIndex)])) {
+                        convertToPathStructureIndex(selectedIndex)])) {
                       widget.moveChapter(target, destination);
                       if (destinationIndex != -1) {
                         widget.reorderChapter(
@@ -1094,6 +1108,8 @@ class ChapterSelectionDrawerState extends State<ChapterSelectionDrawer> {
                   ),
                   onPressed: () async {
                     widget.showLoadingScreen(context);
+
+                    // undocrossing
                     widget.saveData();
                     Future.delayed(
                         Duration(

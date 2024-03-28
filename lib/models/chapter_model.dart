@@ -9,23 +9,21 @@ class Chapter {
   int? wordCount;
   int? lastIndex;
 
+  DateTime? created;
+  String? salt;
+
   Chapter({
     required this.name,
     required this.words,
     required this.path,
     //this.id,
     this.lastIndex,
+    required this.created,
+    required this.salt,
   });
 
   Chapter.fromJson(dynamic json) {
-    if (kDebugMode) {
-      print("--------------------------------------------");
-      print("Initialising Chapter from json");
-    }
     name = json["name"];
-    if (kDebugMode) {
-      print("Name loading successful");
-    }
 
     List<WordPair> temp = [];
     for (dynamic word in json['words'] as List<dynamic>) {
@@ -36,53 +34,42 @@ class Chapter {
       );
     }
     words = temp;
-    if (kDebugMode) {
-      print("Word List loading successful");
-    }
 
     // get length of words
     wordCount = words.length;
-    if (kDebugMode) {
-      print("Word Count loading successful");
-    }
 
     // Get last focused index
     lastIndex = json['lastIndex'];
-    if(json['lastIndex'] == null) {
+    if (json['lastIndex'] == null) {
       lastIndex = 0;
-      if (kDebugMode) {
-        print("Initialising Last Index successful");
-      }
-    }
-    else {
-      if (kDebugMode) {
-        print("Last Index loading successful");
-      }
     }
 
-    if(json['path'] == null) {
+    if (json['path'] == null) {
       path = "/";
-      if (kDebugMode) {
-        print("Initialising Path successful");
-      }
-    }
-    else {
+    } else {
       path = json['path'];
-      if (kDebugMode) {
-        print("Path loading successful");
-      }
     }
+
+    // Creation time
+    if (json['created'] != null) {
+      created = DateTime.tryParse(json['created']);
+    } else {
+      created = DateTime.now();
+    }
+
+    salt = json['salt'];
   }
 
   Map<String, dynamic> toJson() {
     return {
       'name': name,
-      'words': words.map((wordPair) => wordPair.toJson()).toList(),
-      //'id': id,
       'lastIndex': lastIndex,
       'path': path,
+      'salt': salt,
+      'created': created.toString(),
+      'words': words.map((wordPair) => wordPair.toJson()).toList(),
     };
-  }
+    }
 
   /*static Chapter duplicate(Chapter object) {
     var newChapter = Chapter(name: object.name, words: object.words, );
@@ -101,10 +88,17 @@ class Chapter {
     return false;
   }
 
+  bool isSameChapter({required Chapter as}) {
+    if(as.salt == salt && as.created == created) {
+      return true;
+    }
+    return false;
+  }
+
   int findAlreadyExistingWord(WordPair wordPair) {
-    if(existWordAlready(wordPair)) {
-      for(int i = 0; i < words.length; i++) {
-        if(words[i].isSameWord(as: wordPair)) {
+    if (existWordAlready(wordPair)) {
+      for (int i = 0; i < words.length; i++) {
+        if (words[i].isSameWord(as: wordPair)) {
           return i;
         }
       }
@@ -118,14 +112,31 @@ class Chapter {
 }
 
 class EditedChapter extends Chapter {
-  EditedChapter({required super.name, required super.words, required super.path});
+  EditedChapter(
+      {required super.name,
+      required super.words,
+      required super.path,
+      required super.salt,
+      required super.created});
 
   static EditedChapter copyFrom(Chapter chapter) {
-    return EditedChapter(name: chapter.name, words: chapter.words, path: chapter.path);
+    return EditedChapter(
+      name: chapter.name,
+      words: chapter.words,
+      path: chapter.path,
+      salt: chapter.salt,
+      created: chapter.created,
+    );
   }
 
   Chapter toChapter() {
-    return Chapter(name: name, words: words, path: path);
+    return Chapter(
+      name: name,
+      words: words,
+      path: path,
+      created: created,
+      salt: salt,
+    );
   }
 
   List<int> excludedIndex = [];

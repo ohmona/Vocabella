@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:vocabella/models/event_data_model.dart';
 import 'package:vocabella/utils/arguments.dart';
+import 'package:vocabella/utils/chrono.dart';
 import 'package:vocabella/utils/constants.dart';
 import 'package:vocabella/models/subject_data_model.dart';
 import 'package:vocabella/screens/mode_selection_screen.dart';
 import 'package:vocabella/screens/word_selection_screen.dart';
 import 'package:vocabella/widgets/bottom_bar_widget.dart';
+import 'package:vocabella/widgets/session_creator_widget.dart';
 
 import '../models/chapter_model.dart';
 import '../models/wordpair_model.dart';
@@ -31,8 +34,11 @@ class ChapterSelectionScreenParent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)!.settings.arguments
-        as ChapterSelectionScreenArguments;
+    final args = ModalRoute
+        .of(context)!
+        .settings
+        .arguments
+    as ChapterSelectionScreenArguments;
 
     return ChapterSelectionScreen(subjectData: args.subject);
   }
@@ -90,7 +96,7 @@ class _ChapterSelectionScreenState extends State<ChapterSelectionScreen> {
   void onTileHold(int index) {
     setState(() {
       EditedChapter passingChapter =
-          EditedChapter.copyFrom(originalChapters[index]);
+      EditedChapter.copyFrom(originalChapters[index]);
       if (selectedChapters.containsKey(index)) {
         passingChapter = selectedChapters[index]!;
       }
@@ -116,6 +122,36 @@ class _ChapterSelectionScreenState extends State<ChapterSelectionScreen> {
       count += value.words.length - value.excludedIndex.length;
     });
     return count;
+  }
+
+  List<WordPair> generateWordList() {
+    List<WordPair> wordList = [];
+    selectedChapters.forEach((key, value) {
+      for (int i = 0; i < value.words.length; i++) {
+        if (!value.excludedIndex.contains(i)) {
+          wordList.add(value.words[i]);
+        }
+      }
+    });
+    return wordList;
+  }
+
+  void onTapContinue() {
+    Navigator.pushNamed(
+      context,
+      ModeSelectionScreenParent.routeName,
+      arguments: ModeSelectionScreenArguments(
+          generateWordList(), widget.subjectData.languages, widget.subjectData),
+    );
+  }
+
+  void onPressSaveSession() {
+    showDialog<void>(
+        context: context,
+        builder: (context) {
+          return SessionCreator(wordPack: generateWordList(), subjectData: widget.subjectData);
+        }
+    );
   }
 
   @override
@@ -152,7 +188,10 @@ class _ChapterSelectionScreenState extends State<ChapterSelectionScreen> {
                 physics: const BouncingScrollPhysics(),
                 itemCount: originalChapters.length,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: MediaQuery.of(context).size.width ~/ 150,
+                  crossAxisCount: MediaQuery
+                      .of(context)
+                      .size
+                      .width ~/ 150,
                   childAspectRatio: 1 / 1,
                 ),
                 itemBuilder: (context, index) {
@@ -169,31 +208,31 @@ class _ChapterSelectionScreenState extends State<ChapterSelectionScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           borderRadius:
-                              const BorderRadius.all(Radius.circular(10)),
+                          const BorderRadius.all(Radius.circular(10)),
                           color: bSelected
                               ? Color.lerp(
-                                  firstBgColor,
-                                  secondBgColor,
-                                  index / originalChapters.length,
-                                )
+                            firstBgColor,
+                            secondBgColor,
+                            index / originalChapters.length,
+                          )
                               : Color.lerp(
-                                  firstBgColor.withOpacity(0.3),
-                                  secondBgColor.withOpacity(0.3),
-                                  index / originalChapters.length,
-                                ),
+                            firstBgColor.withOpacity(0.3),
+                            secondBgColor.withOpacity(0.3),
+                            index / originalChapters.length,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: bSelected
                                   ? Color.lerp(
-                                      firstBgColor,
-                                      secondBgColor,
-                                      index / originalChapters.length,
-                                    )!
+                                firstBgColor,
+                                secondBgColor,
+                                index / originalChapters.length,
+                              )!
                                   : Color.lerp(
-                                      firstBgColor.withOpacity(0.3),
-                                      secondBgColor.withOpacity(0.3),
-                                      index / originalChapters.length,
-                                    )!,
+                                firstBgColor.withOpacity(0.3),
+                                secondBgColor.withOpacity(0.3),
+                                index / originalChapters.length,
+                              )!,
                               blurRadius: 15,
                             ),
                           ],
@@ -223,29 +262,32 @@ class _ChapterSelectionScreenState extends State<ChapterSelectionScreen> {
                             const Divider(),
                             bSelected
                                 ? Text(
-                                    "${originalChapters[index].words.length - selectedChapters[index]!.excludedIndex.length} / ${originalChapters[index].words.length}",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w400,
-                                      shadows: (selectedChapters[index]!
-                                              .excludedIndex
-                                              .isEmpty)
-                                          ? [
-                                              const Shadow(
-                                                color: Colors.white,
-                                                blurRadius: 15,
-                                              ),
-                                            ]
-                                          : [],
-                                    ),
-                                  )
-                                : Text(
-                                    "Not selected",
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.5),
-                                      fontWeight: FontWeight.w400,
-                                    ),
+                              "${originalChapters[index].words.length -
+                                  selectedChapters[index]!.excludedIndex
+                                      .length} / ${originalChapters[index].words
+                                  .length}",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w400,
+                                shadows: (selectedChapters[index]!
+                                    .excludedIndex
+                                    .isEmpty)
+                                    ? [
+                                  const Shadow(
+                                    color: Colors.white,
+                                    blurRadius: 15,
                                   ),
+                                ]
+                                    : [],
+                              ),
+                            )
+                                : Text(
+                              "Not selected",
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -255,31 +297,26 @@ class _ChapterSelectionScreenState extends State<ChapterSelectionScreen> {
               ),
             ),
             if (getSelectedWordCount() >= 3)
-              GestureDetector(
-                onTap: () {
-                  List<WordPair> wordList = [];
-                  selectedChapters.forEach((key, value) {
-                    for (int i = 0; i < value.words.length; i++) {
-                      if (!value.excludedIndex.contains(i)) {
-                        wordList.add(value.words[i]);
-                      }
-                    }
-                  });
-                  Navigator.pushNamed(
-                    context,
-                    ModeSelectionScreenParent.routeName,
-                    arguments: ModeSelectionScreenArguments(
-                      wordList,
-                      widget.subjectData.languages,
-                      widget.subjectData
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: onPressSaveSession,
+                    child: const ContinueButton(
+                      color: Colors.orangeAccent,
+                      text: "Create Schedule",
+                      correctState: CorrectState.both,
                     ),
-                  );
-                },
-                child: ContinueButton(
-                  color: Colors.green,
-                  text: "Continue (${getSelectedWordCount()} words selected) ",
-                  correctState: CorrectState.correct,
-                ),
+                  ),
+                  GestureDetector(
+                    onTap: onTapContinue,
+                    child: ContinueButton(
+                      color: Colors.green,
+                      text:
+                      "Continue (${getSelectedWordCount()} words selected) ",
+                      correctState: CorrectState.both,
+                    ),
+                  ),
+                ],
               ),
           ],
         ),

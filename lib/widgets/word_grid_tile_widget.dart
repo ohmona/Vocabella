@@ -1,230 +1,20 @@
+
 import 'package:flutter/material.dart';
-import 'package:vocabella/screens/editor_screen.dart';
 import 'package:vocabella/utils/configuration.dart';
 
-import '../models/wordpair_model.dart';
+import '../screens/editor_screen.dart';
 
-/*class WordGridTile extends StatefulWidget {
-  const WordGridTile({
-    Key? key,
-    required this.text,
-    required this.index,
-    required this.saveText,
-    required this.currentChapter,
-    required this.bShowingWords,
-    required this.bDeleteMode,
-    required this.deleteWord,
-    required this.changeFocus,
-    required this.bFocused,
-    required this.wordAdditionBuffer,
-    required this.wordPair,
-  }) : super(key: key);
-
-  final String text;
-  final int index;
-  final WordPair wordPair;
-
-  final void Function(String newText, int index) saveText;
-  final void Function(WordPair wordPair) deleteWord;
-  final void Function(
-    int newIndex, {
-    bool requestFocus,
-    bool force,
-  }) changeFocus;
-
-  final Chapter currentChapter;
-  final WordPair wordAdditionBuffer;
-  final bool bShowingWords;
-  final bool bDeleteMode;
-  final bool bFocused;
-
-  @override
-  State<WordGridTile> createState() => _WordGridTileState();
+enum FrameType {
+  topLeft,
+  topRight,
+  middleLeft,
+  middleRight,
+  bottomLeft,
+  bottomRight,
+  left,
+  right,
+  none,
 }
-
-class _WordGridTileState extends State<WordGridTile> {
-  late String text;
-
-  void updateText() {
-    final int wordPairIndex = widget.index ~/
-        2; // Update this line to calculate the wordPairIndex correctly
-
-    if (wordPairIndex > widget.currentChapter.words.length) {
-      text = "";
-      return;
-    }
-
-    WordPair wordPair;
-    if (wordPairIndex <= widget.currentChapter.words.length - 1) {
-      // Get the WordPair from the currentChapter based on the wordPairIndex
-      wordPair = widget.currentChapter.words[wordPairIndex];
-    } else {
-      wordPair = widget.wordAdditionBuffer;
-    }
-
-    // Determine which text to display based on bShowingWords flag
-    if (widget.bShowingWords) {
-      text = (widget.index) % 2 == 0 ? wordPair.word1 : wordPair.word2;
-    } else {
-      text = (widget.index) % 2 == 0
-          ? wordPair.example1 ?? ""
-          : wordPair.example2 ?? "";
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-
-    // initialize the text
-    text = widget.text;
-  }
-
-  @override
-  void didUpdateWidget(covariant WordGridTile oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    // Call updateText whenever the widget is updated
-    updateText();
-  }
-
-  Widget _buildContent() {
-    final favourite = widget.wordPair.favourite!;
-
-    // Define the desired font weight
-    const FontWeight fontWeight =
-        FontWeight.normal; // Replace with your desired font weight
-
-    Color textCol;
-    if (favourite) {
-      textCol = Colors.black;
-    } else if (widget.bShowingWords) {
-      textCol = Colors.black;
-    } else {
-      textCol = Colors.grey;
-    }
-
-    // Use a FittedBox to scale the text to fit within the available space
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      alignment: Alignment.bottomLeft,
-      child: Padding(
-        padding: const EdgeInsets.all(5),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: fontWeight,
-            color: textCol,
-            shadows: favourite
-                ? [
-                    const Shadow(
-                      color: Colors.yellowAccent,
-                      blurRadius: 10,
-                    ),
-                  ]
-                : [],
-          ),
-        ),
-      ),
-    );
-  }
-
-  BoxDecoration _buildBox() {
-    final favourite = widget.wordPair.favourite!;
-    final focused = widget.bFocused;
-
-    Color borderColor;
-    double borderSize;
-    if (focused) {
-      borderColor = Colors.redAccent;
-      borderSize = 3;
-    } else if (favourite) {
-      borderColor = Colors.black;
-      borderSize = 0.5;
-    } else {
-      borderColor = Colors.black;
-      borderSize = 0.5;
-    }
-
-    return BoxDecoration(
-      color: favourite ? Colors.white : Colors.white,
-      border: Border.all(
-        color: borderColor,
-        width: borderSize,
-        style: BorderStyle.solid,
-      ),
-    );
-  }
-
-  Widget _buildCell() {
-    // Determine the width and height of the cell
-    final cellWidth = MediaQuery.of(context).size.width / 2;
-    const cellHeight =
-        50.0; // Adjust the aspect ratio based on your requirement
-
-    // Use a ConstrainedBox to limit the cell size
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: cellWidth, maxHeight: cellHeight),
-      child: Stack(
-        children: [
-          Container(
-            alignment: Alignment.bottomLeft,
-            padding: const EdgeInsets.all(5),
-            decoration: _buildBox(),
-            child: _buildContent(),
-          ),
-          if (AppConfig.bDebugMode)
-            Text(
-              "C:${widget.wordPair.created},E:${widget.wordPair.lastEdit},I:${widget.index},"
-              "F:${widget.wordPair.favourite},LL:${widget.wordPair.lastLearned},ER:${widget.wordPair.errorStack},"
-              "LPF:${widget.wordPair.lastPriorityFactor},TL:${widget.wordPair.totalLearned},W:${widget.wordPair.word1},K:${widget.wordPair.salt}",
-              style:
-                  const TextStyle(fontSize: 7, color: Colors.black, shadows: [
-                Shadow(
-                  color: Colors.black,
-                  blurRadius: 10,
-                ),
-              ]),
-            ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GridTile(
-      child: GestureDetector(
-        onTap: () {
-          print("=================================");
-          print("on tap");
-          if (!widget.bDeleteMode) {
-            print("=================================");
-            print("not delete mode");
-            if (widget.currentChapter.words.length * 2 + 2 > widget.index) {
-              print("=================================");
-              print("Focus requested");
-              print("index : ${widget.index}");
-              widget.changeFocus(widget.index,
-                  requestFocus: true, force: false);
-            } else if (widget.bShowingWords) {
-              print("=================================");
-              print("Focus request failed");
-              //widget.openWordAdder(context);
-            }
-          } else {
-            if (widget.currentChapter.words.length * 2 > widget.index) {
-              WordPair word = widget.currentChapter.words[widget.index ~/ 2];
-              widget.deleteWord(word);
-            }
-          }
-        },
-        child: _buildCell(),
-      ),
-    );
-  }
-}*/
 
 class WordGridTile extends StatelessWidget {
   const WordGridTile({
@@ -233,52 +23,47 @@ class WordGridTile extends StatelessWidget {
     required this.saveText,
     required this.bShowingWords,
     required this.bDeleteMode,
-    required this.deleteWord,
     required this.changeFocus,
     required this.bFocused,
-    required this.wordAdditionBuffer,
     required this.displayingWord,
     required this.text,
-    required this.viewMode, required this.listSize,
+    required this.viewMode,
+    required this.listSize,
+    required this.toggleSelect,
+    required this.focusMode,
+    required this.toggleFocusSelectMode,
+    required this.selectionList,
   }) : super(key: key);
 
   final String text;
   final int index;
   final DisplayingWord displayingWord;
   final ViewMode viewMode;
+  final SelectionList selectionList;
 
   final void Function(String newText, int index) saveText;
-  final void Function(DisplayingWord wordPair) deleteWord;
-  final void Function(
-    int newIndex, {
-    bool requestFocus,
-    bool force,
-  }) changeFocus;
+  final void Function(int newIndex, {bool requestFocus, bool force})
+      changeFocus;
+  final void Function(int) toggleSelect;
+  final void Function() toggleFocusSelectMode;
 
-  //final Chapter currentChapter;
   final int listSize;
-  final WordPair wordAdditionBuffer;
   final bool bShowingWords;
   final bool bDeleteMode;
   final bool bFocused;
+  final bool focusMode;
+
+  bool isLeft() => index % 2 == 0;
+
+  Color _getTextColor() {
+    final favourite = displayingWord.wordPair.favourite!;
+    if (favourite || bShowingWords) {
+      return Colors.black;
+    }
+    return Colors.grey;
+  }
 
   Widget _buildContent() {
-    final favourite = displayingWord.wordPair.favourite!;
-
-    // Define the desired font weight
-    const FontWeight fontWeight =
-        FontWeight.normal; // Replace with your desired font weight
-
-    Color textCol;
-    if (favourite) {
-      textCol = Colors.black;
-    } else if (bShowingWords) {
-      textCol = Colors.black;
-    } else {
-      textCol = Colors.grey;
-    }
-
-    // Use a FittedBox to scale the text to fit within the available space
     return FittedBox(
       fit: BoxFit.scaleDown,
       alignment: Alignment.bottomLeft,
@@ -288,9 +73,9 @@ class WordGridTile extends StatelessWidget {
           text,
           style: TextStyle(
             fontSize: 20,
-            fontWeight: fontWeight,
-            color: textCol,
-            shadows: favourite
+            fontWeight: FontWeight.normal,
+            color: _getTextColor(),
+            shadows: displayingWord.wordPair.favourite!
                 ? [
                     const Shadow(
                       color: Colors.yellowAccent,
@@ -304,40 +89,93 @@ class WordGridTile extends StatelessWidget {
     );
   }
 
-  BoxDecoration _buildBox() {
-    final favourite = displayingWord.wordPair.favourite!;
-    final focused = bFocused;
+  FrameType _getFrameType() {
+    if (!selectionList.isSelected(index ~/ 2)) {
+      return FrameType.none;
+    }
 
-    Color borderColor;
-    double borderSize;
-    if (focused) {
-      borderColor = Colors.redAccent;
-      borderSize = 3;
-    } else if (favourite) {
-      borderColor = Colors.black;
-      borderSize = 0.5;
+    bool isSelectedAbove = selectionList.isSelected(index ~/ 2 - 1);
+    bool isSelectedBelow = selectionList.isSelected(index ~/ 2 + 1);
+
+    if (isLeft()) {
+      if (isSelectedAbove && isSelectedBelow) return FrameType.middleLeft;
+      if (isSelectedAbove) return FrameType.bottomLeft;
+      if (isSelectedBelow) return FrameType.topLeft;
+      return FrameType.left;
     } else {
-      borderColor = Colors.black;
-      borderSize = 0.5;
+      if (isSelectedAbove && isSelectedBelow) return FrameType.middleRight;
+      if (isSelectedAbove) return FrameType.bottomRight;
+      if (isSelectedBelow) return FrameType.topRight;
+      return FrameType.right;
+    }
+  }
+
+  BoxDecoration _buildBox() {
+    const BorderSide defaultSide = BorderSide(color: Colors.black, width: 0.5);
+    const BorderSide focusSide = BorderSide(color: Colors.redAccent, width: 3);
+    const BorderSide selectSide = BorderSide(color: Colors.purple, width: 3);
+    FrameType frameType = _getFrameType();
+
+    BorderSide top = defaultSide;
+    BorderSide bottom = defaultSide;
+    BorderSide left = defaultSide;
+    BorderSide right = defaultSide;
+
+    switch (frameType) {
+      case FrameType.none:
+        break;
+      case FrameType.topLeft:
+        left = selectSide;
+        top = selectSide;
+        break;
+      case FrameType.middleLeft:
+        left = selectSide;
+        break;
+      case FrameType.bottomLeft:
+        left = selectSide;
+        bottom = selectSide;
+        break;
+      case FrameType.left:
+        left = selectSide;
+        bottom = selectSide;
+        top = selectSide;
+        break;
+      case FrameType.topRight:
+        right = selectSide;
+        top = selectSide;
+        break;
+      case FrameType.middleRight:
+        right = selectSide;
+        break;
+      case FrameType.bottomRight:
+        right = selectSide;
+        bottom = selectSide;
+        break;
+      case FrameType.right:
+        right = selectSide;
+        bottom = selectSide;
+        top = selectSide;
+        break;
+    }
+
+    if (bFocused) {
+      top = focusSide;
+      bottom = focusSide;
+      left = focusSide;
+      right = focusSide;
     }
 
     return BoxDecoration(
-      color: favourite ? Colors.white : Colors.white,
-      border: Border.all(
-        color: borderColor,
-        width: borderSize,
-        style: BorderStyle.solid,
-      ),
+      color: Colors.white,
+      border: Border(top: top, bottom: bottom, left: left, right: right),
     );
   }
 
   Widget _buildCell(BuildContext context) {
-    // Determine the width and height of the cell
-    final cellWidth = MediaQuery.of(context).size.width / 2;
-    const cellHeight =
+    final double cellWidth = MediaQuery.of(context).size.width / 2;
+    const double cellHeight =
         50.0; // Adjust the aspect ratio based on your requirement
 
-    // Use a ConstrainedBox to limit the cell size
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: cellWidth, maxHeight: cellHeight),
       child: Stack(
@@ -353,13 +191,10 @@ class WordGridTile extends StatelessWidget {
               "C:${displayingWord.wordPair.created},E:${displayingWord.wordPair.lastEdit},I:${index},"
               "F:${displayingWord.wordPair.favourite},LL:${displayingWord.wordPair.lastLearned},ER:${displayingWord.wordPair.errorStack},"
               "LPF:${displayingWord.wordPair.lastPriorityFactor},TL:${displayingWord.wordPair.totalLearned},W:${displayingWord.wordPair.word1},K:${displayingWord.wordPair.salt}",
-              style:
-                  const TextStyle(fontSize: 7, color: Colors.black, shadows: [
-                Shadow(
+              style: const TextStyle(
+                  fontSize: 7,
                   color: Colors.black,
-                  blurRadius: 10,
-                ),
-              ]),
+                  shadows: [Shadow(color: Colors.black, blurRadius: 10)]),
             ),
         ],
       ),
@@ -370,28 +205,19 @@ class WordGridTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GridTile(
       child: GestureDetector(
-        onTap: () {
-          print("=================================");
-          print("on tap");
-          if (!bDeleteMode) {
-            print("=================================");
-            print("not delete mode");
-            if (listSize * 2 + 2 > index) {
-              print("=================================");
-              print("Focus requested");
-              print("index : ${index}");
-              changeFocus(index, requestFocus: true, force: false);
-            } else if (bShowingWords) {
-              print("=================================");
-              print("Focus request failed");
-              //widget.openWordAdder(context);
-            }
-          } else {
-            deleteWord(displayingWord);
-          }
-        },
+        onTap: () => _handleTap(),
         child: _buildCell(context),
       ),
     );
+  }
+
+  void _handleTap() {
+    if (focusMode) {
+      if (listSize * 2 + 2 > index) {
+        changeFocus(index, requestFocus: true, force: false);
+      }
+    } else {
+      toggleSelect(index ~/ 2);
+    }
   }
 }

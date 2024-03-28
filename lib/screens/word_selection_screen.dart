@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vocabella/utils/arguments.dart';
+import 'package:vocabella/widgets/word_modifier_widget.dart';
 
 import '../utils/constants.dart';
 import '../models/chapter_model.dart';
@@ -65,6 +66,26 @@ class _WordSelectionScreenState extends State<WordSelectionScreen> {
     });
   }
 
+  void openSelector(BuildContext context) {
+    Future.delayed(const Duration(milliseconds: 1), () {
+      showDialog<void>(
+        context: context,
+        builder: (context) {
+          return WordModifier(
+            applyEdit: (newList) {
+              setState(() {
+                excludedIndex = newList;
+              });
+            },
+            excludedIndex: excludedIndex,
+            size: widget.chapter.words.length,
+            list: widget.chapter.words,
+          );
+        },
+      );
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -86,6 +107,15 @@ class _WordSelectionScreenState extends State<WordSelectionScreen> {
           title: const Text("Select words"),
           elevation: 0,
           actions: [
+            IconButton(
+              onPressed: () {
+                openSelector(context);
+              },
+              icon: const Icon(
+                Icons.edit,
+                color: Colors.white,
+              ),
+            ),
             IconButton(
               onPressed: () {
                 onExit();
@@ -136,20 +166,21 @@ class _WordSelectionScreenState extends State<WordSelectionScreen> {
                           ),
                   ),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints.tight(const Size(double.infinity, 100)),
+                    constraints:
+                        BoxConstraints.tight(const Size(double.infinity, 100)),
                     child: Text(
                       widget.chapter.words[index].word1,
-                      style: bSelected ?
-                      const TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.w400,
-                        fontSize: 16,
-                      ) :
-                      TextStyle(
-                        color: Colors.black.withOpacity(0.5),
-                        fontWeight: FontWeight.w400,
-                        fontSize: 16,
-                      ),
+                      style: bSelected
+                          ? const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w400,
+                              fontSize: 16,
+                            )
+                          : TextStyle(
+                              color: Colors.black.withOpacity(0.5),
+                              fontWeight: FontWeight.w400,
+                              fontSize: 16,
+                            ),
                     ),
                   ),
                 ),

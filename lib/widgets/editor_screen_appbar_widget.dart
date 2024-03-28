@@ -67,7 +67,9 @@ class _EditorScreenAppbarState extends State<EditorScreenAppbar> {
             TextButton(
               onPressed: () {
                 if (controller.text.isNotEmpty) {
-                  widget.changeChapterName(controller.text);
+                  if(!controller.text.contains("/")) {
+                    widget.changeChapterName(controller.text);
+                  }
 
                   controller.text = "";
                   Navigator.of(context).pop();
@@ -176,22 +178,6 @@ class _EditorScreenAppbarState extends State<EditorScreenAppbar> {
                     widget.bShowingWords ? "Showing words" : "Showing examples",
                     style: const TextStyle(
                       color: Colors.white,
-                    ),
-                  ),
-                ),
-                MenuItemButton(
-                  onPressed: () {
-                    if (widget.bShowingWords) {
-                      widget.toggleDeleteMode();
-                    }
-                  },
-                  child: Text(
-                    widget.bDeleteMode
-                        ? "Delete mode (on)"
-                        : "Delete mode (off)",
-                    style: TextStyle(
-                      color:
-                          widget.bDeleteMode ? Colors.redAccent : Colors.white,
                     ),
                   ),
                 ),

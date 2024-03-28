@@ -38,30 +38,120 @@ class SubjectDataModel {
     this.lastOpenedChapter,
   });
 
-  /// Create list of data from not decoded json data
-  /// Since json data has only type of a list, fromJson constructor isn't necessary
-  /// So use this function instead
-  static List<SubjectDataModel> listFromJson(dynamic json) {
+  static SubjectDataModel fromJson(dynamic decodedJson) {
+
+    // Create dummy instance having nothing
+    SubjectDataModel sub = SubjectDataModel(
+      languages: ['', ''],
+      subjects: ['', ''],
+      title: "",
+      wordlist: [],
+      thumb: "",
+    );
+
+    // Copy essential data
+    sub.title = decodedJson['title'];
     if (kDebugMode) {
-      print("========================================");
-      print("Initialising a list from json");
+      print("Title loading successful");
     }
+    sub.thumb = decodedJson['thumb'];
+    if (kDebugMode) {
+      print("Thumbnail loading successful");
+    }
+    sub.subjects[0] = decodedJson['subjects'][0];
+    if (kDebugMode) {
+      print("First Subject loading successful");
+    }
+    sub.subjects[1] = decodedJson['subjects'][1];
+    if (kDebugMode) {
+      print("Second Subject loading successful");
+    }
+    sub.languages[0] = decodedJson['languages'][0];
+    if (kDebugMode) {
+      print("First Language loading successful");
+    }
+    sub.languages[1] = decodedJson['languages'][1];
+    if (kDebugMode) {
+      print("Second Language loading successful");
+    }
+
+    sub.version = decodedJson['version'];
+    // Check if json hasn't version data
+    if(decodedJson['version'] == null) {
+      // if there's no data, assume that the data was created in version 1.0
+      sub.version = "1.0";
+      if (kDebugMode) {
+        print("Version initialising successful");
+      }
+    }
+    else {
+      if (kDebugMode) {
+        print("Version loading successful");
+      }
+    }
+
+    sub.id = decodedJson['id'];
+    if(decodedJson['id'] == null) {
+      // Create Id
+      final date = DateTime.now().toString();
+      if (kDebugMode) {
+        print("data creation date: $date");
+      }
+      sub.id = makeSubjectId(date: date, name: sub.title);
+      if (kDebugMode) {
+        print("ID creation successful");
+      }
+    }
+    else {
+      if (kDebugMode) {
+        print("ID loading successful");
+      }
+    }
+
+
+    // Copy word data
+    for (int i = 0; i < (decodedJson['wordlist'] as List<dynamic>).length; i++) {
+      sub.wordlist.add(Chapter.fromJson(decodedJson['wordlist'][i]));
+      if (kDebugMode) {
+        print("Chapter loading successful : $i");
+      }
+    }
+    if (kDebugMode) {
+      print("Chapters initialising successful");
+    }
+
+    // Get the length of current chapters
+    sub.chapterCount = sub.wordlist.length;
+    if (kDebugMode) {
+      print("Chapter Count loading successful");
+    }
+
+    // Get the index of last opened Chapter
+    sub.lastOpenedChapter = decodedJson['lastOpenedChapter'];
+    if(decodedJson['lastOpenedChapter'] == null) {
+      sub.lastOpenedChapter = "/";
+    }
+    else {
+      if (kDebugMode) {
+        print("Last Opened Chapter loading successful");
+      }
+    }
+
+    sub.version = appVersion;
+
+    return sub;
+  }
+
+  static List<SubjectDataModel> listFromJson(dynamic json) {
     try {
       // Declare list to return
       List<SubjectDataModel> subjects = [];
 
       // Decode received json data to dart List
       final jsonList = jsonDecode(json) as List<dynamic>;
-      if (kDebugMode) {
-        print("Decoding json and converting to List successful");
-      }
 
       // Create individual instances from decoded json
       for (dynamic inst in jsonList) {
-        if (kDebugMode) {
-          print("========================================");
-          print("Initialising a Subject : ${jsonList.indexOf(inst)}");
-        }
         // Since the data is currently dynamic, it's necessary to copy the data one by one
 
         // Create dummy instance having nothing
@@ -75,106 +165,45 @@ class SubjectDataModel {
 
         // Copy essential data
         sub.title = inst['title'];
-        if (kDebugMode) {
-          print("Title loading successful");
-        }
         sub.thumb = inst['thumb'];
-        if (kDebugMode) {
-          print("Thumbnail loading successful");
-        }
         sub.subjects[0] = inst['subjects'][0];
-        if (kDebugMode) {
-          print("First Subject loading successful");
-        }
         sub.subjects[1] = inst['subjects'][1];
-        if (kDebugMode) {
-          print("Second Subject loading successful");
-        }
         sub.languages[0] = inst['languages'][0];
-        if (kDebugMode) {
-          print("First Language loading successful");
-        }
         sub.languages[1] = inst['languages'][1];
-        if (kDebugMode) {
-          print("Second Language loading successful");
-        }
-
         sub.version = inst['version'];
         // Check if json hasn't version data
         if(inst['version'] == null) {
           // if there's no data, assume that the data was created in version 1.0
           sub.version = "1.0";
-          if (kDebugMode) {
-            print("Version initialising successful");
-          }
-        }
-        else {
-          if (kDebugMode) {
-            print("Version loading successful");
-          }
         }
 
         sub.id = inst['id'];
         if(inst['id'] == null) {
           // Create Id
           final date = DateTime.now().toString();
-          if (kDebugMode) {
-            print("data creation date: $date");
-          }
           sub.id = makeSubjectId(date: date, name: sub.title);
-          if (kDebugMode) {
-            print("ID creation successful");
-          }
-        }
-        else {
-          if (kDebugMode) {
-            print("ID loading successful");
-          }
         }
 
 
         // Copy word data
         for (int i = 0; i < (inst['wordlist'] as List<dynamic>).length; i++) {
           sub.wordlist.add(Chapter.fromJson(inst['wordlist'][i]));
-          if (kDebugMode) {
-            print("Chapter loading successful : $i");
-          }
-        }
-        if (kDebugMode) {
-          print("Chapters initialising successful");
         }
 
         // Get the length of current chapters
         sub.chapterCount = sub.wordlist.length;
-        if (kDebugMode) {
-          print("Chapter Count loading successful");
-        }
 
         // Get the index of last opened Chapter
         sub.lastOpenedChapter = inst['lastOpenedChapter'];
         if(inst['lastOpenedChapter'] == null) {
           sub.lastOpenedChapter = "/";
         }
-        else {
-          if (kDebugMode) {
-            print("Last Opened Chapter loading successful");
-          }
-        }
 
         // Update version
         sub.version = appVersion;
-        if (kDebugMode) {
-          print("App Version checking successful");
-        }
 
         // Finally add created instance to the list to return
         subjects.add(sub);
-        if (kDebugMode) {
-          print("Subject initialising successful");
-        }
-      }
-      if (kDebugMode) {
-        print("Subjects initialising successful");
       }
       return subjects;
     } catch (e) {
@@ -306,15 +335,15 @@ class SubjectDataModel {
     for(Chapter copyingChapter in subject.wordlist) {
       if (kDebugMode) {
         print("==================================");
-        print("Currently copying chapter : ${copyingChapter.name}");
+        print("Currently copying chapter : ${copyingChapter.comprisePath()}");
       }
-      if(pasting.existChapterNameAlready(copyingChapter.name)) {
+      if(pasting.existChapterAlready(copyingChapter)) {
         if (kDebugMode) {
           print("==================================");
           print("The chapter is already included in the list");
         }
         for(int i = 0; i < pasting.wordlist.length; i++) {
-          if(pasting.wordlist[i].name == copyingChapter.name) {
+          if(pasting.wordlist[i].isSameChapter(as: copyingChapter)) {
             if (kDebugMode) {
               print("==================================");
               print("The chapter from pasting data found : $i");
@@ -410,9 +439,9 @@ class SubjectDataModel {
     return -1;
   }
 
-  bool existChapterNameAlready(String name) {
-    for (var element in wordlist) {
-      if(element.name == name) {
+  bool existChapterAlready(Chapter chapter) {
+    for(var element in wordlist) {
+      if(element.created == chapter.created && element.salt == chapter.salt) {
         return true;
       }
     }
@@ -431,13 +460,19 @@ class SubjectDataModel {
         if (kDebugMode) {
           print("Chapter : $j");
         }
+        if(subjectList[i].wordlist[j].salt == null) {
+          if (kDebugMode) {
+            print("invalid chapter found");
+          }
+          subjectList[i].wordlist[j].salt = generateRandomString(4);
+        }
         for(int k = 0; k < subjectList[i].wordlist[j].words.length; k++) {
           if (kDebugMode) {
             print("Word : $k");
           }
           if(subjectList[i].wordlist[j].words[k].salt == null) {
             if (kDebugMode) {
-              print("invalid data found");
+              print("invalid word pair found");
             }
             subjectList[i].wordlist[j].words[k].salt = generateRandomString(4);
           }

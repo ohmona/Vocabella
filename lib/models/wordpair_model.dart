@@ -3,8 +3,6 @@
 * examples and every wordpair class has an id
  */
 import 'package:flutter/foundation.dart';
-import 'package:vocabella/utils/configuration.dart';
-import 'package:vocabella/utils/random.dart';
 
 class WordPair {
   // Word data
@@ -140,42 +138,6 @@ class WordPair {
       return true;
     }
     return false;
-    /*// 1. All words are same
-    if (word1 == comparing.word1 && word2 == comparing.word2) {
-      if(!AppConfig.checkCreationDateWhileMerging) {
-        if (AppConfig.checkExamplesWhileMerging) {
-          if (example1 == comparing.example1 &&
-              example2 == comparing.example2) {
-            return true;
-          }
-        }
-        else {
-          return true;
-        }
-      }
-      else {
-        if(created == as.created) {
-          return true;
-        }
-      }
-    }
-
-    // 2. Only one or more is/are same
-    if(word1 == comparing.word1 || word2 == comparing.word2) {
-      if(created == as.created) {
-        return true;
-      }
-    }
-    else if(example1 == comparing.example1 ||
-        example2 == comparing.example2) {
-      if(AppConfig.checkExamplesWhileMerging) {
-        if(created == as.created) {
-          return true;
-        }
-      }
-    }
-
-    return false;*/
   }
 
   static WordPair nullWordPair() {
@@ -200,6 +162,5 @@ class WordPair {
     lastLearned = DateTime(1, 1, 1, 0, 0);
     lastPriorityFactor = null;
     totalLearned = null;
-
   }
 }

@@ -98,17 +98,6 @@ class DataReadWriteManager {
     }
   }
 
-  // SHARE DATA
-  /*static void exportData({
-    required String folderPath,
-    required String name,
-    required String contents,
-  }) {
-    final url = "$folderPath\\$name.vcb";
-    final file = File(url);
-    file.writeAsString(contents);
-  }*/
-
   static void share({required String dir, required String name}) async {
     XFile file = XFile(
         "$dir/$name");

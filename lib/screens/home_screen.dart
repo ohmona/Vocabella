@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:scroll_snap_list/scroll_snap_list.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:vocabella/overlays/loading_scene_overlay.dart';
+import 'package:vocabella/screens/planner_screen.dart';
 import 'package:vocabella/utils/constants.dart';
 import 'package:vocabella/main.dart';
 import 'package:vocabella/managers/data_handle_manager.dart';
@@ -23,9 +24,11 @@ import 'package:vocabella/screens/config_screen.dart';
 import 'package:vocabella/screens/debug_screen.dart';
 import 'package:vocabella/screens/quiz_screen.dart';
 import 'package:vocabella/screens/subject_creation_screen.dart';
+import 'package:vocabella/utils/modal.dart';
 import 'package:vocabella/utils/random.dart';
 import 'package:vocabella/widgets/recycle_bin_grid_tile_widget.dart';
 
+import '../models/event_data_model.dart';
 import '../utils/arguments.dart';
 import '../managers/session_saver.dart';
 import '../models/subject_data_model.dart';
@@ -104,6 +107,8 @@ class _BodyState extends State<Body> {
           }
 
           if (!oldOneFound) {
+            print("adding");
+            newSub.printData();
             SubjectDataModel.subjectList.add(newSub);
           }
         }
@@ -140,6 +145,8 @@ class _BodyState extends State<Body> {
       name: newChapter,
       words: [dummyWord],
       path: "/",
+      salt: generateRandomString(8),
+      created: DateTime.now(),
     );
 
     // Create dummy subject-data by just created dummy-data
@@ -683,20 +690,34 @@ class _BodyState extends State<Body> {
         IconButton(
           onPressed: () {
             setState(() {
-              reloadData();
+              // TODO Planner
+              Navigator.pushNamed(context, PlannerScreen.routeName);
             });
           },
           icon: const Icon(
-            Icons.refresh,
+            Icons.calendar_month,
           ),
         ),
         IconButton(
           onPressed: () {
-            setState(() async {
+            setState(() {
+              // TODO Session Saver
+              openAlert(context, title: "Sorry", content: "Session saver coming soon");
+            });
+          },
+          icon: const Icon(
+            Icons.watch_later_outlined,
+          ),
+        ),
+        IconButton(
+          onPressed: () {
+            setState(() {
               Navigator.of(context).push(LoadingOverlay());
-              await loadNewData();
-              Future.delayed(const Duration(milliseconds: 10), () {
-                Navigator.pop(context);
+              Future.delayed(const Duration(milliseconds: 1), () async {
+                await loadNewData();
+                Future.delayed(const Duration(milliseconds: 10), () {
+                  Navigator.pop(context);
+                });
               });
             });
           },
@@ -779,10 +800,14 @@ class _BodyState extends State<Body> {
                     if (Platform.isAndroid || Platform.isIOS)
                       IconButton(
                         onPressed: () async {
-                          DataReadWriteManager.share(
-                            dir: await DataReadWriteManager.dirPath,
-                            name: DataReadWriteManager.defaultFile,
-                          );
+                          String path = await DataReadWriteManager.dirPath;
+                          File file = File("$path/Shared Subject.json");
+                          await file
+                              .writeAsString(SubjectDataModel.listToJson(SubjectDataModel.subjectList))
+                              .then((value) async {
+                            DataReadWriteManager.share(
+                                dir: path, name: "Shared Subject.json");
+                          });
                         },
                         icon: const Icon(
                           Icons.share,
